@@ -24,9 +24,10 @@ type hchan struct {
 	recvq waitq // list of recv waiters
 	// 发送 goroutine 对应的 sudog 队列
 	sendq waitq // list of send waiters
+
 	// lock protects all fields in hchan, as well as several
 	// fields in sudogs blocked on this channel.
-
+	//
 	// Do not change another G's status while holding this lock
 	// (in particular, do not ready a G), as this can deadlock
 	// with stack shrinking.
@@ -40,5 +41,5 @@ type hchan struct {
 
 ### close
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTI1MzMwNjI0MiwxMzc4NzUyODgzXX0=
+eyJoaXN0b3J5IjpbLTEzNjMxOTU0NDgsMTM3ODc1Mjg4M119
 -->
