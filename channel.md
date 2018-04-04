@@ -49,7 +49,12 @@ func main() {
 注意，len 和 cap 并不是函数调用。编译后是直接去取 hchan 的 field 了。
 
 ## closed channel
-
+被关闭的 channel 不能再向其中发送内容，否则会 panic
+```go
+ch := make(chan int)
+close(ch)
+ch <- 1 // panic!!!
+```
 ## nil channel
 不进行初始化，即不调用 make 来赋值的 channel 称为 nil channel：
 ```go
@@ -159,5 +164,5 @@ func makechan(t *chantype, size int) *hchan {
 
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTIwMjQyMTI4NzgsMTM3ODc1Mjg4M119
+eyJoaXN0b3J5IjpbODU4MTQ0MDA2LDEzNzg3NTI4ODNdfQ==
 -->
