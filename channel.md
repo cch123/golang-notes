@@ -1,18 +1,27 @@
 # Channel
 
 ## usage
+基本的收发
 ```go
 package main
 
 func main() {
 	ch := make(chan int, 100)
 	ch <- 1
-	ch <- 1
 	for i := 0; i < 100; i++ {
 		go func() {
 			<-ch
 		}()
 	}
+}
+```
+在 channel 关闭时自动退出循环
+```go
+package main
+
+func main() {
+    ch := make(chan int, 100)
+    
 }
 ```
 ## nil channel
@@ -120,5 +129,5 @@ func makechan(t *chantype, size int) *hchan {
 
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbMTkzODk0NDM5MCwxMzc4NzUyODgzXX0=
+eyJoaXN0b3J5IjpbNzQ1MTE0Nzk4LDEzNzg3NTI4ODNdfQ==
 -->
