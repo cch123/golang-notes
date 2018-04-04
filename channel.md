@@ -128,7 +128,7 @@ type hchan struct {
 ```
 
 ## init
-```
+```go
 // 初始化 channel
 func makechan(t *chantype, size int) *hchan {
     elem := t.elem
