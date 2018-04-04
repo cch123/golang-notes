@@ -16,6 +16,7 @@ go 的有锁数据结构，CSP 概念的组成因子之一。
 	ch := make(chan int, 100)
 	ch <- 1
 ```
+
 从 channel 中接收内容：
 ```go
     var i := <- ch
@@ -149,5 +150,5 @@ func makechan(t *chantype, size int) *hchan {
 
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbMTQwMDY2MzkzMiwxMzc4NzUyODgzXX0=
+eyJoaXN0b3J5IjpbMTA5NDk5NjQ1OCwxMzc4NzUyODgzXX0=
 -->
