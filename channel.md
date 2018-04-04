@@ -30,6 +30,8 @@ func main() {
 
 ## debug
 
+# 源码分析
+
 ## hchan
 hchan 是 channel 在 runtime 中的数据结构
 ```go
@@ -131,5 +133,5 @@ func makechan(t *chantype, size int) *hchan {
 
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTk3MDc0MjY4NSwxMzc4NzUyODgzXX0=
+eyJoaXN0b3J5IjpbNTkzMDA3MTk5LDEzNzg3NTI4ODNdfQ==
 -->
