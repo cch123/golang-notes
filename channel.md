@@ -67,7 +67,8 @@ x := <-ch
 ```go
 x, ok := <-ch
 ```
-若 ok 为 false，bhm
+若 ok 为 false，表明 channel 已被关闭，所得的是无效的值。
+
 ## nil channel
 不进行初始化，即不调用 make 来赋值的 channel 称为 nil channel：
 ```go
@@ -177,5 +178,5 @@ func makechan(t *chantype, size int) *hchan {
 
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbMTY0MDQ1MDQ5NywxMzc4NzUyODgzXX0=
+eyJoaXN0b3J5IjpbMTM1MDkwNTU2MCwxMzc4NzUyODgzXX0=
 -->
