@@ -1,5 +1,11 @@
 # Channel
 
+## usage
+
+## nil channel
+
+## debug
+
 ## hchan
 hchan 是 channel 在 runtime 中的数据结构
 ```go
@@ -101,5 +107,5 @@ func makechan(t *chantype, size int) *hchan {
 
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTE5MTE5NjQwNTgsMTM3ODc1Mjg4M119
+eyJoaXN0b3J5IjpbNDAzMDY0NDQyLDEzNzg3NTI4ODNdfQ==
 -->
