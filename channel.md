@@ -67,7 +67,7 @@ func main() {
 	fmt.Println(x, ok)
 }
 ```
-虽然看起来是 ch <- 1 导致的 panic，但实际上 close 才是罪魁祸首。
+虽然看起来是 ch <- 1 导致的 panic，但实际上 close 才是罪魁祸首，在不确定是否还有 goroutine 需要向 channel 发送数据时，请勿贸然关闭 channel。
 
 可以从已经 closed 的 channel 中接收值：
 ```go
@@ -192,5 +192,5 @@ func makechan(t *chantype, size int) *hchan {
 
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTkxNDEzNzEzMywxMzc4NzUyODgzXX0=
+eyJoaXN0b3J5IjpbMzA3NjEyODMyLDEzNzg3NTI4ODNdfQ==
 -->
