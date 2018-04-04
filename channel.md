@@ -47,7 +47,10 @@ func main() {
 ```
 注意，len 和 cap 并不是函数调用。编译后是直接去取 hchan 的 field 了。
 
-## debug
+## nil channel
+不进行初始化，即不调用 make 来赋值的 channel 称为 nil channel：
+```go
+```
 
 # 源码分析
 
@@ -152,5 +155,5 @@ func makechan(t *chantype, size int) *hchan {
 
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbOTEwODA2NiwxMzc4NzUyODgzXX0=
+eyJoaXN0b3J5IjpbMTMzNDM3MjQxLDEzNzg3NTI4ODNdfQ==
 -->
