@@ -53,8 +53,9 @@ func main() {
 ```go
 ch := make(chan int)
 close(ch)
-ch <- 1 // panic!!!
+ch <- 1 // panic: send on closed channel
 ```
+但是可以从已经 closed 的 channel 中接收值：
 ## nil channel
 不进行初始化，即不调用 make 来赋值的 channel 称为 nil channel：
 ```go
@@ -164,5 +165,5 @@ func makechan(t *chantype, size int) *hchan {
 
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbODU4MTQ0MDA2LDEzNzg3NTI4ODNdfQ==
+eyJoaXN0b3J5IjpbMTE3NDE4MTY2NiwxMzc4NzUyODgzXX0=
 -->
