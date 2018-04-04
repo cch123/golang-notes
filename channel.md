@@ -1,7 +1,20 @@
 # Channel
 
 ## usage
+```go
+package main
 
+func main() {
+	ch := make(chan int, 100)
+	ch <- 1
+	ch <- 1
+	for i := 0; i < 100; i++ {
+		go func() {
+			<-ch
+		}()
+	}
+}
+```
 ## nil channel
 
 ## debug
@@ -107,5 +120,5 @@ func makechan(t *chantype, size int) *hchan {
 
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbNDAzMDY0NDQyLDEzNzg3NTI4ODNdfQ==
+eyJoaXN0b3J5IjpbMTkzODk0NDM5MCwxMzc4NzUyODgzXX0=
 -->
