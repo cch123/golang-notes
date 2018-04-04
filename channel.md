@@ -22,7 +22,15 @@ func main() {
     }
 }
 ```
-channel 中元素数量、
+channel 中元素数量、buffer 容量
+```go
+func main() {
+    ch := make(chan int, 100)
+    ch <- 1
+    fmt.Println(len(ch)) // 1
+    fmt.Println(cap(ch)) // 100
+}
+```
 
 ## debug
 
@@ -129,5 +137,5 @@ func makechan(t *chantype, size int) *hchan {
 
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTExMzE4Njk3NDIsMTM3ODc1Mjg4M119
+eyJoaXN0b3J5IjpbLTExNDA4ODU4NDcsMTM3ODc1Mjg4M119
 -->
