@@ -3,7 +3,6 @@
 
 ```go
 // channel 在 runtime 中的结构体
-
 type hchan struct {
 	// 队列中目前的元素计数
 	qcount uint // total data in the queue
@@ -26,21 +25,20 @@ type hchan struct {
 	// 发送 goroutine 对应的 sudog 队列
 	sendq waitq // list of send waiters
 	// lock protects all fields in hchan, as well as several
+	// fields in sudogs blocked on this channel.
 
-// fields in sudogs blocked on this channel.
-
-//
-
-// Do not change another G's status while holding this lock
-
-// (in particular, do not ready a G), as this can deadlock
-
-// with stack shrinking.
-
-lock mutex
-
+	// Do not change another G's status while holding this lock
+	// (in particular, do not ready a G), as this can deadlock
+	// with stack shrinking.
+	lock mutex
 }
 ```
+
+### send
+
+### receive
+
+### close
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbMTIyNzkyNTkyLDEzNzg3NTI4ODNdfQ==
+eyJoaXN0b3J5IjpbLTI1MzMwNjI0MiwxMzc4NzUyODgzXX0=
 -->
