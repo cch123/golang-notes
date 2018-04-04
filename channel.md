@@ -55,13 +55,14 @@ ch := make(chan int)
 close(ch)
 ch <- 1 // panic: send on closed channel
 ```
+
 但是可以从已经 closed 的 channel 中接收值：
 ```go
 ch := make(chan int)
 close(ch)
 x := <-ch
 ```
-如果 channel 中有值(一般指带 buffer 的 channel)或者有挂在 channel 上的 sender goroutine，那么就从 channel 中/sender goroutine 取，如果没有值，那么会返回 channel 元素的 0 值。
+如果 channel 中有值，这里特指带 buffer 的 channel，那么就从 channel 中取，如果没有值，那么会返回 channel 元素的 0 值。
 
 区分是返回的零值还是 buffer/sender goroutine 发来的值可使用 comma, ok 语法：
 ```go
@@ -178,5 +179,5 @@ func makechan(t *chantype, size int) *hchan {
 
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbMTM1MDkwNTU2MCwxMzc4NzUyODgzXX0=
+eyJoaXN0b3J5IjpbLTEwMzI1OTAxLDEzNzg3NTI4ODNdfQ==
 -->
