@@ -1,7 +1,9 @@
+## Channel
+### 数据结构
 
-
-
-> Written with [StackEdit](https://stackedit.io/).
+```go
+package main
+```
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbMTU2NDc2MjMyMywxMzc4NzUyODgzXX0=
+eyJoaXN0b3J5IjpbLTc2NDEzNjEwNywxMzc4NzUyODgzXX0=
 -->
