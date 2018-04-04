@@ -67,7 +67,7 @@ func main() {
 	fmt.Println(x, ok)
 }
 ```
-虽然看起来是 ch <- 1 导致的 panic，但实际上q
+虽然看起来是 ch <- 1 导致的 panic，但实际上 close 才是罪魁祸首。
 
 可以从已经 closed 的 channel 中接收值：
 ```go
@@ -192,5 +192,5 @@ func makechan(t *chantype, size int) *hchan {
 
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTEzNzg4OTMyNzEsMTM3ODc1Mjg4M119
+eyJoaXN0b3J5IjpbLTkxNDEzNzEzMywxMzc4NzUyODgzXX0=
 -->
