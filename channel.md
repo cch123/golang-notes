@@ -35,7 +35,7 @@ func main() {
     }
 }
 ```
-channel 中元素数量、buffer 容量
+获取 channel 中元素数量、buffer 容量：
 ```go
 func main() {
     ch := make(chan int, 100)
@@ -44,6 +44,7 @@ func main() {
     fmt.Println(cap(ch)) // 100
 }
 ```
+注意，len 和 cap 实际上并不是函数调用。编译后是直接去取 hchan 的 field 了。
 
 ## debug
 
@@ -150,5 +151,5 @@ func makechan(t *chantype, size int) *hchan {
 
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbNDY1NjM4MDY1LDEzNzg3NTI4ODNdfQ==
+eyJoaXN0b3J5IjpbLTE3MTUyMjIwNDcsMTM3ODc1Mjg4M119
 -->
