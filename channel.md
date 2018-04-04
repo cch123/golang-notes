@@ -98,11 +98,8 @@ func makechan(t *chantype, size int) *hchan {
 
 ## close
 
-## usage
 
-## nil channel
 
-## debug
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTE2OTM0OTAwNDAsMTM3ODc1Mjg4M119
+eyJoaXN0b3J5IjpbLTE5MTE5NjQwNTgsMTM3ODc1Mjg4M119
 -->
