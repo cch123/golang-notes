@@ -77,7 +77,7 @@ x := <-ch
 ```
 如果 channel 中有值，这里特指带 buffer 的 channel，那么就从 channel 中取，如果没有值，那么会返回 channel 元素的 0 值。
 
-区分是返回的零值还是 buffer/sender goroutine 发来的值可使用 comma, ok 语法：
+区分是返回的零值还是 buffer 中的值可使用 comma, ok 语法：
 ```go
 x, ok := <-ch
 ```
@@ -192,5 +192,5 @@ func makechan(t *chantype, size int) *hchan {
 
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbMzA3NjEyODMyLDEzNzg3NTI4ODNdfQ==
+eyJoaXN0b3J5IjpbMTI3NTY4NDUxOSwxMzc4NzUyODgzXX0=
 -->
