@@ -24,6 +24,7 @@ go 的有锁数据结构，CSP 概念的组成因子之一。
 ```go
     close(ch)
 ```
+
 在 channel 关闭时自动退出循环
 ```go
 func main() {
@@ -148,5 +149,5 @@ func makechan(t *chantype, size int) *hchan {
 
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbMTI0NDM4MTI2MiwxMzc4NzUyODgzXX0=
+eyJoaXN0b3J5IjpbMTQwMDY2MzkzMiwxMzc4NzUyODgzXX0=
 -->
