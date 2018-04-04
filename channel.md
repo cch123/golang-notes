@@ -3,8 +3,6 @@
 ## usage
 基本的收发
 ```go
-package main
-
 func main() {
 	ch := make(chan int, 100)
 	ch <- 1
@@ -17,8 +15,6 @@ func main() {
 ```
 在 channel 关闭时自动退出循环
 ```go
-package main
-
 func main() {
     ch := make(chan int, 100)
     for i := range ch {
@@ -26,7 +22,7 @@ func main() {
     }
 }
 ```
-## nil channel
+channel 中元素数量、
 
 ## debug
 
@@ -133,5 +129,5 @@ func makechan(t *chantype, size int) *hchan {
 
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbNTkzMDA3MTk5LDEzNzg3NTI4ODNdfQ==
+eyJoaXN0b3J5IjpbLTExMzE4Njk3NDIsMTM3ODc1Mjg4M119
 -->
