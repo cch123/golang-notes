@@ -30,7 +30,7 @@ go 的有锁数据结构，CSP 概念的组成因子之一。
 ```go
 func main() {
     ch := make(chan int, 100)
-    for i := range ch {
+    for elem := range ch { // 主要就是这里的 for range...
         fmt.Println(i)
     }
 }
@@ -150,5 +150,5 @@ func makechan(t *chantype, size int) *hchan {
 
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbMjY5NDk2MDY2LDEzNzg3NTI4ODNdfQ==
+eyJoaXN0b3J5IjpbNDY1NjM4MDY1LDEzNzg3NTI4ODNdfQ==
 -->
