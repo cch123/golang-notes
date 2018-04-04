@@ -61,7 +61,7 @@ ch := make(chan int)
 close(ch)
 x := <-ch
 ```
-如果 channel 中有值，那么就从 channel 中取
+如果 channel 中有值(一般指带 buffer 的 channel)或者有挂在 channel 上的 sender goroutine，那么就从 channel 中/sender goroutine 取，如果没有值，那么会返回 channel 元素
 ## nil channel
 不进行初始化，即不调用 make 来赋值的 channel 称为 nil channel：
 ```go
@@ -171,5 +171,5 @@ func makechan(t *chantype, size int) *hchan {
 
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbNjg2MzA2MjAsMTM3ODc1Mjg4M119
+eyJoaXN0b3J5IjpbLTE2MTY5MzM1OTAsMTM3ODc1Mjg4M119
 -->
