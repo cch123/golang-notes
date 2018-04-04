@@ -1,5 +1,6 @@
-## Channel
-### 数据结构
+# Channel
+
+## 数据结构
 
 ```go
 // channel 在 runtime 中的结构体
@@ -35,11 +36,11 @@ type hchan struct {
 }
 ```
 
-### send
+## send
 
-### receive
+## receive
 
-### close
+## close
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTExMjc4NTUxMzksMTM3ODc1Mjg4M119
+eyJoaXN0b3J5IjpbLTg1NTM3NjE0NiwxMzc4NzUyODgzXX0=
 -->
