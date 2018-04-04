@@ -1,7 +1,14 @@
 # Channel
-
+go 的有锁数据结构，CSP 概念的组成因子之一。
 ## usage
-基本的收发
+阻塞式 channel ：
+```go
+    var a = make(chan int)
+```
+非阻塞 channel：
+```go
+    var a = make
+```
 ```go
 func main() {
 	ch := make(chan int, 100)
@@ -137,5 +144,5 @@ func makechan(t *chantype, size int) *hchan {
 
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTExNDA4ODU4NDcsMTM3ODc1Mjg4M119
+eyJoaXN0b3J5IjpbLTE0NTY5MDQ1MTIsMTM3ODc1Mjg4M119
 -->
