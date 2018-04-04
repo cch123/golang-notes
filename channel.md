@@ -6,7 +6,7 @@
 type hchan struct {
 	// 队列中目前的元素计数
 	qcount uint // total data in the queue
-	// 环形队列的总大小
+	// 环形队列的总大小，ch := make(chan int, 10) => 就是这里这个 10
 	dataqsiz uint // size of the circular queue
 	// void * 的内存 buffer 区域
 	buf unsafe.Pointer // points to an array of dataqsiz elements
@@ -41,5 +41,5 @@ type hchan struct {
 
 ### close
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTEzNjMxOTU0NDgsMTM3ODc1Mjg4M119
+eyJoaXN0b3J5IjpbLTExMjc4NTUxMzksMTM3ODc1Mjg4M119
 -->
