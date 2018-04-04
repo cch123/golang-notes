@@ -21,7 +21,9 @@ package main
 
 func main() {
     ch := make(chan int, 100)
-    
+    for i := range ch {
+	    fmt.Println(i)
+    }
 }
 ```
 ## nil channel
@@ -129,5 +131,5 @@ func makechan(t *chantype, size int) *hchan {
 
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbNzQ1MTE0Nzk4LDEzNzg3NTI4ODNdfQ==
+eyJoaXN0b3J5IjpbLTk3MDc0MjY4NSwxMzc4NzUyODgzXX0=
 -->
