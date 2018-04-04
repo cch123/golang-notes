@@ -58,9 +58,8 @@ ch <- 1 // panic: send on closed channel
 注意，如果 close channel 时，有 sender goroutine 挂在 channel 的阻塞发送队列中，会导致 panic：
 ```go
 func main() {
-	ch := make(chan int, 1)
-	go func() { ch <- 1 }()
-	go func() { ch <- 1 }()
+	ch := make(chan int)
+	go func() { ch <- 1 }() // panic: send on closed channel
 	time.Sleep(time.Second)
 	go func() { close(ch) }()
 	time.Sleep(time.Second)
@@ -68,6 +67,8 @@ func main() {
 	fmt.Println(x, ok)
 }
 ```
+虽然看起来是 ch <- 1 导致的 panic，但实际上q
+
 可以从已经 closed 的 channel 中接收值：
 ```go
 ch := make(chan int)
@@ -191,5 +192,5 @@ func makechan(t *chantype, size int) *hchan {
 
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTEzMzg5NDg4NywxMzc4NzUyODgzXX0=
+eyJoaXN0b3J5IjpbLTEzNzg4OTMyNzEsMTM3ODc1Mjg4M119
 -->
