@@ -55,8 +55,20 @@ ch := make(chan int)
 close(ch)
 ch <- 1 // panic: send on closed channel
 ```
-注意，如果 close channel 时，有 sender goroutine 挂在 channel 的阻塞发送队列中，会导致 panic。
-但是可以从已经 closed 的 channel 中接收值：
+注意，如果 close channel 时，有 sender goroutine 挂在 channel 的阻塞发送队列中，会导致 panic：
+```go
+func main() {
+	ch := make(chan int, 1)
+	go func() { ch <- 1 }()
+	go func() { ch <- 1 }()
+	time.Sleep(time.Second)
+	go func() { close(ch) }()
+	time.Sleep(time.Second)
+	x, ok := <-ch
+	fmt.Println(x, ok)
+}
+```
+可以从已经 closed 的 channel 中接收值：
 ```go
 ch := make(chan int)
 close(ch)
@@ -179,5 +191,5 @@ func makechan(t *chantype, size int) *hchan {
 
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbNzg0MzMyMzY3LDEzNzg3NTI4ODNdfQ==
+eyJoaXN0b3J5IjpbLTEzMzg5NDg4NywxMzc4NzUyODgzXX0=
 -->
