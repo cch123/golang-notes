@@ -11,18 +11,16 @@ go 的有锁数据结构，CSP 概念的组成因子之一。
 ```
 阻塞和非阻塞关键就在是否有 capacity。没有 capacity 的话，channel 也就只是个同步通信工具。
 
-从 channel 中接收内容：
+向 channel 中发送内容：
 ```go
-func main() {
 	ch := make(chan int, 100)
 	ch <- 1
-	for i := 0; i < 100; i++ {
-		go func() {
-			<-ch
-		}()
-	}
-}
 ```
+从 channel 中接收内容：
+```go
+    var i := <- ch
+```
+
 在 channel 关闭时自动退出循环
 ```go
 func main() {
@@ -147,5 +145,5 @@ func makechan(t *chantype, size int) *hchan {
 
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbMTQ0OTY1OTY3LDEzNzg3NTI4ODNdfQ==
+eyJoaXN0b3J5IjpbLTgwMjI3NjYxLDEzNzg3NTI4ODNdfQ==
 -->
