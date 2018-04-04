@@ -1,7 +1,7 @@
 # Channel
 
-## 数据结构
-
+## hchan
+hchan 是 channel 在 runtime 中的数据结构
 ```go
 // channel 在 runtime 中的结构体
 type hchan struct {
@@ -104,5 +104,5 @@ func makechan(t *chantype, size int) *hchan {
 
 ## debug
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbMTcxNTQ3Mjg0NSwxMzc4NzUyODgzXX0=
+eyJoaXN0b3J5IjpbLTE2OTM0OTAwNDAsMTM3ODc1Mjg4M119
 -->
