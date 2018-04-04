@@ -44,7 +44,7 @@ func main() {
     fmt.Println(cap(ch)) // 100
 }
 ```
-注意，len 和 cap 实际上并不是函数调用。编译后是直接去取 hchan 的 field 了。
+注意，len 和 cap 并不是函数调用。编译后是直接去取 hchan 的 field 了。
 
 ## debug
 
@@ -151,5 +151,5 @@ func makechan(t *chantype, size int) *hchan {
 
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTE3MTUyMjIwNDcsMTM3ODc1Mjg4M119
+eyJoaXN0b3J5IjpbMTk1MTI2OTE3MiwxMzc4NzUyODgzXX0=
 -->
