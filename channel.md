@@ -41,6 +41,12 @@ type hchan struct {
 ## receive
 
 ## close
+
+## usage
+
+## nil channel
+
+## debug
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTg1NTM3NjE0NiwxMzc4NzUyODgzXX0=
+eyJoaXN0b3J5IjpbMjA3MTM3MTc4LDEzNzg3NTI4ODNdfQ==
 -->
