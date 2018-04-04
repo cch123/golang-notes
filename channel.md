@@ -4,27 +4,28 @@ go 的有锁数据结构，CSP 概念的组成因子之一。
 ## usage
 阻塞式 channel ：
 ```go
-    var a = make(chan int)
+var a = make(chan int)
 ```
 非阻塞 channel：
 ```go
-    var a = make(chan int, 10)
+var a = make(chan int, 10)
 ```
 阻塞和非阻塞关键就在是否有 capacity。没有 capacity 的话，channel 也就只是个同步通信工具。
 
 向 channel 中发送内容：
 ```go
-    ch := make(chan int, 100)
-    ch <- 1
+ch := make(chan int, 100)
+ch <- 1
 ```
 
 从 channel 中接收内容：
 ```go
-    var i := <- ch
+var i := <- ch
 ```
+
 关闭 channel：
 ```go
-    close(ch)
+close(ch)
 ```
 
 在 channel 关闭时自动退出循环
@@ -47,9 +48,12 @@ func main() {
 ```
 注意，len 和 cap 并不是函数调用。编译后是直接去取 hchan 的 field 了。
 
+## closed channel
+
 ## nil channel
 不进行初始化，即不调用 make 来赋值的 channel 称为 nil channel：
 ```go
+var a = chan int
 ```
 
 # 源码分析
@@ -155,5 +159,5 @@ func makechan(t *chantype, size int) *hchan {
 
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbMTMzNDM3MjQxLDEzNzg3NTI4ODNdfQ==
+eyJoaXN0b3J5IjpbLTIwMjQyMTI4NzgsMTM3ODc1Mjg4M119
 -->
