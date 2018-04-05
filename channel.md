@@ -518,7 +518,57 @@ func chanrecv(c *hchan, ep unsafe.Pointer, block bool) (selected, received bool)
     return true, !closed
 }
 
+// recv processes a receive operation on a full channel c.
+// There are 2 parts:
+// 1) The value sent by the sender sg is put into the channel
+//    and the sender is woken up to go on its merry way.
+// 2) The value received by the receiver (the current G) is
+//    written to ep.
+// For synchronous channels, both values are the same.
+// For asynchronous channels, the receiver gets its data from
+// the channel buffer and the sender's data is put in the
+// channel buffer.
+// Channel c must be full and locked. recv unlocks c with unlockf.
+// sg must already be dequeued from c.
+// A non-nil ep must point to the heap or the caller's stack.
+func recv(c *hchan, sg *sudog, ep unsafe.Pointer, unlockf func(), skip int) {
+	if c.dataqsiz == 0 {
+		if ep != nil {
+			// copy data from sender
+			recvDirect(c.elemtype, sg, ep)
+		}
+	} else {
+		// Queue is full. Take the item at the
+		// head of the queue. Make the sender enqueue
+		// its item at the tail of the queue. Since the
+		// queue is full, those are both the same slot.
+		qp := chanbuf(c, c.recvx)
 
+		// copy data from queue to receiver
+		// 英文写的很明白
+		if ep != nil {
+			typedmemmove(c.elemtype, ep, qp)
+		}
+		// copy data from sender to queue
+		// 英文写的很明白
+		typedmemmove(c.elemtype, qp, sg.elem)
+		c.recvx++
+		if c.recvx == c.dataqsiz {
+			c.recvx = 0
+		}
+		c.sendx = c.recvx // c.sendx = (c.sendx+1) % c.dataqsiz
+	}
+	sg.elem = nil
+	gp := sg.g
+	unlockf()
+	gp.param = unsafe.Pointer(sg)
+	if sg.releasetime != 0 {
+		sg.releasetime = cputicks()
+	}
+
+	// Gwaiting -> Grunnable
+	goready(gp, skip+1)
+}
 ```
 
 ## close
@@ -612,5 +662,5 @@ func closechan(c *hchan) {
 eyJoaXN0b3J5IjpbMTY2OTk4NTMzMywxMzc4NzUyODgzXX0=
 -->
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbNzg5OTk5NjA2XX0=
+eyJoaXN0b3J5IjpbMTQ2ODg5Nzg4M119
 -->
