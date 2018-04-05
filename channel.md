@@ -188,12 +188,84 @@ func makechan(t *chantype, size int) *hchan {
 ## receive
 
 ## close
+```go
+func closechan(c *hchan) {
+	if c == nil {
+		panic(plainError("close of nil channel"))
+	}
 
+	lock(&c.lock)
+	if c.closed != 0 {
+		unlock(&c.lock)
+		panic(plainError("close of closed channel"))
+	}
+
+	if raceenabled {
+		callerpc := getcallerpc()
+		racewritepc(unsafe.Pointer(c), callerpc, funcPC(closechan))
+		racerelease(unsafe.Pointer(c))
+	}
+
+	c.closed = 1
+
+	var glist *g
+
+	// release all readers
+	for {
+		sg := c.recvq.dequeue()
+		if sg == nil {
+			break
+		}
+		if sg.elem != nil {
+			typedmemclr(c.elemtype, sg.elem)
+			sg.elem = nil
+		}
+		if sg.releasetime != 0 {
+			sg.releasetime = cputicks()
+		}
+		gp := sg.g
+		gp.param = nil
+		if raceenabled {
+			raceacquireg(gp, unsafe.Pointer(c))
+		}
+		gp.schedlink.set(glist)
+		glist = gp
+	}
+
+	// release all writers (they will panic)
+	for {
+		sg := c.sendq.dequeue()
+		if sg == nil {
+			break
+		}
+		sg.elem = nil
+		if sg.releasetime != 0 {
+			sg.releasetime = cputicks()
+		}
+		gp := sg.g
+		gp.param = nil
+		if raceenabled {
+			raceacquireg(gp, unsafe.Pointer(c))
+		}
+		gp.schedlink.set(glist)
+		glist = gp
+	}
+	unlock(&c.lock)
+
+	// Ready all Gs now that we've dropped the channel lock.
+	for glist != nil {
+		gp := glist
+		glist = glist.schedlink.ptr()
+		gp.schedlink = 0
+		goready(gp, 3)
+	}
+}
+```
 
 
 <!--stackedit_data:
 eyJoaXN0b3J5IjpbMTY2OTk4NTMzMywxMzc4NzUyODgzXX0=
 -->
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTEyNzk4NzA3MzVdfQ==
+eyJoaXN0b3J5IjpbLTE2NTQyMDQ5NDhdfQ==
 -->
