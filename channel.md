@@ -386,12 +386,6 @@ func closechan(c *hchan) {
         panic(plainError("close of closed channel"))
     }
 
-    if raceenabled {
-        callerpc := getcallerpc()
-        racewritepc(unsafe.Pointer(c), callerpc, funcPC(closechan))
-        racerelease(unsafe.Pointer(c))
-    }
-
     c.closed = 1
 
     var glist *g
@@ -420,9 +414,6 @@ func closechan(c *hchan) {
         // 为最后将全部 goroutine 都 ready 做准备
         gp := sg.g
         gp.param = nil
-        if raceenabled {
-            raceacquireg(gp, unsafe.Pointer(c))
-        }
         gp.schedlink.set(glist)
         glist = gp
     }
@@ -444,9 +435,6 @@ func closechan(c *hchan) {
         // 为最后将全部 goroutine 都 ready 做准备
         gp := sg.g
         gp.param = nil
-        if raceenabled {
-            raceacquireg(gp, unsafe.Pointer(c))
-        }
         gp.schedlink.set(glist)
         glist = gp
     }
@@ -471,5 +459,5 @@ func closechan(c *hchan) {
 eyJoaXN0b3J5IjpbMTY2OTk4NTMzMywxMzc4NzUyODgzXX0=
 -->
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTk0NTM0OTY5M119
+eyJoaXN0b3J5IjpbLTE2NjYzMDAxMTVdfQ==
 -->
