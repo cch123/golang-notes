@@ -101,7 +101,7 @@ var a = chan int
 close(a) // panic: close of nil channel
 ```
 ### close principle
-在可以的情况下都由 sender 来关闭 goroutine。多个 
+在可以的情况下都由 sender 来关闭 goroutine。个别情况下需要 done channel 介入进行通知。多个 sender 时可能没法判断任务何时完成，这时候的做法是，不关闭 channel，等待 gc 对 channel 进行回收。
 
 # 源码分析
 
@@ -471,5 +471,5 @@ func closechan(c *hchan) {
 eyJoaXN0b3J5IjpbMTY2OTk4NTMzMywxMzc4NzUyODgzXX0=
 -->
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbMTIyMDg2NDYyOV19
+eyJoaXN0b3J5IjpbLTk0NTM0OTY5M119
 -->
