@@ -72,7 +72,9 @@ func main() {
     fmt.Println(x, ok)
 }
 ```
-close 过程会唤醒所有等待在该 channel 上的 g，并使其进入 Grunnable 状态，然后这些 writer goroutine 就 panic了。在不确定是否还有 goroutine 需要向 channel 发送数据时，请勿贸然关闭 channel。
+close 一个 channel 会唤醒所有等待在该 channel 上的 g，并使其进入 Grunnable 状态，这时这些 writer goroutine 会发现该 channel 已经是 closed 状态，就 panic了。
+
+在不确定是否还有 goroutine 需要向 channel 发送数据时，请勿贸然关闭 channel。
 
 可以从已经 closed 的 channel 中接收值：
 ```go
@@ -300,5 +302,5 @@ func closechan(c *hchan) {
 eyJoaXN0b3J5IjpbMTY2OTk4NTMzMywxMzc4NzUyODgzXX0=
 -->
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTc0NzgyMDEzN119
+eyJoaXN0b3J5IjpbNDYxMzQ2NTAxXX0=
 -->
