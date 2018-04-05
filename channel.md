@@ -72,7 +72,7 @@ func main() {
     fmt.Println(x, ok)
 }
 ```
-虽然看起来是 ch <- 1 导致的 panic，但实际上 close 才是罪魁祸首，在不确定是否还有 goroutine 需要向 channel 发送数据时，请勿贸然关闭 channel。
+close 过程会唤醒所有等待在该 channel 上的 g，并使其进入 Grunnable 状态，然后这些 writer goroutine 就 panic了。在不确定是否还有 goroutine 需要向 channel 发送数据时，请勿贸然关闭 channel。
 
 可以从已经 closed 的 channel 中接收值：
 ```go
@@ -300,5 +300,5 @@ func closechan(c *hchan) {
 eyJoaXN0b3J5IjpbMTY2OTk4NTMzMywxMzc4NzUyODgzXX0=
 -->
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbMTI2NzI2MjYxN119
+eyJoaXN0b3J5IjpbLTc0NzgyMDEzN119
 -->
