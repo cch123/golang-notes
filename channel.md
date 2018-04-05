@@ -517,6 +517,8 @@ func chanrecv(c *hchan, ep unsafe.Pointer, block bool) (selected, received bool)
     // 如果 channel 未被关闭，那就是真的 recv 到数据了
     return true, !closed
 }
+
+
 ```
 
 ## close
@@ -610,5 +612,5 @@ func closechan(c *hchan) {
 eyJoaXN0b3J5IjpbMTY2OTk4NTMzMywxMzc4NzUyODgzXX0=
 -->
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbOTU3MzE3NjU4XX0=
+eyJoaXN0b3J5IjpbNzg5OTk5NjA2XX0=
 -->
