@@ -93,6 +93,11 @@ x, ok := <-ch
 ```go
 var a = chan int
 ```
+关闭一个 nil channel 会直接 panic
+```go
+var a = chan int
+close(a) // panic: close of nil channel
+```
 
 # 源码分析
 
@@ -201,5 +206,5 @@ func makechan(t *chantype, size int) *hchan {
 eyJoaXN0b3J5IjpbMTY2OTk4NTMzMywxMzc4NzUyODgzXX0=
 -->
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTg0NzA0NjkxXX0=
+eyJoaXN0b3J5IjpbLTE5ODE5NDY2OTldfQ==
 -->
