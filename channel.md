@@ -338,7 +338,30 @@ func chansend(c *hchan, ep unsafe.Pointer, block bool, callerpc uintptr) bool {
 	return true
 }
 
+// send processes a send operation on an empty channel c.
+// The value ep sent by the sender is copied to the receiver sg.
+// The receiver is then woken up to go on its merry way.
+// Channel c must be empty and locked.  send unlocks c with unlockf.
+// sg must already be dequeued from c.
+// ep must be non-nil and point to the heap or the caller's stack.
+// 英文已经说的比较明白了。。
+func send(c *hchan, sg *sudog, ep unsafe.Pointer, unlockf func(), skip int) {
+	// receiver 的 sudog 已经在对应区域分配过空间
+	// 我们只要把数据拷贝过去
+	if sg.elem != nil {
+		sendDirect(c.elemtype, sg, ep)
+		sg.elem = nil
+	}
+	gp := sg.g
+	unlockf()
+	gp.param = unsafe.Pointer(sg)
+	if sg.releasetime != 0 {
+		sg.releasetime = cputicks()
+	}
 
+	// Gwaiting -> Grunnable
+	goready(gp, skip+1)
+}
 
 ```
 ## receive
@@ -446,5 +469,5 @@ func closechan(c *hchan) {
 eyJoaXN0b3J5IjpbMTY2OTk4NTMzMywxMzc4NzUyODgzXX0=
 -->
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTE1NjI4MjkwMzVdfQ==
+eyJoaXN0b3J5IjpbLTE5ODU3NTc0NTVdfQ==
 -->
