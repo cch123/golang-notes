@@ -105,7 +105,7 @@ close(a) // panic: close of nil channel
 
 一旦 sender 有多个，可能就无法判断数据是否完毕了。这时候可以借助外部额外 channel 来做信号广播。这种做法类似于 done channel，或者 stop channel。
 
-可参考：
+可参考：[graceful close channel](https://go101.org/article/channel-closing.html)
 
 # 源码分析
 
@@ -666,5 +666,5 @@ func closechan(c *hchan) {
 eyJoaXN0b3J5IjpbMTY2OTk4NTMzMywxMzc4NzUyODgzXX0=
 -->
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbMTM4NDQyNDUyNF19
+eyJoaXN0b3J5IjpbLTY3NTIzMzU5MF19
 -->
