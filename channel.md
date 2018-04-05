@@ -101,7 +101,9 @@ var a = chan int
 close(a) // panic: close of nil channel
 ```
 ## close principle
-一个
+一个 sender，多个 receiver，由 sender 来关闭 channel，通知数据已发送完毕。
+
+多
 
 # 源码分析
 
@@ -662,5 +664,5 @@ func closechan(c *hchan) {
 eyJoaXN0b3J5IjpbMTY2OTk4NTMzMywxMzc4NzUyODgzXX0=
 -->
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbMTQyMjY4ODA3OV19
+eyJoaXN0b3J5IjpbMTgwMzI3MjA5OV19
 -->
