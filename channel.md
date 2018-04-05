@@ -197,6 +197,149 @@ func makechan(t *chantype, size int) *hchan {
 
 ## send
 ```go
+// entry point for c <- x from compiled code
+// 英文写的比较明白了。。
+//go:nosplit
+func chansend1(c *hchan, elem unsafe.Pointer) {
+	chansend(c, elem, true, getcallerpc())
+}
+
+func chansend(c *hchan, ep unsafe.Pointer, block bool, callerpc uintptr) bool {
+	// 应用层的 channel 为空
+	// 例如 var a chan int
+	// a<-1
+	if c == nil {
+		if !block {
+			return false
+		}
+		// nil channel 发送数据会永远阻塞下去
+		// PS：注意，会发生 panic 那种情况是 channel 被 closed 了，不是 nil channel
+		// 挂起当前 goroutine
+		gopark(nil, nil, "chan send (nil chan)", traceEvGoStop, 2)
+		throw("unreachable")
+	}
+
+	// Fast path: check for failed non-blocking operation without acquiring the lock.
+	//
+	// After observing that the channel is not closed, we observe that the channel is
+	// not ready for sending. Each of these observations is a single word-sized read
+	// (first c.closed and second c.recvq.first or c.qcount depending on kind of channel).
+	// Because a closed channel cannot transition from 'ready for sending' to
+	// 'not ready for sending', even if the channel is closed between the two observations,
+	// they imply a moment between the two when the channel was both not yet closed
+	// and not ready for sending. We behave as if we observed the channel at that moment,
+	// and report that the send cannot proceed.
+	//
+	// It is okay if the reads are reordered here: if we observe that the channel is not
+	// ready for sending and then observe that it is not closed, that implies that the
+	// channel wasn't closed during the first observation.
+	if !block && c.closed == 0 && ((c.dataqsiz == 0 && c.recvq.first == nil) ||
+		(c.dataqsiz > 0 && c.qcount == c.dataqsiz)) {
+		return false
+	}
+
+	var t0 int64
+	if blockprofilerate > 0 {
+		t0 = cputicks()
+	}
+
+	lock(&c.lock)
+
+	// channel 已被关闭，panic
+	if c.closed != 0 {
+		unlock(&c.lock)
+		panic(plainError("send on closed channel"))
+	}
+
+	if sg := c.recvq.dequeue(); sg != nil {
+		// Found a waiting receiver. We pass the value we want to send
+		// directly to the receiver, bypassing the channel buffer (if any).
+		// 寻找一个等待中的 receiver
+		// 越过 channel 的 buffer
+		// 直接把要发的数据拷贝给这个 receiver
+		// 然后就返
+		send(c, sg, ep, func() { unlock(&c.lock) }, 3)
+		return true
+	}
+
+	// qcount 是 buffer 中已塞进的元素数量
+	// dataqsize 是 buffer 的总大小
+	// 说明还有余量
+	if c.qcount < c.dataqsiz {
+		// Space is available in the channel buffer. Enqueue the element to send.
+		qp := chanbuf(c, c.sendx)
+
+		// 将 goroutine 的数据拷贝到 buffer 中
+		typedmemmove(c.elemtype, qp, ep)
+
+		// 将发送 index 加一
+		c.sendx++
+		// 环形队列，所以如果已经加到最大了，就回 0
+		if c.sendx == c.dataqsiz {
+			c.sendx = 0
+		}
+		// 将 buffer 的元素计数 +1
+		c.qcount++
+		unlock(&c.lock)
+		return true
+	}
+
+	if !block {
+		unlock(&c.lock)
+		return false
+	}
+
+	// Block on the channel. Some receiver will complete our operation for us.
+	// 在 channel 上阻塞，receiver 会帮我们完成后续的工作
+	gp := getg()
+	mysg := acquireSudog()
+	mysg.releasetime = 0
+	if t0 != 0 {
+		mysg.releasetime = -1
+	}
+	// No stack splits between assigning elem and enqueuing mysg
+	// on gp.waiting where copystack can find it.
+	// 打包 sudog
+	mysg.elem = ep
+	mysg.waitlink = nil
+	mysg.g = gp
+	mysg.isSelect = false
+	mysg.c = c
+	gp.waiting = mysg
+	gp.param = nil
+
+	// 将当前这个发送 goroutine 打包后的 sudog 入队到 channel 的 sendq 队列中
+	c.sendq.enqueue(mysg)
+
+	// 将这个发送 g 从 Grunning -> Gwaiting
+	// 进入休眠
+	goparkunlock(&c.lock, "chan send", traceEvGoBlockSend, 3)
+
+	// someone woke us up.
+	// 这里是被唤醒后要执行的代码
+	if mysg != gp.waiting {
+		// 先判断当前是不是合法的休眠中
+		throw("G waiting list is corrupted")
+	}
+	gp.waiting = nil
+	if gp.param == nil {
+		if c.closed == 0 {
+			throw("chansend: spurious wakeup")
+		}
+		// 唤醒后发现 channel 被人关了，气啊
+		panic(plainError("send on closed channel"))
+	}
+	gp.param = nil
+	if mysg.releasetime > 0 {
+		blockevent(mysg.releasetime-t0, 2)
+	}
+	mysg.c = nil
+	releaseSudog(mysg)
+	return true
+}
+
+
+
 ```
 ## receive
 
@@ -303,5 +446,5 @@ func closechan(c *hchan) {
 eyJoaXN0b3J5IjpbMTY2OTk4NTMzMywxMzc4NzUyODgzXX0=
 -->
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTE0MzI1ODIwODFdfQ==
+eyJoaXN0b3J5IjpbLTE1NjI4MjkwMzVdfQ==
 -->
