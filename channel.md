@@ -107,6 +107,8 @@ close(a) // panic: close of nil channel
 
 可参考：[graceful close channel](https://go101.org/article/channel-closing.html)
 
+如果确定不会有 goroutine 在通信过程中被阻塞，也可以不关闭 channel，等待 GC 对其进行回收。
+
 # 源码分析
 
 ## hchan
@@ -666,5 +668,5 @@ func closechan(c *hchan) {
 eyJoaXN0b3J5IjpbMTY2OTk4NTMzMywxMzc4NzUyODgzXX0=
 -->
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTY3NTIzMzU5MF19
+eyJoaXN0b3J5IjpbMzY4MzQzOTNdfQ==
 -->
