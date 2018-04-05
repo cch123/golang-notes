@@ -103,7 +103,9 @@ close(a) // panic: close of nil channel
 ## close principle
 一个 sender，多个 receiver，由 sender 来关闭 channel，通知数据已发送完毕。
 
-多
+一旦 sender 有多个，可能就无法判断数据是否完毕了。这时候可以借助外部额外 channel 来做信号广播。这种做法类似于 done channel，或者 stop channel。
+
+可参考：
 
 # 源码分析
 
@@ -664,5 +666,5 @@ func closechan(c *hchan) {
 eyJoaXN0b3J5IjpbMTY2OTk4NTMzMywxMzc4NzUyODgzXX0=
 -->
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbMTgwMzI3MjA5OV19
+eyJoaXN0b3J5IjpbMTM4NDQyNDUyNF19
 -->
