@@ -196,7 +196,8 @@ func makechan(t *chantype, size int) *hchan {
 ```
 
 ## send
-
+```go
+```
 ## receive
 
 ## close
@@ -302,5 +303,5 @@ func closechan(c *hchan) {
 eyJoaXN0b3J5IjpbMTY2OTk4NTMzMywxMzc4NzUyODgzXX0=
 -->
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbNDYxMzQ2NTAxXX0=
+eyJoaXN0b3J5IjpbLTE0MzI1ODIwODFdfQ==
 -->
