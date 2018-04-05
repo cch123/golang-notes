@@ -100,6 +100,8 @@ var a = chan int
 var a = chan int
 close(a) // panic: close of nil channel
 ```
+### close principle
+在可以的情况下都由 sender 来关闭 goroutine。多个 
 
 # 源码分析
 
@@ -469,5 +471,5 @@ func closechan(c *hchan) {
 eyJoaXN0b3J5IjpbMTY2OTk4NTMzMywxMzc4NzUyODgzXX0=
 -->
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTE5ODU3NTc0NTVdfQ==
+eyJoaXN0b3J5IjpbMTIyMDg2NDYyOV19
 -->
