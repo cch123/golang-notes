@@ -63,13 +63,13 @@ ch <- 1 // panic: send on closed channel
 注意，如果 close channel 时，有 sender goroutine 挂在 channel 的阻塞发送队列中，会导致 panic：
 ```go
 func main() {
-	ch := make(chan int)
-	go func() { ch <- 1 }() // panic: send on closed channel
-	time.Sleep(time.Second)
-	go func() { close(ch) }()
-	time.Sleep(time.Second)
-	x, ok := <-ch
-	fmt.Println(x, ok)
+    ch := make(chan int)
+    go func() { ch <- 1 }() // panic: send on closed channel
+    time.Sleep(time.Second)
+    go func() { close(ch) }()
+    time.Sleep(time.Second)
+    x, ok := <-ch
+    fmt.Println(x, ok)
 }
 ```
 虽然看起来是 ch <- 1 导致的 panic，但实际上 close 才是罪魁祸首，在不确定是否还有 goroutine 需要向 channel 发送数据时，请勿贸然关闭 channel。
@@ -199,6 +199,100 @@ func makechan(t *chantype, size int) *hchan {
 
 ## close
 ```go
+func closechan(c *hchan) {
+    // 关闭一个 nil channel 会直接 panic
+    if c == nil {
+        panic(plainError("close of nil channel"))
+    }
+
+    // 上锁，这个锁的粒度比较大，一直到释放完所有的 sudog 才解锁
+    lock(&c.lock)
+
+    // 在 close channel 时，如果 channel 已经关闭过了
+    // 直接触发 panic
+    if c.closed != 0 {
+        unlock(&c.lock)
+        panic(plainError("close of closed channel"))
+    }
+
+    if raceenabled {
+        callerpc := getcallerpc()
+        racewritepc(unsafe.Pointer(c), callerpc, funcPC(closechan))
+        racerelease(unsafe.Pointer(c))
+    }
+
+    c.closed = 1
+
+    var glist *g
+
+    // release all readers
+    for {
+        sg := c.recvq.dequeue()
+        // 弹出的 sudog 是 nil
+        // 说明读队列已经空了
+        if sg == nil {
+            break
+        }
+
+        // sg.elem unsafe.Pointer，指向 sudog 的数据元素
+        // 该元素可能在堆上分配，也可能在栈上
+        if sg.elem != nil {
+            // 释放对应的内存
+            typedmemclr(c.elemtype, sg.elem)
+            sg.elem = nil
+        }
+        if sg.releasetime != 0 {
+            sg.releasetime = cputicks()
+        }
+
+        // 将 goroutine 入 glist
+        // 为最后将全部 goroutine 都 ready 做准备
+        gp := sg.g
+        gp.param = nil
+        if raceenabled {
+            raceacquireg(gp, unsafe.Pointer(c))
+        }
+        gp.schedlink.set(glist)
+        glist = gp
+    }
+
+    // release all writers (they will panic)
+    // 将所有挂在 channel 上的 writer 从 sendq 中弹出
+    // 该操作会使所有 writer panic
+    for {
+        sg := c.sendq.dequeue()
+        if sg == nil {
+            break
+        }
+        sg.elem = nil
+        if sg.releasetime != 0 {
+            sg.releasetime = cputicks()
+        }
+
+        // 将 goroutine 入 glist
+        // 为最后将全部 goroutine 都 ready 做准备
+        gp := sg.g
+        gp.param = nil
+        if raceenabled {
+            raceacquireg(gp, unsafe.Pointer(c))
+        }
+        gp.schedlink.set(glist)
+        glist = gp
+    }
+
+    // 在释放所有挂在 channel 上的读或写 sudog 时
+    // 是一直在临界区的
+    unlock(&c.lock)
+
+    // Ready all Gs now that we've dropped the channel lock.
+    for glist != nil {
+        gp := glist
+        glist = glist.schedlink.ptr()
+        gp.schedlink = 0
+        // 使 g 的状态切换到 Grunnable
+        goready(gp, 3)
+    }
+}
 ```
 
 
@@ -206,5 +300,5 @@ func makechan(t *chantype, size int) *hchan {
 eyJoaXN0b3J5IjpbMTY2OTk4NTMzMywxMzc4NzUyODgzXX0=
 -->
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTE5ODE5NDY2OTldfQ==
+eyJoaXN0b3J5IjpbMTI2NzI2MjYxN119
 -->
