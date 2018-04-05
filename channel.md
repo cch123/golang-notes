@@ -27,6 +27,11 @@ var i := <- ch
 ```go
 close(ch)
 ```
+注意，已关闭的 channel，再次关闭会 panic
+```go
+close(ch)
+close(ch) // panic: close of closed channel
+```
 
 在 channel 关闭时自动退出循环
 ```go
@@ -196,5 +201,5 @@ func makechan(t *chantype, size int) *hchan {
 eyJoaXN0b3J5IjpbMTY2OTk4NTMzMywxMzc4NzUyODgzXX0=
 -->
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTQ4NDg3NzE0MV19
+eyJoaXN0b3J5IjpbLTg0NzA0NjkxXX0=
 -->
