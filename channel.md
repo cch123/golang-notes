@@ -367,6 +367,20 @@ func send(c *hchan, sg *sudog, ep unsafe.Pointer, unlockf func(), skip int) {
 
 ```
 ## receive
+```go
+// entry points for <- c from compiled code
+//go:nosplit
+func chanrecv1(c *hchan, elem unsafe.Pointer) {
+	chanrecv(c, elem, true)
+}
+
+//go:nosplit
+func chanrecv2(c *hchan, elem unsafe.Pointer) (received bool) {
+	_, received = chanrecv(c, elem, true)
+	return
+}
+
+```
 
 ## close
 ```go
@@ -459,5 +473,5 @@ func closechan(c *hchan) {
 eyJoaXN0b3J5IjpbMTY2OTk4NTMzMywxMzc4NzUyODgzXX0=
 -->
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTE2NjYzMDAxMTVdfQ==
+eyJoaXN0b3J5IjpbLTkwNDY5MjE5XX0=
 -->
