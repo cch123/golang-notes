@@ -3,6 +3,7 @@
 思路，找到二进制文件的 entry point，在  debugger 中确定代码位置。
 
 使用 gdb:
+
 ```shell
 (gdb) info files
 Symbols from "/home/ubuntu/exec_file".
@@ -59,5 +60,5 @@ Current executable set to './exec_file' (x86_64).
 ```
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTIwMDk5MzQ3OTMsLTU5Njc1MzAzMV19
+eyJoaXN0b3J5IjpbLTI3MTUyMzU3NSwtNTk2NzUzMDMxXX0=
 -->
