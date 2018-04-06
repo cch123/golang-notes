@@ -222,9 +222,9 @@ func sysargs(argc int32, argv **byte) {
 		executablePath = executablePath[len(prefix):]
 	}
 }
-
-
 ```
+简单的参数处理。
+
 ## runtime·osinit
 
 ## runtime·schedinit
@@ -234,5 +234,5 @@ func sysargs(argc int32, argv **byte) {
 ## runtime·mstart
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbMTkzMjM2NjUxMywtNTk2NzUzMDMxXX0=
+eyJoaXN0b3J5IjpbLTMxMjg2MDA1OCwtNTk2NzUzMDMxXX0=
 -->
