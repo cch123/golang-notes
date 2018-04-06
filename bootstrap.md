@@ -207,7 +207,7 @@ func args(c int32, v **byte) {
 	sysargs(c, v)
 }
 
-//
+os_darwin.go:583
 func sysargs(argc int32, argv **byte) {
 	// skip over argv, envv and the first string will be the path
 	n := argc + 1
@@ -222,6 +222,8 @@ func sysargs(argc int32, argv **byte) {
 		executablePath = executablePath[len(prefix):]
 	}
 }
+
+
 ```
 ## runtime·osinit
 
@@ -232,5 +234,5 @@ func sysargs(argc int32, argv **byte) {
 ## runtime·mstart
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbMTc1NjIxMTEzOSwtNTk2NzUzMDMxXX0=
+eyJoaXN0b3J5IjpbMTkzMjM2NjUxMywtNTk2NzUzMDMxXX0=
 -->
