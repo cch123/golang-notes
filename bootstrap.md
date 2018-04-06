@@ -200,8 +200,13 @@ ok:
 ## runtime·args
 
 ## runtime·osinit
+
 ## runtime·schedinit
-## runtime·new
+
+## runtime·newproc
+
+## runtime·mstart
+
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbMjEzMTA5OTU3MSwtNTk2NzUzMDMxXX0=
+eyJoaXN0b3J5IjpbLTYxMDA2OTA5NSwtNTk2NzUzMDMxXX0=
 -->
