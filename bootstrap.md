@@ -242,11 +242,75 @@ func osinit() {
 获取 cpu 核心数。还比 os_linux.go:osinit 多了 getPageSize，getDarwinVersion 的调用。都是简单的函数。
 
 ## runtime·schedinit
+```go
+proc
+// The bootstrap sequence is:
+//
+//	call osinit
+//	call schedinit
+//	make & queue new G
+//	call runtime·mstart
+//
+// The new G calls runtime·main.
+func schedinit() {
+	// raceinit must be the first call to race detector.
+	// In particular, it must be done before mallocinit below calls racemapshadow.
+	_g_ := getg()
+	if raceenabled {
+		_g_.racectx, raceprocctx0 = raceinit()
+	}
 
+	sched.maxmcount = 10000
+
+	tracebackinit()
+	moduledataverify()
+	stackinit()
+	mallocinit()
+	mcommoninit(_g_.m)
+	alginit()       // maps must not be used before this call
+	modulesinit()   // provides activeModules
+	typelinksinit() // uses maps, activeModules
+	itabsinit()     // uses activeModules
+
+	msigsave(_g_.m)
+	initSigmask = _g_.m.sigmask
+
+	goargs()
+	goenvs()
+	parsedebugvars()
+	gcinit()
+
+	sched.lastpoll = uint64(nanotime())
+	procs := ncpu
+	if n, ok := atoi32(gogetenv("GOMAXPROCS")); ok && n > 0 {
+		procs = n
+	}
+	if procresize(procs) != nil {
+		throw("unknown runnable goroutine during bootstrap")
+	}
+
+	// For cgocheck > 1, we turn on the write barrier at all times
+	// and check all pointer writes. We can't do this until after
+	// procresize because the write barrier needs a P.
+	if debug.cgocheck > 1 {
+		writeBarrier.cgo = true
+		writeBarrier.enabled = true
+		for _, p := range allp {
+			p.wbBuf.reset()
+		}
+	}
+
+	if buildVersion == "" {
+		// Condition should never trigger. This code just serves
+		// to ensure runtime·buildVersion is kept in the resulting binary.
+		buildVersion = "unknown"
+	}
+}
+```
 ## runtime·newproc
 
 ## runtime·mstart
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTE4ODczNzk2OTEsLTU5Njc1MzAzMV19
+eyJoaXN0b3J5IjpbMjU4NjE1MTE5LC01OTY3NTMwMzFdfQ==
 -->
