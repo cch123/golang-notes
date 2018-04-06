@@ -98,12 +98,12 @@ Breakpoint 2 at 0x104f8c0: file /usr/local/go/src/runtime/rt0_darwin_amd64.s, li
 ## 启动流程
 ```mermaid
 graph TD
-A(rt0_darwin_amd64.s:8<br/>_rt0_amd64_darwin) -->|JMP| B(Go shopping)
+A(rt0_darwin_amd64.s:8<br/>_rt0_amd64_darwin) -->|JMP| B(asm_amd64.s:15<br/>_rt0_amd64)
 B --> C{Let me think}
-C -->|One| D[Laptop]
+C -->|One| D[Laptop]:
 C -->|Two| E[iPhone]
 C -->|Three| F[Car]
 ```
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTIwMjUzOTcyMywtNTk2NzUzMDMxXX0=
+eyJoaXN0b3J5IjpbLTE1NDE1MzU2MDUsLTU5Njc1MzAzMV19
 -->
