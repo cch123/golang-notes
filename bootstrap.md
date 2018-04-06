@@ -107,7 +107,7 @@ E --> F(proc.go:472<br/>runtime-schedinit)
 F --> G(proc.go:3236<br/>runtime-newproc)
 G --> H(proc.go:1170<br/>runtime-mstart)
 ```
-y
+来具体看看每一步都在做什么。
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbNDcwODQzMjM4LC01OTY3NTMwMzFdfQ==
+eyJoaXN0b3J5IjpbMTkxNTcyODc1OSwtNTk2NzUzMDMxXX0=
 -->
