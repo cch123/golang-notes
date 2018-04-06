@@ -5,9 +5,9 @@
 使用 gdb:
 ```shell
 (gdb) info files
-Symbols from "/home/ubuntu/for".
+Symbols from "/home/ubuntu/exec_file".
 Local exec file:
-	`/home/ubuntu/for', file type elf64-x86-64.
+	`/home/ubuntu/exec_file', file type elf64-x86-64.
 	Entry point: 0x448fc0
 	0x0000000000401000 - 0x000000000044d763 is .text
 	0x000000000044e000 - 0x00000000004704dc is .rodata
@@ -23,7 +23,7 @@ Local exec file:
 (gdb) b *0x448fc0
 Breakpoint 1 at 0x448fc0: file /usr/local/go/src/runtime/rt0_linux_amd64.s, line 8.
 ```
-或者用 readelf 配合 lldb:
+或者用 readelf 找到 entry point，再配合 lldb 的 image lookup --address 找到代码位置:
 ```shell
 ubuntu@ubuntu-xenial:~$ readelf -h ./for
 ELF Header:
@@ -54,9 +54,9 @@ ubuntu@ubuntu-xenial:~$ lldb ./exec_file
 Current executable set to './exec_file' (x86_64).
 (lldb) command source -s 1 '/home/ubuntu/./.lldbinit'
 (lldb) image lookup --address 0x448fc0
-      Address: exec_file[0x0000000000448fc0] (for..text + 294848)
-      Summary: for`_rt0_amd64_linux at rt0_linux_amd64.s:8
+      Address: exec_file[0x0000000000448fc0] (exec_file..text + 294848)
+      Summary: exec_file`_rt0_amd64_linux at rt0_linux_amd64.s:8
 ```
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbMTk3MjA1NTkzMiwtNTk2NzUzMDMxXX0=
+eyJoaXN0b3J5IjpbMTExMzEwOTU3NywtNTk2NzUzMDMxXX0=
 -->
