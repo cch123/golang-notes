@@ -287,23 +287,6 @@ func schedinit() {
 	if procresize(procs) != nil {
 		throw("unknown runnable goroutine during bootstrap")
 	}
-
-	// For cgocheck > 1, we turn on the write barrier at all times
-	// and check all pointer writes. We can't do this until after
-	// procresize because the write barrier needs a P.
-	if debug.cgocheck > 1 {
-		writeBarrier.cgo = true
-		writeBarrier.enabled = true
-		for _, p := range allp {
-			p.wbBuf.reset()
-		}
-	}
-
-	if buildVersion == "" {
-		// Condition should never trigger. This code just serves
-		// to ensure runtime·buildVersion is kept in the resulting binary.
-		buildVersion = "unknown"
-	}
 }
 ```
 ## runtime·newproc
@@ -311,5 +294,5 @@ func schedinit() {
 ## runtime·mstart
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbMTA1MzU5NDMsLTU5Njc1MzAzMV19
+eyJoaXN0b3J5IjpbMTAzNDM2Nzk0MSwtNTk2NzUzMDMxXX0=
 -->
