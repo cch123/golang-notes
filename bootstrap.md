@@ -198,7 +198,31 @@ ok:
 ```
 
 ## runtime·args
+```go
+runtime1.go:60
 
+func args(c int32, v **byte) {
+	argc = c
+	argv = v
+	sysargs(c, v)
+}
+
+//
+func sysargs(argc int32, argv **byte) {
+	// skip over argv, envv and the first string will be the path
+	n := argc + 1
+	for argv_index(argv, n) != nil {
+		n++
+	}
+	executablePath = gostringnocopy(argv_index(argv, n+1))
+
+	// strip "executable_path=" prefix if available, it's added after OS X 10.11.
+	const prefix = "executable_path="
+	if len(executablePath) > len(prefix) && executablePath[:len(prefix)] == prefix {
+		executablePath = executablePath[len(prefix):]
+	}
+}
+```
 ## runtime·osinit
 
 ## runtime·schedinit
@@ -208,5 +232,5 @@ ok:
 ## runtime·mstart
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTYxMDA2OTA5NSwtNTk2NzUzMDMxXX0=
+eyJoaXN0b3J5IjpbMTc1NjIxMTEzOSwtNTk2NzUzMDMxXX0=
 -->
