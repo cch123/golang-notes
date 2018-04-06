@@ -289,12 +289,29 @@ func schedinit() {
 }
 ```
 ## runtime·newproc
+```go
+proc.go:3235
 
+// Create a new g running fn with siz bytes of arguments.
+// Put it on the queue of g's waiting to run.
+// The compiler turns a go statement into a call to this.
+// Cannot split the stack because it assumes that the arguments
+// are available sequentially after &fn; they would not be
+// copied if a stack split occurred.
+//go:nosplit
+func newproc(siz int32, fn *funcval) {
+	argp := add(unsafe.Pointer(&fn), sys.PtrSize)
+	pc := getcallerpc()
+	systemstack(func() {
+		newproc1(fn, (*uint8)(argp), siz, pc)
+	})
+}
+```
 ## runtime·mstart
 
 ## runtime·main
 
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbMTEyMjMxNzksLTU5Njc1MzAzMV19
+eyJoaXN0b3J5IjpbMTU5MTA1OTE3OCwtNTk2NzUzMDMxXX0=
 -->
