@@ -24,7 +24,9 @@ Local exec file:
 (gdb) b *0x448fc0
 Breakpoint 1 at 0x448fc0: file /usr/local/go/src/runtime/rt0_linux_amd64.s, line 8.
 ```
+
 或者用 readelf 找到 entry point，再配合 lldb 的 image lookup --address 找到代码位置:
+
 ```shell
 ubuntu@ubuntu-xenial:~$ readelf -h ./for
 ELF Header:
@@ -48,7 +50,9 @@ ELF Header:
   Number of section headers:         22
   Section header string table index: 3
 ```
+
 然后用 lldb:
+
 ```lldb
 ubuntu@ubuntu-xenial:~$ lldb ./exec_file
 (lldb) target create "./exec_file"
@@ -60,5 +64,5 @@ Current executable set to './exec_file' (x86_64).
 ```
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTI3MTUyMzU3NSwtNTk2NzUzMDMxXX0=
+eyJoaXN0b3J5IjpbMTQ1NzE2OTgyOSwtNTk2NzUzMDMxXX0=
 -->
