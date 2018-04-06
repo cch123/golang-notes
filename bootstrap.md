@@ -466,9 +466,7 @@ func main() {
 	}
 	fn = main_main // make an indirect call, as the linker doesn't know the address of the main package when laying down the runtime
 	fn()
-	if raceenabled {
-		racefini()
-	}
+
 
 	// Make racy client program work: if panicking on
 	// another goroutine at the same time as main returns,
@@ -495,5 +493,5 @@ func main() {
 }
 ```
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTExNzkzNzE0NTIsLTU5Njc1MzAzMV19
+eyJoaXN0b3J5IjpbLTE0Njg3MDM5MTUsLTU5Njc1MzAzMV19
 -->
