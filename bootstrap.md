@@ -62,7 +62,30 @@ Current executable set to './exec_file' (x86_64).
       Address: exec_file[0x0000000000448fc0] (exec_file..text + 294848)
       Summary: exec_file`_rt0_amd64_linux at rt0_linux_amd64.s:8
 ```
-mac 的可执行文件为 Mach-O，不是 linux 的 ELF。所以 readelf 是用不了，只能用 gdb 了，gdb 搞签名稍微麻烦一些，不过不签名理论上也可以
+mac 的可执行文件为 Mach-O，不是 linux 的 ELF。所以 readelf 是用不了，只能用 gdb 了，gdb 搞签名稍微麻烦一些，不过不签名理论上也可以看 entry point，结果和 linux 下应该是一样的:
+
+```shell
+(gdb) info files
+Symbols from "/Users/caochunhui/test/int".
+Local exec file:
+	`/Users/caochunhui/test/int', file type mach-o-x86-64.
+	Entry point: 0x104f8c0
+	0x0000000001001000 - 0x000000000108f472 is .text
+	0x000000000108f480 - 0x00000000010d4081 is __TEXT.__rodata
+	0x00000000010d4081 - 0x00000000010d4081 is __TEXT.__symbol_stub1
+	0x00000000010d40a0 - 0x00000000010d4c7c is __TEXT.__typelink
+	0x00000000010d4c80 - 0x00000000010d4ce8 is __TEXT.__itablink
+	0x00000000010d4ce8 - 0x00000000010d4ce8 is __TEXT.__gosymtab
+	0x00000000010d4d00 - 0x0000000001128095 is __TEXT.__gopclntab
+	0x0000000001129000 - 0x0000000001129000 is __DATA.__nl_symbol_ptr
+	0x0000000001129000 - 0x0000000001135c3c is __DATA.__noptrdata
+	0x0000000001135c40 - 0x000000000113c390 is .data
+	0x000000000113c3a0 - 0x0000000001158aa8 is .bss
+	0x0000000001158ac0 - 0x000000000115af58 is __DATA.__noptrbss
+
+(gdb) b *0x104f8c0
+Breakpoint 2 at 0x104f8c0: file /usr/local/go/src/runtime/rt0_darwin_amd64.s, line 8.
+```
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTUyNzkxNjA5MywtNTk2NzUzMDMxXX0=
+eyJoaXN0b3J5IjpbNTA4MjU3ODkxLC01OTY3NTMwMzFdfQ==
 -->
