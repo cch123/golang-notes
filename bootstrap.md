@@ -1,4 +1,5 @@
 # Bootstrap
+
 ## locate entry point
 思路，找到二进制文件的 entry point，在  debugger 中确定代码位置。
 
@@ -94,6 +95,7 @@ Local exec file:
 Breakpoint 2 at 0x104f8c0: file /usr/local/go/src/runtime/rt0_darwin_amd64.s, line 8.
 ```
 
+##
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTExMjE4NzQyNzcsLTU5Njc1MzAzMV19
+eyJoaXN0b3J5IjpbLTEwNTM2NTUxNzMsLTU5Njc1MzAzMV19
 -->
