@@ -49,7 +49,14 @@ ELF Header:
 ```
 然后用 lldb:
 ```lldb
+ubuntu@ubuntu-xenial:~$ lldb ./exec_file
+(lldb) target create "./exec_file"
+Current executable set to './exec_file' (x86_64).
+(lldb) command source -s 1 '/home/ubuntu/./.lldbinit'
+(lldb) image lookup --address 0x448fc0
+      Address: exec_file[0x0000000000448fc0] (for..text + 294848)
+      Summary: for`_rt0_amd64_linux at rt0_linux_amd64.s:8
 ```
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTgxNTU2ODU2NiwtNTk2NzUzMDMxXX0=
+eyJoaXN0b3J5IjpbMTk3MjA1NTkzMiwtNTk2NzUzMDMxXX0=
 -->
