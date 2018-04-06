@@ -253,9 +253,8 @@ proc.go:472
 //	call runtime·mstart
 //
 // The new G calls runtime·main.
+// 英文注释把引导到启动过程又重复说了一遍。。
 func schedinit() {
-	// raceinit must be the first call to race detector.
-	// In particular, it must be done before mallocinit below calls racemapshadow.
 	_g_ := getg()
 
 	// 设置最大线程数 10000
@@ -294,5 +293,5 @@ func schedinit() {
 ## runtime·mstart
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbMTAzNDM2Nzk0MSwtNTk2NzUzMDMxXX0=
+eyJoaXN0b3J5IjpbLTE3NTY0ODU3NywtNTk2NzUzMDMxXX0=
 -->
