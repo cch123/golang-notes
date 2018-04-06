@@ -239,7 +239,8 @@ func osinit() {
 	darwinVersion = getDarwinVersion()
 }
 ```
-比 linux 多了 getPageSize，getDarwinVersion 的调用
+获取 cpu 核心数。还比 os_linux.go:osinit 多了 getPageSize，getDarwinVersion 的调用。都是简单的函数。
+
 ## runtime·schedinit
 
 ## runtime·newproc
@@ -247,5 +248,5 @@ func osinit() {
 ## runtime·mstart
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTM2MTExMjE3NCwtNTk2NzUzMDMxXX0=
+eyJoaXN0b3J5IjpbLTE4ODczNzk2OTEsLTU5Njc1MzAzMV19
 -->
