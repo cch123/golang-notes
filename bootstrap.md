@@ -227,6 +227,17 @@ func sysargs(argc int32, argv **byte) {
 
 ## runtime·osinit
 
+```go
+os_darwin
+func osinit() {
+	// bsdthread_register delayed until end of goenvs so that we
+	// can look at the environment first.
+
+	ncpu = getncpu()
+	physPageSize = getPageSize()
+	darwinVersion = getDarwinVersion()
+}
+```
 ## runtime·schedinit
 
 ## runtime·newproc
@@ -234,5 +245,5 @@ func sysargs(argc int32, argv **byte) {
 ## runtime·mstart
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTMxMjg2MDA1OCwtNTk2NzUzMDMxXX0=
+eyJoaXN0b3J5IjpbMTY0Njc0NzMxLC01OTY3NTMwMzFdfQ==
 -->
