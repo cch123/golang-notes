@@ -243,7 +243,8 @@ func osinit() {
 
 ## runtime·schedinit
 ```go
-proc
+proc.go:472
+
 // The bootstrap sequence is:
 //
 //	call osinit
@@ -256,10 +257,8 @@ func schedinit() {
 	// raceinit must be the first call to race detector.
 	// In particular, it must be done before mallocinit below calls racemapshadow.
 	_g_ := getg()
-	if raceenabled {
-		_g_.racectx, raceprocctx0 = raceinit()
-	}
 
+	// 设置最大线程数 10000
 	sched.maxmcount = 10000
 
 	tracebackinit()
@@ -312,5 +311,5 @@ func schedinit() {
 ## runtime·mstart
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbMjU4NjE1MTE5LC01OTY3NTMwMzFdfQ==
+eyJoaXN0b3J5IjpbMTA1MzU5NDMsLTU5Njc1MzAzMV19
 -->
