@@ -110,6 +110,103 @@ G --> H(proc.go:1170<br/>runtime-mstart)
 ```
 
 来具体看看每一步都在做什么。
+## _rt0_amd64_darwin
+```go
+rt0_darwin_amd64.s:8
+
+TEXT _rt0_amd64_darwin(SB),NOSPLIT,$-8
+	JMP	_rt0_amd64(SB)
+```
+只做了跳转
+
+## _rt0_amd64
+```go
+asm_amd64.s:15
+
+// _rt0_amd64 is common startup code for most amd64 systems when using
+// internal linking. This is the entry point for the program from the
+// kernel for an ordinary -buildmode=exe program. The stack holds the
+// number of arguments and the C-style argv.
+TEXT _rt0_amd64(SB),NOSPLIT,$-8
+	MOVQ	0(SP), DI	// argc
+	LEAQ	8(SP), SI	// argv
+	JMP	runtime·rt0_go(SB)
+```
+注释说的比较明白，64 位系统的可执行程序的内核认为的程序入口。会在特定的位置存储程序输入的 argc 和 argv。和 C 程序差不多。这里就是把这两个参数从内存拉到寄存器中。
+
+## runtime·rt0_go
+```go
+asm_amd64.s:87
+
+TEXT runtime·rt0_go(SB),NOSPLIT,$0
+	// copy arguments forward on an even stack
+	MOVQ	DI, AX		// argc
+	MOVQ	SI, BX		// argv
+	SUBQ	$(4*8+7), SP		// 2args 2auto
+	ANDQ	$~15, SP
+	MOVQ	AX, 16(SP)
+	MOVQ	BX, 24(SP)
+
+	// 省略了一大堆硬件信息判断和处理
+
+	LEAQ	runtime·m0+m_tls(SB), DI
+	CALL	runtime·settls(SB)
+
+	// store through it, to make sure it works
+	get_tls(BX)
+	MOVQ	$0x123, g(BX)
+	MOVQ	runtime·m0+m_tls(SB), AX
+	CMPQ	AX, $0x123
+	JEQ 2(PC)
+	MOVL	AX, 0	// abort
+ok:
+	// set the per-goroutine and per-mach "registers"
+	get_tls(BX)
+	LEAQ	runtime·g0(SB), CX
+	MOVQ	CX, g(BX)
+	LEAQ	runtime·m0(SB), AX
+
+	// save m->g0 = g0
+	MOVQ	CX, m_g0(AX)
+	// save m0 to g0->m
+	MOVQ	AX, g_m(CX)
+
+	CLD				// convention is D is always left cleared
+	CALL	runtime·check(SB)
+
+	MOVL	16(SP), AX		// copy argc
+	MOVL	AX, 0(SP)
+	MOVQ	24(SP), AX		// copy argv
+	MOVQ	AX, 8(SP)
+	CALL	runtime·args(SB)
+	CALL	runtime·osinit(SB)
+	CALL	runtime·schedinit(SB)
+
+	// create a new goroutine to start program
+	MOVQ	$runtime·mainPC(SB), AX		// entry，即要在 main goroutine 上运行的函数
+	PUSHQ	AX
+	PUSHQ	$0			// arg size
+	CALL	runtime·newproc(SB)
+	POPQ	AX
+	POPQ	AX
+
+	// start this M
+	CALL	runtime·mstart(SB)
+
+	MOVL	$0xf1, 0xf1  // crash
+	RET
+```
+
+## runtime·args
+
+## runtime·osinit
+
+## runtime·schedinit
+
+## runtime·newproc
+
+## runtime·mstart
+
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbMjA1MzY4MDExOSwtNTk2NzUzMDMxXX0=
+eyJoaXN0b3J5IjpbLTYxMDA2OTA5NSwtNTk2NzUzMDMxXX0=
 -->
