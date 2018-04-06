@@ -62,7 +62,7 @@ Current executable set to './exec_file' (x86_64).
       Address: exec_file[0x0000000000448fc0] (exec_file..text + 294848)
       Summary: exec_file`_rt0_amd64_linux at rt0_linux_amd64.s:8
 ```
-
+mac 的可执行文件为 Mach-O，不是 linux 的 ELF。所以 readelf 是用不了，只能用 gdb 了，gdb 搞签名稍微麻烦一些，不过不签名理论上也可以
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbMTQ1NzE2OTgyOSwtNTk2NzUzMDMxXX0=
+eyJoaXN0b3J5IjpbLTUyNzkxNjA5MywtNTk2NzUzMDMxXX0=
 -->
