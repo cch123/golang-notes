@@ -62,7 +62,14 @@ Current executable set to './exec_file' (x86_64).
       Address: exec_file[0x0000000000448fc0] (exec_file..text + 294848)
       Summary: exec_file`_rt0_amd64_linux at rt0_linux_amd64.s:8
 ```
-mac 的可执行文件为 Mach-O，不是 linux 的 ELF。所以 readelf 是用不了，只能用 gdb 了，gdb 搞签名稍微麻烦一些，不过不签名理论上也可以看 entry point，结果和 linux 下应该是一样的:
+mac 的可执行文件为 Mach-O：
+
+```shell
+~/test git:master ❯❯❯ file ./int                      
+./int: Mach-O 64-bit executable x86_64
+```
+
+不是 linux 的 ELF。所以 readelf 是用不了，只能用 gdb 了，gdb 搞签名稍微麻烦一些，不过不签名理论上也可以看 entry point，结果和 linux 下应该是一样的:
 
 ```shell
 (gdb) info files
@@ -87,5 +94,5 @@ Local exec file:
 Breakpoint 2 at 0x104f8c0: file /usr/local/go/src/runtime/rt0_darwin_amd64.s, line 8.
 ```
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbNTA4MjU3ODkxLC01OTY3NTMwMzFdfQ==
+eyJoaXN0b3J5IjpbLTE4OTI0ODI3MTcsLTU5Njc1MzAzMV19
 -->
