@@ -95,7 +95,9 @@ Local exec file:
 Breakpoint 2 at 0x104f8c0: file /usr/local/go/src/runtime/rt0_darwin_amd64.s, line 8.
 ```
 
-##
+## 启动流程
+rt0_darwin_amd64.s:8
+
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTEwNTM2NTUxNzMsLTU5Njc1MzAzMV19
+eyJoaXN0b3J5IjpbMTMzMDc1NTc3NiwtNTk2NzUzMDMxXX0=
 -->
