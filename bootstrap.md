@@ -111,6 +111,9 @@ H --> I(在新创建的 p 和 m 上运行 runtime-main)
 ```
 
 来具体看看每一步都在做什么。
+
+# 分步骤说明
+
 ## _rt0_amd64_darwin
 ```go
 rt0_darwin_amd64.s:8
@@ -496,5 +499,5 @@ func main() {
 }
 ```
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTEyMDIwMTk3MiwtNTk2NzUzMDMxXX0=
+eyJoaXN0b3J5IjpbLTExODQ4NzA2NjIsLTU5Njc1MzAzMV19
 -->
