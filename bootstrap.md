@@ -121,8 +121,18 @@ TEXT _rt0_amd64_darwin(SB),NOSPLIT,$-8
 
 ## _rt0_amd64
 ```asm
-asm_amd64.s
+asm_amd64.s:15
+
+// _rt0_amd64 is common startup code for most amd64 systems when using
+// internal linking. This is the entry point for the program from the
+// kernel for an ordinary -buildmode=exe program. The stack holds the
+// number of arguments and the C-style argv.
+TEXT _rt0_amd64(SB),NOSPLIT,$-8
+	MOVQ	0(SP), DI	// argc
+	LEAQ	8(SP), SI	// argv
+	JMP	runtime·rt0_go(SB)
 ```
+注释说的比较明白，64 位系统的可执行程序的内核认为的程序入口。会在
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTE5NzA3MzE4NjEsLTU5Njc1MzAzMV19
+eyJoaXN0b3J5IjpbNjAxMDM3ODMyLC01OTY3NTMwMzFdfQ==
 -->
