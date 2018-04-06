@@ -183,7 +183,7 @@ ok:
 	CALL	runtime·schedinit(SB)
 
 	// create a new goroutine to start program
-	MOVQ	$runtime·mainPC(SB), AX		// entry
+	MOVQ	$runtime·mainPC(SB), AX		// entry，
 	PUSHQ	AX
 	PUSHQ	$0			// arg size
 	CALL	runtime·newproc(SB)
@@ -195,8 +195,7 @@ ok:
 
 	MOVL	$0xf1, 0xf1  // crash
 	RET
-
 ```
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbNjU5MzMxOTg3LC01OTY3NTMwMzFdfQ==
+eyJoaXN0b3J5IjpbMTQxMDYxMjk0NywtNTk2NzUzMDMxXX0=
 -->
