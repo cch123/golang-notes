@@ -132,7 +132,7 @@ TEXT _rt0_amd64(SB),NOSPLIT,$-8
 	LEAQ	8(SP), SI	// argv
 	JMP	runtime·rt0_go(SB)
 ```
-注释说的比较明白，64 位系统的可执行程序的内核认为的程序入口。会在
+注释说的比较明白，64 位系统的可执行程序的内核认为的程序入口。会在特定的位置存储程序输入的 argc 和 argv。和 C 程序差不多。这里就是把这两个参数放到我们方便处理的寄存器
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbNjAxMDM3ODMyLC01OTY3NTMwMzFdfQ==
+eyJoaXN0b3J5IjpbLTE2OTc2MDA0MiwtNTk2NzUzMDMxXX0=
 -->
