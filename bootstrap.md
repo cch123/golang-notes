@@ -36,7 +36,7 @@ ELF Header:
   Type:                              EXEC (Executable file)
   Machine:                           Advanced Micro Devices X86-64
   Version:                           0x1
-  Entry point address:               0x448fc0
+  Entry point address:               0x448fc0 // entry point 在这里
   Start of program headers:          64 (bytes into file)
   Start of section headers:          456 (bytes into file)
   Flags:                             0x0
@@ -45,7 +45,11 @@ ELF Header:
   Number of program headers:         7
   Size of section headers:           64 (bytes)
   Number of section headers:         22
-  Section header string table index: 3```
+  Section header string table index: 3
+```
+然后用 lldb:
+```lldb
+```
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbMTg3NDQ1MTQ5OSwtNTk2NzUzMDMxXX0=
+eyJoaXN0b3J5IjpbLTgxNTU2ODU2NiwtNTk2NzUzMDMxXX0=
 -->
