@@ -96,14 +96,17 @@ Breakpoint 2 at 0x104f8c0: file /usr/local/go/src/runtime/rt0_darwin_amd64.s, li
 ```
 
 ## 启动流程
+用 lldb/gdb 可单步跟踪 Go 程序的启动流程，下面是在 OS X 上一个 Go 进程 runtime 的初始化步骤:
 ```mermaid
 graph TD
 A(rt0_darwin_amd64.s:8<br/>_rt0_amd64_darwin) -->|JMP| B(asm_amd64.s:15<br/>_rt0_amd64)
-B --> C{Let me think}
-C -->|One| D[Laptop]:
-C -->|Two| E[iPhone]
-C -->|Three| F[Car]
+B --> |JMP|C(asm_amd64.s:87<br/>runtime-rt0_go)
+C --> D(runtime1.go:60<br/>runtime-args)
+D --> E(os_darwin.go:50<br/>runtime-osinit)
+E --> F(proc.go:472<br/>runtime-schedinit)
+F --> G(proc.go:3236<br/>runtime-newproc)
+G --> H(proc.go:1170<br/>runtime-mstart)
 ```
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTE1NDE1MzU2MDUsLTU5Njc1MzAzMV19
+eyJoaXN0b3J5IjpbMTU5OTcyNDEwMywtNTk2NzUzMDMxXX0=
 -->
