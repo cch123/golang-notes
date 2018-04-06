@@ -112,7 +112,7 @@ G --> H(proc.go:1170<br/>runtime-mstart)
 来具体看看每一步都在做什么。
 ## _rt0_amd64_darwin
 ```asm
-rt0_darwin_amd64.s
+rt0_darwin_amd64.s:8
 
 TEXT _rt0_amd64_darwin(SB),NOSPLIT,$-8
 	JMP	_rt0_amd64(SB)
@@ -121,7 +121,8 @@ TEXT _rt0_amd64_darwin(SB),NOSPLIT,$-8
 
 ## _rt0_amd64
 ```asm
+asm_amd64.s
 ```
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTQzNjcyMDc2LC01OTY3NTMwMzFdfQ==
+eyJoaXN0b3J5IjpbLTE5NzA3MzE4NjEsLTU5Njc1MzAzMV19
 -->
