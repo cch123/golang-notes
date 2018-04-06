@@ -209,6 +209,7 @@ func args(c int32, v **byte) {
 }
 
 os_darwin.go:583
+
 func sysargs(argc int32, argv **byte) {
 	// skip over argv, envv and the first string will be the path
 	n := argc + 1
@@ -330,6 +331,8 @@ func systemstack(fn func())
 ```
 ## runtime·mstart
 ```go
+proc.go:1170
+
 // Called to start an M.
 //
 // This must not split the stack because we may not even have stack
@@ -493,5 +496,5 @@ func main() {
 }
 ```
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTE0Njg3MDM5MTUsLTU5Njc1MzAzMV19
+eyJoaXN0b3J5IjpbLTEyMDIwMTk3MiwtNTk2NzUzMDMxXX0=
 -->
