@@ -107,6 +107,7 @@ D --> E(os_darwin.go:50<br/>runtime-osinit)
 E --> F(proc.go:472<br/>runtime-schedinit)
 F --> G(proc.go:3236<br/>runtime-newproc)
 G --> H(proc.go:1170<br/>runtime-mstart)
+H --> I(在新创建的 p 和 m 上运行 runtime)
 ```
 
 来具体看看每一步都在做什么。
@@ -333,5 +334,5 @@ func systemstack(fn func())
 
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbMjczODY0NTUyLC01OTY3NTMwMzFdfQ==
+eyJoaXN0b3J5IjpbLTE5MDAxODcyOCwtNTk2NzUzMDMxXX0=
 -->
