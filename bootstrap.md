@@ -183,7 +183,7 @@ ok:
 	CALL	runtime·schedinit(SB)
 
 	// create a new goroutine to start program
-	MOVQ	$runtime·mainPC(SB), AX		// entry，
+	MOVQ	$runtime·mainPC(SB), AX		// entry，即要在 main goroutine 上运行的函数
 	PUSHQ	AX
 	PUSHQ	$0			// arg size
 	CALL	runtime·newproc(SB)
@@ -196,6 +196,12 @@ ok:
 	MOVL	$0xf1, 0xf1  // crash
 	RET
 ```
+
+## runtime·args
+
+## runtime·osinit
+## runtime·schedinit
+## runtime·new
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbMTQxMDYxMjk0NywtNTk2NzUzMDMxXX0=
+eyJoaXN0b3J5IjpbMjEzMTA5OTU3MSwtNTk2NzUzMDMxXX0=
 -->
