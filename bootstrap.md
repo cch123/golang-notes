@@ -306,6 +306,30 @@ func newproc(siz int32, fn *funcval) {
 		newproc1(fn, (*uint8)(argp), siz, pc)
 	})
 }
+
+// systemstack runs fn on a system stack.
+// If systemstack is called from the per-OS-thread (g0) stack, or
+// if systemstack is called from the signal handling (gsignal) stack,
+// systemstack calls fn directly and returns.
+// Otherwise, systemstack is being called from the limited stack
+// of an ordinary goroutine. In this case, systemstack switches
+// to the per-OS-thread stack, calls fn, and switches back.
+// It is common to use a func literal as the argument, in order
+// to share inputs and outputs with the code around the call
+// to system stack:
+//
+//	... set up y ...
+//	systemstack(func() {
+//		x = bigcall(y)
+//	})
+//	... use x ...
+//
+//go:noescape
+func systemstack(fn func())
+
+
+
+
 ```
 ## runtime·mstart
 
@@ -313,5 +337,5 @@ func newproc(siz int32, fn *funcval) {
 
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbMTU5MTA1OTE3OCwtNTk2NzUzMDMxXX0=
+eyJoaXN0b3J5IjpbMTUzOTA4NDAwLC01OTY3NTMwMzFdfQ==
 -->
