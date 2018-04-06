@@ -98,20 +98,7 @@ Breakpoint 2 at 0x104f8c0: file /usr/local/go/src/runtime/rt0_darwin_amd64.s, li
 ## 启动流程
 rt0_darwin_amd64.s:8
 ```mermaid
-
-sequenceDiagram
-    participant Alice
-    participant Bob
-    Alice->>John: Hello John, how are you?
-    loop Healthcheck
-        John->>John: Fight against hypochondria
-    end
-    Note right of John: Rational thoughts <br/>prevail...
-    John-->>Alice: Great!
-    John->>Bob: How about you?
-    Bob-->>John: Jolly good!
-
 ```
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTExNjg2NzUyMywtNTk2NzUzMDMxXX0=
+eyJoaXN0b3J5IjpbLTE4NTk5NzE1MzcsLTU5Njc1MzAzMV19
 -->
