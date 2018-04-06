@@ -107,7 +107,7 @@ D --> E(os_darwin.go:50<br/>runtime-osinit)
 E --> F(proc.go:472<br/>runtime-schedinit)
 F --> G(proc.go:3236<br/>runtime-newproc)
 G --> H(proc.go:1170<br/>runtime-mstart)
-H --> I(在新创建的 p 和 m 上运行 runtime)
+H --> I(在新创建的 p 和 m 上运行 runtime-main)
 ```
 
 来具体看看每一步都在做什么。
@@ -329,10 +329,50 @@ func newproc(siz int32, fn *funcval) {
 func systemstack(fn func())
 ```
 ## runtime·mstart
+```go
+// Called to start an M.
+//
+// This must not split the stack because we may not even have stack
+// bounds set up yet.
+//
+// May run during STW (because it doesn't have a P yet), so write
+// barriers are not allowed.
+//
+//go:nosplit
+//go:nowritebarrierrec
+func mstart() {
+	_g_ := getg()
 
+	osStack := _g_.stack.lo == 0
+	if osStack {
+		// Initialize stack bounds from system stack.
+		// Cgo may have left stack size in stack.hi.
+		size := _g_.stack.hi
+		if size == 0 {
+			size = 8192 * sys.StackGuardMultiplier
+		}
+		_g_.stack.hi = uintptr(noescape(unsafe.Pointer(&size)))
+		_g_.stack.lo = _g_.stack.hi - size + 1024
+	}
+	// Initialize stack guards so that we can start calling
+	// both Go and C functions with stack growth prologues.
+	_g_.stackguard0 = _g_.stack.lo + _StackGuard
+	_g_.stackguard1 = _g_.stackguard0
+	mstart1(0)
+
+	// Exit this thread.
+	if GOOS == "windows" || GOOS == "solaris" || GOOS == "plan9" {
+		// Window, Solaris and Plan 9 always system-allocate
+		// the stack, but put it in _g_.stack before mstart,
+		// so the logic above hasn't set osStack yet.
+		osStack = true
+	}
+	mexit(osStack)
+}
+```
 ## runtime·main
 
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTE5MDAxODcyOCwtNTk2NzUzMDMxXX0=
+eyJoaXN0b3J5IjpbLTE3NTAyNjIyNywtNTk2NzUzMDMxXX0=
 -->
