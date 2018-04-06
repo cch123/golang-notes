@@ -135,7 +135,9 @@ TEXT _rt0_amd64(SB),NOSPLIT,$-8
 注释说的比较明白，64 位系统的可执行程序的内核认为的程序入口。会在特定的位置存储程序输入的 argc 和 argv。和 C 程序差不多。这里就是把这两个参数从内存拉到寄存器中。
 
 ## runtime·rt0_go
+```go
 
+```
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTI0NTI3MzY1MiwtNTk2NzUzMDMxXX0=
+eyJoaXN0b3J5IjpbLTQ3NDQ4MTU3NiwtNTk2NzUzMDMxXX0=
 -->
