@@ -448,7 +448,7 @@ func main() {
 	// 执行runtime里面的所有init函数
 	// 这个函数是编译器动态生成的，不是实际实现的函数
 	// 可以用反编译工具查看
-	// go tool objdump -s "runtime.\.init\b
+	// go tool objdump -s "runtime.\.init\b" xxxx 来查看实际的内容
 	runtime_init() // must be before defer
 	if nanotime() == 0 {
 		throw("nanotime returning zero")
@@ -490,6 +490,7 @@ func main() {
 		cgocall(_cgo_notify_runtime_init_done, nil)
 	}
 
+	// 和 runtime_init 差不多的意思
 	fn := main_init // make an indirect call, as the linker doesn't know the address of the main package when laying down the runtime
 	fn()
 	close(main_init_done)
@@ -531,5 +532,5 @@ func main() {
 }
 ```
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbOTg0MjY4NzEzLC01OTY3NTMwMzFdfQ==
+eyJoaXN0b3J5IjpbLTQ2Mzg3OTU5NywtNTk2NzUzMDMxXX0=
 -->
