@@ -355,8 +355,9 @@ func newproc(siz int32, fn *funcval) {
 		newproc1(fn, (*uint8)(argp), siz, pc)
 	})
 }
-
 ```
+
+
 ## runtime·mstart
 ```go
 proc.go:1170
@@ -515,5 +516,5 @@ func main() {
 }
 ```
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTEwNTA3NzUxMzksLTU5Njc1MzAzMV19
+eyJoaXN0b3J5IjpbMTIyOTY1MDMyMywtNTk2NzUzMDMxXX0=
 -->
