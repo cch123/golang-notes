@@ -307,6 +307,7 @@ func schedinit() {
 	msigsave(_g_.m)
 	initSigmask = _g_.m.sigmask
 
+	// goargs 和 goenvs 是把原来 kernel 传入的 argv 和 envp 处理成自己的 argv
 	goargs()
 	goenvs()
 	parsedebugvars()
@@ -528,5 +529,5 @@ func main() {
 }
 ```
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbMzk0ODgyODczLC01OTY3NTMwMzFdfQ==
+eyJoaXN0b3J5IjpbLTE0MDE1OTMzNjEsLTU5Njc1MzAzMV19
 -->
