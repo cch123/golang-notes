@@ -313,7 +313,10 @@ func schedinit() {
 	
 	// debug flag 处理
 	parsedebugvars()
-	// 读入 GOGC 环境变量，设置 GC 回收的 percent
+	// 读入 GOGC 环境变量，设置 GC 回收的触发 percent
+	// 比如 GOGC=100，那么就是内存两倍的情况下触发回收
+	// 如果 GOGC=300，那么就是内存四倍的情况下触发回收
+	// 可以通过设置 GOGC=off l
 	gcinit()
 
 	sched.lastpoll = uint64(nanotime())
@@ -532,5 +535,5 @@ func main() {
 }
 ```
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTEwOTk2OTU2MSwtNTk2NzUzMDMxXX0=
+eyJoaXN0b3J5IjpbOTMyNDQ1NTg0LC01OTY3NTMwMzFdfQ==
 -->
