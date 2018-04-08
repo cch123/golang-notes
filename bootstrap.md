@@ -313,6 +313,7 @@ func schedinit() {
 	
 	// debug flag 处理
 	parsedebugvars()
+	// 读入 GOGC 环境变量，设置 GC 回收的 percent
 	gcinit()
 
 	sched.lastpoll = uint64(nanotime())
@@ -531,5 +532,5 @@ func main() {
 }
 ```
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbMTcwNTM3MzYyNSwtNTk2NzUzMDMxXX0=
+eyJoaXN0b3J5IjpbLTEwOTk2OTU2MSwtNTk2NzUzMDMxXX0=
 -->
