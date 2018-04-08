@@ -291,8 +291,9 @@ func schedinit() {
 	// 初始化全局的 mheap 和相应的 bitmap
 	// malloc.go:217
 	mallocinit()
-	
+	// m 内部的一些变量初始化
 	mcommoninit(_g_.m)
+	// algorithm init
 	alginit()       // maps must not be used before this call
 	modulesinit()   // provides activeModules
 	typelinksinit() // uses maps, activeModules
@@ -522,5 +523,5 @@ func main() {
 }
 ```
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbNTc1NDMwNTkxLC01OTY3NTMwMzFdfQ==
+eyJoaXN0b3J5IjpbLTk4MjU1MjYsLTU5Njc1MzAzMV19
 -->
