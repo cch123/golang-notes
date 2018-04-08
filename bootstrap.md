@@ -416,7 +416,7 @@ func main() {
 	// Max stack size is 1 GB on 64-bit, 250 MB on 32-bit.
 	// Using decimal instead of binary GB and MB because
 	// they look nicer in the stack overflow failure message.
-	// 英文注释说得比较明白了。。为了
+	// 英文注释说得比较明白了。。为了好看
 	if sys.PtrSize == 8 {
 		maxstacksize = 1000000000
 	} else {
@@ -524,5 +524,5 @@ func main() {
 }
 ```
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTkyMjQxNDc4OCwtNTk2NzUzMDMxXX0=
+eyJoaXN0b3J5IjpbLTk4NTAxNDE5NCwtNTk2NzUzMDMxXX0=
 -->
