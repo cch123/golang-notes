@@ -337,7 +337,7 @@ proc.go:3235
 
 // 在启动的时候，是把 runtime.main 传入到 newproc 函数中的
 // 创建一个新的 g，该 g 运行传入的这个函数
-// 并把这个 g 放到
+// 并把这个 g 放到 g 
 // Create a new g running fn with siz bytes of arguments.
 // Put it on the queue of g's waiting to run.
 // The compiler turns a go statement into a call to this.
@@ -540,5 +540,5 @@ func main() {
 }
 ```
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTgwMTQ4OTY4NCwtNTk2NzUzMDMxXX0=
+eyJoaXN0b3J5IjpbNTc4MTU4OTY3LC01OTY3NTMwMzFdfQ==
 -->
