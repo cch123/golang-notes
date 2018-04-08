@@ -271,8 +271,10 @@ func schedinit() {
 	// 并不都像 x86 平台一样会把函数的 return address 压到栈上
 	// 可能还有 link register，简称 LR
 	tracebackinit()
-	/
+	// 一些校验，感觉不需要深究
 	moduledataverify()
+	// 和内存分配器相关的
+	//
 	stackinit()
 	mallocinit()
 	mcommoninit(_g_.m)
@@ -505,5 +507,5 @@ func main() {
 }
 ```
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbMTg0ODYzNzg5MiwtNTk2NzUzMDMxXX0=
+eyJoaXN0b3J5IjpbMTk2MDQxODc1LC01OTY3NTMwMzFdfQ==
 -->
