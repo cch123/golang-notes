@@ -316,11 +316,12 @@ func schedinit() {
 	// 读入 GOGC 环境变量，设置 GC 回收的触发 percent
 	// 比如 GOGC=100，那么就是内存两倍的情况下触发回收
 	// 如果 GOGC=300，那么就是内存四倍的情况下触发回收
-	// 可以通过设置 GOGC=off l
+	// 可以通过设置 GOGC=off 来彻底关闭 GC
 	gcinit()
 
 	sched.lastpoll = uint64(nanotime())
 	procs := ncpu
+	// 这个太简单了，没啥可说的
 	if n, ok := atoi32(gogetenv("GOMAXPROCS")); ok && n > 0 {
 		procs = n
 	}
@@ -535,5 +536,5 @@ func main() {
 }
 ```
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbOTMyNDQ1NTg0LC01OTY3NTMwMzFdfQ==
+eyJoaXN0b3J5IjpbLTk0NDc0NTE1MiwtNTk2NzUzMDMxXX0=
 -->
