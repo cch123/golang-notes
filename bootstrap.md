@@ -466,31 +466,11 @@ func main() {
 	// because nanotime on some platforms depends on startNano.
 	runtimeInitTime = nanotime()
 
+	// 启动后台垃圾回收器的工作
 	gcenable()
 
-	main_init_done = make(chan bool)
-	if iscgo {
-		if _cgo_thread_start == nil {
-			throw("_cgo_thread_start missing")
-		}
-		if GOOS != "windows" {
-			if _cgo_setenv == nil {
-				throw("_cgo_setenv missing")
-			}
-			if _cgo_unsetenv == nil {
-				throw("_cgo_unsetenv missing")
-			}
-		}
-		if _cgo_notify_runtime_init_done == nil {
-			throw("_cgo_notify_runtime_init_done missing")
-		}
-		// Start the template thread in case we enter Go from
-		// a C-created thread and need to create a new thread.
-		startTemplateThread()
-		cgocall(_cgo_notify_runtime_init_done, nil)
-	}
-
 	// 和 runtime_init 差不多的意思
+	// 负责非 runtime 包的 init 操作
 	fn := main_init // make an indirect call, as the linker doesn't know the address of the main package when laying down the runtime
 	fn()
 	close(main_init_done)
@@ -503,6 +483,8 @@ func main() {
 		// has a main, but it is not executed.
 		return
 	}
+	
+	// 执行用户
 	fn = main_main // make an indirect call, as the linker doesn't know the address of the main package when laying down the runtime
 	fn()
 
@@ -533,5 +515,5 @@ func main() {
 }
 ```
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbMTM3NTMzMjU4NiwtNTk2NzUzMDMxXX0=
+eyJoaXN0b3J5IjpbMTI2MzczNzY5OSwtNTk2NzUzMDMxXX0=
 -->
