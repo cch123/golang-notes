@@ -390,6 +390,8 @@ func mstart() {
 	// both Go and C functions with stack growth prologues.
 	_g_.stackguard0 = _g_.stack.lo + _StackGuard
 	_g_.stackguard1 = _g_.stackguard0
+	
+	
 	mstart1(0)
 
 	// Exit this thread.
@@ -525,5 +527,5 @@ func main() {
 }
 ```
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbMTcxMTE5MzIxMCwtNTk2NzUzMDMxXX0=
+eyJoaXN0b3J5IjpbMjAwMzEzNjk3NCwtNTk2NzUzMDMxXX0=
 -->
