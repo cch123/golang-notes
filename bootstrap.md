@@ -273,20 +273,19 @@ func schedinit() {
 	tracebackinit()
 	// 一些校验，感觉不需要深究
 	moduledataverify()
-	// 和内存分配器相关的
+	// 一些全局的栈对象初始化，主要初始化下面注释中的几个 stack pool
 	// Global pool of spans that have free stacks.
 	// Stacks are assigned an order according to size.
 	//     order = log_2(size/FixedStack)
 	// There is a free list for each order.
 	// TODO: one lock per order?
-	var stackpool [_NumStackOrders]mSpanList
-	var stackpoolmu mutex
+	//var stackpool [_NumStackOrders]mSpanList
 
 	// Global pool of large stack spans.
 	//var stackLarge struct {
-	...	lock mutex
-		free [_MHeapMap_Bits]mSpanList // free lists by log_2(s.npages)
-	}
+	//	lock mutex
+	//	free [_MHeapMap_Bits]mSpanList // free lists by log_2(s.npages)
+	//}
 	stackinit()
 	mallocinit()
 	mcommoninit(_g_.m)
@@ -519,5 +518,5 @@ func main() {
 }
 ```
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTIxMjc5NTEzMDksLTU5Njc1MzAzMV19
+eyJoaXN0b3J5IjpbLTE2NTE5MTk0NzMsLTU5Njc1MzAzMV19
 -->
