@@ -293,8 +293,10 @@ func schedinit() {
 	mallocinit()
 	// m 内部的一些变量初始化
 	mcommoninit(_g_.m)
-	// algorithm init
+	// algorithm init，哈希相关的依赖初始化
+	// alg.go:281
 	alginit()       // maps must not be used before this call
+	// plugin 相关的初始化，没啥兴趣
 	modulesinit()   // provides activeModules
 	typelinksinit() // uses maps, activeModules
 	itabsinit()     // uses activeModules
@@ -523,5 +525,5 @@ func main() {
 }
 ```
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTk4MjU1MjYsLTU5Njc1MzAzMV19
+eyJoaXN0b3J5IjpbLTE1MTEzODQxODQsLTU5Njc1MzAzMV19
 -->
