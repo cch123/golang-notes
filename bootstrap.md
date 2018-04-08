@@ -445,6 +445,7 @@ func main() {
 		throw("runtime.main not on m0")
 	}
 
+	// 汇编写的 runtime
 	runtime_init() // must be before defer
 	if nanotime() == 0 {
 		throw("nanotime returning zero")
@@ -527,5 +528,5 @@ func main() {
 }
 ```
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbMTQwNjYwNTk4MSwtNTk2NzUzMDMxXX0=
+eyJoaXN0b3J5IjpbLTMyODYyODMzMSwtNTk2NzUzMDMxXX0=
 -->
