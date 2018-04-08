@@ -265,6 +265,7 @@ func schedinit() {
 	// 设置最大线程数 10000
 	sched.maxmcount = 10000
 
+
 	tracebackinit()
 	moduledataverify()
 	stackinit()
@@ -499,5 +500,5 @@ func main() {
 }
 ```
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTExODQ4NzA2NjIsLTU5Njc1MzAzMV19
+eyJoaXN0b3J5IjpbLTExOTAzMDMxOTIsLTU5Njc1MzAzMV19
 -->
