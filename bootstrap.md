@@ -265,7 +265,8 @@ func schedinit() {
 	// 设置最大线程数 10000
 	sched.maxmcount = 10000
 
-
+	// 记录一些内部函数的指令位置，并以全局变量 xxxpc的形式存储下来
+	// 例如 morestackPC cgocallback_gofuncPC
 	tracebackinit()
 	moduledataverify()
 	stackinit()
@@ -500,5 +501,5 @@ func main() {
 }
 ```
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTExOTAzMDMxOTIsLTU5Njc1MzAzMV19
+eyJoaXN0b3J5IjpbMTM3ODY3MjY3NSwtNTk2NzUzMDMxXX0=
 -->
