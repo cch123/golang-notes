@@ -287,6 +287,7 @@ func schedinit() {
 	//	free [_MHeapMap_Bits]mSpanList // free lists by log_2(s.npages)
 	//}
 	stackinit()
+	// 也是和内存分配器相关的初始化操作
 	mallocinit()
 	mcommoninit(_g_.m)
 	alginit()       // maps must not be used before this call
@@ -518,5 +519,5 @@ func main() {
 }
 ```
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTE2NTE5MTk0NzMsLTU5Njc1MzAzMV19
+eyJoaXN0b3J5IjpbNjI5NjA3MjYzLC01OTY3NTMwMzFdfQ==
 -->
