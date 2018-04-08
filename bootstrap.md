@@ -445,7 +445,10 @@ func main() {
 		throw("runtime.main not on m0")
 	}
 
-	// 汇编写的 runtime
+	// 执行runtime里面的所有init函数
+	// 这个函数是编译器动态生成的，不是实际实现的函数
+	// 可以用反编译工具查看
+	// go tool objdump -s "runtime.\.init\b
 	runtime_init() // must be before defer
 	if nanotime() == 0 {
 		throw("nanotime returning zero")
@@ -528,5 +531,5 @@ func main() {
 }
 ```
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTMyODYyODMzMSwtNTk2NzUzMDMxXX0=
+eyJoaXN0b3J5IjpbOTg0MjY4NzEzLC01OTY3NTMwMzFdfQ==
 -->
