@@ -426,6 +426,8 @@ func main() {
 	// Allow newproc to start new Ms.
 	mainStarted = true
 
+	// sysmon 运行的时候是脱离 G P M 的调度体系之外的，不需要依附于 P 就可以运行
+	// 可以认为是后台线程
 	systemstack(func() {
 		newm(sysmon, nil)
 	})
@@ -524,5 +526,5 @@ func main() {
 }
 ```
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTk4NTAxNDE5NCwtNTk2NzUzMDMxXX0=
+eyJoaXN0b3J5IjpbLTg5MDY3NjcyLC01OTY3NTMwMzFdfQ==
 -->
