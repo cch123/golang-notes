@@ -335,6 +335,8 @@ func schedinit() {
 ```go
 proc.go:3235
 
+// 在启动的时候，是把 runtime.main 传入到 newproc 函数中的
+// 感觉这里的英文注释写的有点问题
 // Create a new g running fn with siz bytes of arguments.
 // Put it on the queue of g's waiting to run.
 // The compiler turns a go statement into a call to this.
@@ -537,5 +539,5 @@ func main() {
 }
 ```
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbOTE5NTQyNzk2LC01OTY3NTMwMzFdfQ==
+eyJoaXN0b3J5IjpbMzcwNTM3MTI5LC01OTY3NTMwMzFdfQ==
 -->
