@@ -289,7 +289,9 @@ func schedinit() {
 	stackinit()
 	// 也是和内存分配器相关的初始化操作
 	// 初始化全局的 mheap 和相应的 bitmap
+	// malloc.go:217
 	mallocinit()
+	
 	mcommoninit(_g_.m)
 	alginit()       // maps must not be used before this call
 	modulesinit()   // provides activeModules
@@ -520,5 +522,5 @@ func main() {
 }
 ```
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTE4MjkzMTA2MjUsLTU5Njc1MzAzMV19
+eyJoaXN0b3J5IjpbNTc1NDMwNTkxLC01OTY3NTMwMzFdfQ==
 -->
