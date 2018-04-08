@@ -325,6 +325,7 @@ func schedinit() {
 	if n, ok := atoi32(gogetenv("GOMAXPROCS")); ok && n > 0 {
 		procs = n
 	}
+	// 修改 G P M 中 P 的数目
 	if procresize(procs) != nil {
 		throw("unknown runnable goroutine during bootstrap")
 	}
@@ -536,5 +537,5 @@ func main() {
 }
 ```
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTk0NDc0NTE1MiwtNTk2NzUzMDMxXX0=
+eyJoaXN0b3J5IjpbOTE5NTQyNzk2LC01OTY3NTMwMzFdfQ==
 -->
