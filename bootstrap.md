@@ -340,6 +340,7 @@ proc.go:3235
 // 创建一个新的 g，该 g 运行传入的这个函数
 // 并把这个 g 放到 g 的 waiting 列表里等待执行
 // 编译器会把 go func 编译成这个函数的调用
+// 更详细的还是在 scheduler 中分析吧
 // Create a new g running fn with siz bytes of arguments.
 // Put it on the queue of g's waiting to run.
 // The compiler turns a go statement into a call to this.
@@ -355,30 +356,12 @@ func newproc(siz int32, fn *funcval) {
 	})
 }
 
-// systemstack runs fn on a system stack.
-// If systemstack is called from the per-OS-thread (g0) stack, or
-// if systemstack is called from the signal handling (gsignal) stack,
-// systemstack calls fn directly and returns.
-// Otherwise, systemstack is being called from the limited stack
-// of an ordinary goroutine. In this case, systemstack switches
-// to the per-OS-thread stack, calls fn, and switches back.
-// It is common to use a func literal as the argument, in order
-// to share inputs and outputs with the code around the call
-// to system stack:
-//
-//	... set up y ...
-//	systemstack(func() {
-//		x = bigcall(y)
-//	})
-//	... use x ...
-//
-//go:noescape
-func systemstack(fn func())
 ```
 ## runtime·mstart
 ```go
 proc.go:1170
 
+// 启动线程 M
 // Called to start an M.
 //
 // This must not split the stack because we may not even have stack
@@ -542,5 +525,5 @@ func main() {
 }
 ```
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbMjAzMDI2MDA1OCwtNTk2NzUzMDMxXX0=
+eyJoaXN0b3J5IjpbMTcxMTE5MzIxMCwtNTk2NzUzMDMxXX0=
 -->
