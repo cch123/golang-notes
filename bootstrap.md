@@ -356,7 +356,7 @@ func newproc(siz int32, fn *funcval) {
 	})
 }
 ```
-
+newproc 的实际实现是 newproc1，会在 scheduler 中进行说明。这里不关注其细节。
 
 ## runtime·mstart
 ```go
@@ -516,5 +516,5 @@ func main() {
 }
 ```
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbMTIyOTY1MDMyMywtNTk2NzUzMDMxXX0=
+eyJoaXN0b3J5IjpbLTE0NTM2MDYyMTAsLTU5Njc1MzAzMV19
 -->
