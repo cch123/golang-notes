@@ -507,6 +507,7 @@ func main() {
 	fn()
 
 
+	// panic 的处理部分了
 	// Make racy client program work: if panicking on
 	// another goroutine at the same time as main returns,
 	// let the other goroutine finish printing the panic trace.
@@ -532,5 +533,5 @@ func main() {
 }
 ```
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTQ2Mzg3OTU5NywtNTk2NzUzMDMxXX0=
+eyJoaXN0b3J5IjpbMTM3NTMzMjU4NiwtNTk2NzUzMDMxXX0=
 -->
