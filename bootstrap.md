@@ -361,7 +361,7 @@ func newproc(siz int32, fn *funcval) {
 ```go
 proc.go:1170
 
-// 启动线程 M
+// 启动线程 M，mac os 的有点乱，linux 的写的比较简单
 // Called to start an M.
 //
 // This must not split the stack because we may not even have stack
@@ -413,13 +413,10 @@ proc.go:109
 func main() {
 	g := getg()
 
-	// Racectx of m0->g0 is used only as the parent of the main goroutine.
-	// It must not be used for anything else.
-	g.m.g0.racectx = 0
-
 	// Max stack size is 1 GB on 64-bit, 250 MB on 32-bit.
 	// Using decimal instead of binary GB and MB because
 	// they look nicer in the stack overflow failure message.
+	// 英文注释说得比较明白了。。为了
 	if sys.PtrSize == 8 {
 		maxstacksize = 1000000000
 	} else {
@@ -527,5 +524,5 @@ func main() {
 }
 ```
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbMjAwMzEzNjk3NCwtNTk2NzUzMDMxXX0=
+eyJoaXN0b3J5IjpbLTkyMjQxNDc4OCwtNTk2NzUzMDMxXX0=
 -->
