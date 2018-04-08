@@ -484,7 +484,7 @@ func main() {
 		return
 	}
 	
-	// 执行用户
+	// 执行用户的程序入口 main.main
 	fn = main_main // make an indirect call, as the linker doesn't know the address of the main package when laying down the runtime
 	fn()
 
@@ -515,5 +515,5 @@ func main() {
 }
 ```
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbMTI2MzczNzY5OSwtNTk2NzUzMDMxXX0=
+eyJoaXN0b3J5IjpbLTEwNTA3NzUxMzksLTU5Njc1MzAzMV19
 -->
