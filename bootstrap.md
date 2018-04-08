@@ -298,9 +298,12 @@ func schedinit() {
 	alginit()       // maps must not be used before this call
 	// plugin 相关的初始化，没啥兴趣
 	modulesinit()   // provides activeModules
+	// 是和 module 相关的类型初始化，没兴趣
 	typelinksinit() // uses maps, activeModules
+	// 同上
 	itabsinit()     // uses activeModules
 
+	// 空函数。。。。。
 	msigsave(_g_.m)
 	initSigmask = _g_.m.sigmask
 
@@ -525,5 +528,5 @@ func main() {
 }
 ```
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTE1MTEzODQxODQsLTU5Njc1MzAzMV19
+eyJoaXN0b3J5IjpbMzk0ODgyODczLC01OTY3NTMwMzFdfQ==
 -->
