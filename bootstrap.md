@@ -267,6 +267,9 @@ func schedinit() {
 
 	// 记录一些内部函数的指令位置，并以全局变量 xxxpc的形式存储下来
 	// 例如 morestackPC cgocallback_gofuncPC
+	// 主要是考虑到不同架构下的 calling convention 不一样
+	// 并不都像 x86 平台一样会把函数的 return address 压到栈上
+	
 	tracebackinit()
 	moduledataverify()
 	stackinit()
@@ -501,5 +504,5 @@ func main() {
 }
 ```
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbMTM3ODY3MjY3NSwtNTk2NzUzMDMxXX0=
+eyJoaXN0b3J5IjpbMTIxMTEyNzQsLTU5Njc1MzAzMV19
 -->
