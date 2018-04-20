@@ -34,9 +34,10 @@ General Purpose Registers:
         fs = 0x0000000000000000
         gs = 0x0000000000000000
 ```
-在 plan9 汇编里都是可以使用的，应用代码层面会用到的通用寄存器主要是: rax, rbx, rcx, rdx, rdi, rsi, r8~r15 这 14 个寄存器，虽然 rbp 和 rsp 也可以用，不过 bp 和 sp 一般会被用来管理栈顶和栈底，最好不要拿来进行运算。
+在 plan9 汇编里都是可以使用的，应用代码层面会用到的通用寄存器主要是: rax, rbx, rcx, rdx, rdi, rsi, r8~r15 这 14 个寄存器，虽然 rbp 和 rsp 也可以用，不过 bp 和 sp 会被用来管理栈顶和栈底，最好不要拿来进行运算。
 
 在使用这些真实寄存器时，可以直接忽略前缀 `r`，例如要使用 rax 寄存器时，只要写 AX 即可，例如:
+
 ```go
 MOVQ $101, AX
 ```
@@ -61,7 +62,7 @@ TODO，这里有图
 
 图上的 caller BP，指的是 caller 的 BP 寄存器值，这里有些人把 caller BP 叫作 caller 的 frame pointer，实际上这个习惯是从 x86 架构沿袭来的。虽然在 Go 的 asm 文档中把伪寄存器 FP 也称为 frame pointer，但是这两个 frame pointer 根本不是一回事。
 
-此外需要注意的是，caller BP 是在编译器由编译器插入的，用户手写代码时，计算 frame size 时是不包括这个 caller BP 部分的。
+此外需要注意的是，caller BP 是在编译期由编译器插入的，用户手写代码时，计算 frame size 时是不包括这个 caller BP 部分的。
 
 ```
                                                                                                                               
@@ -118,7 +119,7 @@ TODO，这里有图
                                                               callee
 ```
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbMTQ2NjM3MzAzNiw5ODQ3MDUyODMsOTYyNj
-Q3MzAsMTM4OTg1NTIxMywtMTgyMjg0MDY3Niw3MTA1MDM0MzEs
-LTYzOTQ4OTExNiwtMjE2NTY0Nzg1LDEyNDA1Nzg3MjddfQ==
+eyJoaXN0b3J5IjpbNTk2MDQ5OTY3LDk4NDcwNTI4Myw5NjI2ND
+czMCwxMzg5ODU1MjEzLC0xODIyODQwNjc2LDcxMDUwMzQzMSwt
+NjM5NDg5MTE2LC0yMTY1NjQ3ODUsMTI0MDU3ODcyN119
 -->
