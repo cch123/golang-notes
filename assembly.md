@@ -10,9 +10,12 @@
 #### 数据搬运
 ```go
 MOVQ $10, AX
-MOVW $0x100
+MOVW $0x100, BX
+MOVL $-13, CX
+MOVD $1, DX
 ```
-
+#### 条件跳转/无条件跳转
+#### 
 ### 寄存器
 #### 通用寄存器
 amd64 的通用寄存器:
@@ -166,9 +169,9 @@ argN, ... arg3, arg2, arg1, arg0
 ### framesize 计算规则
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTYxMDMzNTI2NSwtMTQ4MTYzNTg2MiwtMj
-A2ODEzMjk1MywxMDY4NDUzOTAzLC0zNzA3NjM4NDcsOTg0NzA1
-MjgzLDk2MjY0NzMwLDEzODk4NTUyMTMsLTE4MjI4NDA2NzYsNz
-EwNTAzNDMxLC02Mzk0ODkxMTYsLTIxNjU2NDc4NSwxMjQwNTc4
-NzI3XX0=
+eyJoaXN0b3J5IjpbNjIwODgwMzk3LC0xNDgxNjM1ODYyLC0yMD
+Y4MTMyOTUzLDEwNjg0NTM5MDMsLTM3MDc2Mzg0Nyw5ODQ3MDUy
+ODMsOTYyNjQ3MzAsMTM4OTg1NTIxMywtMTgyMjg0MDY3Niw3MT
+A1MDM0MzEsLTYzOTQ4OTExNiwtMjE2NTY0Nzg1LDEyNDA1Nzg3
+MjddfQ==
 -->
