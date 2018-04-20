@@ -57,7 +57,7 @@ Go 的汇编还引入了 4 个伪寄存器，援引官方文档的描述:
 
 实际上这些描述并不精确，虽然官方文档之后还有一些稍微具体了一点的说明，不过也是综合多个平台来进行说明，很多细节并没有说明白。我们来画一个通常情况下被调用的函数的栈结构图:
 
-图上的 caller BP，zu
+图上的 caller BP，指的是 caller 的 BP 寄存器值，这里有些人把 caller BP 叫作 caller 的 frame pointer，实际上这个习惯是从 x86 架构沿袭来的。这个 frame pointer 和伪寄存器的 FP 根本就不是一回事。
 
 ```
                                                                                                                               
@@ -114,7 +114,7 @@ Go 的汇编还引入了 4 个伪寄存器，援引官方文档的描述:
                                                               callee
 ```
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbMjAwMDQ4MzE5Myw5NjI2NDczMCwxMzg5OD
-U1MjEzLC0xODIyODQwNjc2LDcxMDUwMzQzMSwtNjM5NDg5MTE2
-LC0yMTY1NjQ3ODUsMTI0MDU3ODcyN119
+eyJoaXN0b3J5IjpbLTczODc4NTYwLDk2MjY0NzMwLDEzODk4NT
+UyMTMsLTE4MjI4NDA2NzYsNzEwNTAzNDMxLC02Mzk0ODkxMTYs
+LTIxNjU2NDc4NSwxMjQwNTc4NzI3XX0=
 -->
