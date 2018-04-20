@@ -66,7 +66,8 @@ Go 的汇编还引入了 4 个伪寄存器，援引官方文档的描述:
 实际上这里官方文档中，对这几个伪寄存器的描述并不精确，虽然文档之后还有一点补充说明说明，但由于是拿很多硬件平台泛泛而谈，细节并没有讲明白。
 
 我们这里先对容易混淆的几点进行说明：
-1. 伪 SP 和硬件 SP 不是一
+1. 伪 SP 和硬件 SP 不是一回事，在手写代码时，伪 SP 和硬件 SP 的区分方法是看该 SP 前是否有 symbol。如果有 symbol，那么即为伪寄存器，如果没有，那么说明是硬件 SP 寄存器。
+2. SP 和 FP 的相对位置是会变的
 
 
 ### 函数声明
@@ -161,7 +162,7 @@ argN, ... arg3, arg2, arg1, arg0
 ### framesize 计算规则
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbMTkyMzAwOTIxMSwtMTQ4MTYzNTg2MiwtMj
+eyJoaXN0b3J5IjpbMjExOTA4OTQ2MSwtMTQ4MTYzNTg2MiwtMj
 A2ODEzMjk1MywxMDY4NDUzOTAzLC0zNzA3NjM4NDcsOTg0NzA1
 MjgzLDk2MjY0NzMwLDEzODk4NTUyMTMsLTE4MjI4NDA2NzYsNz
 EwNTAzNDMxLC02Mzk0ODkxMTYsLTIxNjU2NDc4NSwxMjQwNTc4
