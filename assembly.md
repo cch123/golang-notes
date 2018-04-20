@@ -59,7 +59,7 @@ Go 的汇编还引入了 4 个伪寄存器，援引官方文档的描述:
 
 TODO，这里有图
 
-图上的 caller BP，指的是 caller 的 BP 寄存器值，这里有些人把 caller BP 叫作 caller 的 frame pointer，实际上这个习惯是从 x86 架构沿袭来的。虽然在 Go 的 asm 文档中把伪寄存器也叫 FP
+图上的 caller BP，指的是 caller 的 BP 寄存器值，这里有些人把 caller BP 叫作 caller 的 frame pointer，实际上这个习惯是从 x86 架构沿袭来的。虽然在 Go 的 asm 文档中把伪寄存器也称为 FP(frame pointer)，但是要知道，这两个 frame pointer 根本不是一回事。
 
 ```
                                                                                                                               
@@ -116,7 +116,7 @@ TODO，这里有图
                                                               callee
 ```
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTEzMTk1OTM0NzIsOTYyNjQ3MzAsMTM4OT
-g1NTIxMywtMTgyMjg0MDY3Niw3MTA1MDM0MzEsLTYzOTQ4OTEx
-NiwtMjE2NTY0Nzg1LDEyNDA1Nzg3MjddfQ==
+eyJoaXN0b3J5IjpbOTg0NzA1MjgzLDk2MjY0NzMwLDEzODk4NT
+UyMTMsLTE4MjI4NDA2NzYsNzEwNTAzNDMxLC02Mzk0ODkxMTYs
+LTIxNjU2NDc4NSwxMjQwNTc4NzI3XX0=
 -->
