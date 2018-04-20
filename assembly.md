@@ -58,61 +58,61 @@ Go 的汇编还引入了 4 个伪寄存器，援引官方文档的描述:
 实际上这些描述并不精确，虽然官方文档之后还有一些稍微具体了一点的说明，不过也是综合多个平台来进行说明，很多细节并没有说明白。
 
 ```
-                                                                                                                       
-                                caller                                                                                 
-                          +------------------+                                                                         
-                          |                  |                                                                         
-|---------------------->  --------------------                                                                         
-|                         |                  |                                                                         
-|                         | caller parent BP |                                                                         
-|           BP(pseudo SP) --------------------                                                                         
-|                         |                  |                                                                         
-|                         |   Local Var0     |                                                                         
-|                         --------------------                                                                         
-|                         |                  |                                                                         
-|                         |   .......        |                                                                         
-|                         --------------------                                                                         
-|                         |                  |                                                                         
-|                         |   Local VarN     |                                                                         
-|                         --------------------                                                                         
-|  caller stack frame     |                  |                                                                         
-|                         |   callee arg2    |                                                                         
-|                         |------------------|                                                                         
-|                         |                  |                                                                         
-|                         |   callee arg1    |                                                                         
-|                         |------------------|                                                                         
-|                         |                  |                                                                         
-|                         |   callee arg0    |                                                                         
-|                         ----------------------------------------------+   FP(virtual register)                       
-|                         |                  |                          |                                              
-|                         |   return addr    |  parent return address   |                                              
-|--------------------->   +------------------+--------------------------- <----------------------|                     
-                                             |  caller BP               |                        |                     
-                                             |  (caller frame pointer)  |                        |                     
-                              BP(pseudo SP)  ----------------------------                        |                     
-                                             |                          |                        |                     
-                                             |     Local Var0           |                        |                     
-                                             ----------------------------                        |                     
-                                             |                          |                        |   callee stack frame
-                                             |     Local Var1           |                        |                     
-                                             ----------------------------                        |                     
-                                             |                          |                        |                     
-                                             |       .....              |                        |                     
-                                             ----------------------------                        |                     
-                                             |                          |                        |                     
-                                             |     Local VarN           |                        |                     
-                           SP(Real Register) |--------------------------| <----------------------|                     
-                                             |                          |                                              
-                                             |                          |                                              
-                                       -     |                          |                                              
-                                             |                          |                                              
-                                             |                          |                                              
-                                             +--------------------------+                                              
-                                                                                                                       
-                                                       callee
+                                                                                                                              
+                                       caller                                                                                 
+                                 +------------------+                                                                         
+                                 |                  |                                                                         
+       +---------------------->  --------------------                                                                         
+       |                         |                  |                                                                         
+       |                         | caller parent BP |                                                                         
+       |           BP(pseudo SP) --------------------                                                                         
+       |                         |                  |                                                                         
+       |                         |   Local Var0     |                                                                         
+       |                         --------------------                                                                         
+       |                         |                  |                                                                         
+       |                         |   .......        |                                                                         
+       |                         --------------------                                                                         
+       |                         |                  |                                                                         
+       |                         |   Local VarN     |                                                                         
+                                 --------------------                                                                         
+ caller stack frame              |                  |                                                                         
+                                 |   callee arg2    |                                                                         
+       |                         |------------------|                                                                         
+       |                         |                  |                                                                         
+       |                         |   callee arg1    |                                                                         
+       |                         |------------------|                                                                         
+       |                         |                  |                                                                         
+       |                         |   callee arg0    |                                                                         
+       |                         ----------------------------------------------+   FP(virtual register)                       
+       |                         |                  |                          |                                              
+       |                         |   return addr    |  parent return address   |                                              
+       +---------------------->  +------------------+---------------------------    <-------------------------------+         
+                                                    |  caller BP               |                                    |         
+                                                    |  (caller frame pointer)  |                                    |         
+                                     BP(pseudo SP)  ----------------------------                                    |         
+                                                    |                          |                                    |         
+                                                    |     Local Var0           |                                    |         
+                                                    ----------------------------         -                          |         
+                                                    |                          |                                              
+                                                    |     Local Var1           |                                              
+                                                    ----------------------------                            callee stack frame
+                                                    |                          |                                              
+                                                    |       .....              |                                              
+                                                    ----------------------------                                    |         
+                                                    |                          |                                    |         
+                                                    |     Local VarN           |                                    |         
+                                  SP(Real Register) ----------------------------                                    |         
+                                                    |                          |                                    |         
+                                                    |                          |                                    |         
+                                                    |                          |                                    |         
+                                                    |                          |                                    |         
+                                                    |                          |                                    |         
+                                                    +--------------------------+    <-------------------------------+         
+                                                                                                                              
+                                                              callee
 ```
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbOTYyNjQ3MzAsMTM4OTg1NTIxMywtMTgyMj
-g0MDY3Niw3MTA1MDM0MzEsLTYzOTQ4OTExNiwtMjE2NTY0Nzg1
-LDEyNDA1Nzg3MjddfQ==
+eyJoaXN0b3J5IjpbMjEyNjEzMzA2MSw5NjI2NDczMCwxMzg5OD
+U1MjEzLC0xODIyODQwNjc2LDcxMDUwMzQzMSwtNjM5NDg5MTE2
+LC0yMTY1NjQ3ODUsMTI0MDU3ODcyN119
 -->
