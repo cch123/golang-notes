@@ -151,9 +151,9 @@ TEXT (pkgname)·add(SB), NOSPLIT, $0-8
 
 
 ### 变量声明
-在汇编里的qf
+在汇编里所谓的全局变量，一般是存储在 .rodata 或者 .data 段中的只读值。对应到应用层的话，就是已初始化过的全局的 const、var、。
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTE1ODUwODE3NjMsLTIwNjgxMzI5NTMsMT
+eyJoaXN0b3J5IjpbLTE2Nzk0NDYzNDUsLTIwNjgxMzI5NTMsMT
 A2ODQ1MzkwMywtMzcwNzYzODQ3LDk4NDcwNTI4Myw5NjI2NDcz
 MCwxMzg5ODU1MjEzLC0xODIyODQwNjc2LDcxMDUwMzQzMSwtNj
 M5NDg5MTE2LC0yMTY1NjQ3ODUsMTI0MDU3ODcyN119
