@@ -162,7 +162,7 @@ argN, ... arg3, arg2, arg1, arg0
                                                                                                                               
                                                               callee
 ```
-我们之前举的例子中，函数的 stack frame size 都大于 0。实际上有很多简单的函数，其 stack frame size 都是等于 0 的。这种情况下，编译器是不会插入 caller BP 的。本文研究对象为 amd64 平台，实际上目前(go1.10)中，会插入 caller BP 的也只有 amd64 平台。可以参见代码:
+我们之前举的例子中，函数的 stack frame size 都大于 0。实际上有很多简单的函数，其 stack frame size 都是等于 0 的。这种情况下，编译器是不会插入 caller BP 的。本文研究对象为 amd64 平台，实际上目前(go1.10)中，会插入 caller BP 的也只有 amd64 平台。可以参见 Go 的源代码:
 
 ```go
 func Framepointer_enabled(goos, goarch string) bool {
@@ -171,12 +171,12 @@ func Framepointer_enabled(goos, goarch string) bool {
 ```
 
 ### 变量声明
-在汇编里所谓的全局变量，一般是存储在 .rodata 或者 .data 段中的只读值。对应到应用层的话，就是已初始化过的全局的 const、var、static 变量/常量。
+在汇编里所谓的变量，一般是存储在 .rodata 或者 .data 段中的只读值。对应到应用层的话，就是已初始化过的全局的 const、var、static 变量/常量。
 
 ### framesize 计算规则
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbMTA4NDY0MjUwNSwxNzk0NTQwNTIzLDYyMD
+eyJoaXN0b3J5IjpbLTk5MDkyNjU1NSwxNzk0NTQwNTIzLDYyMD
 g4MDM5NywtMTQ4MTYzNTg2MiwtMjA2ODEzMjk1MywxMDY4NDUz
 OTAzLC0zNzA3NjM4NDcsOTg0NzA1MjgzLDk2MjY0NzMwLDEzOD
 k4NTUyMTMsLTE4MjI4NDA2NzYsNzEwNTAzNDMxLC02Mzk0ODkx
