@@ -68,7 +68,7 @@ TODO，这里有图
 high ----------------------> low
 argN, ... arg3, arg2, arg1, arg0
 ```
-假设所有参数均为 8 字节，这样我们就可以用 0(FP) 访问第一个 a
+假设所有参数均为 8 字节，这样我们就可以用 symname+0(FP) 访问第一个 参数，symname+8(FP) 访问第二个参数，以此类推。
 
 ```
                                                                                                                               
@@ -125,7 +125,7 @@ argN, ... arg3, arg2, arg1, arg0
                                                               callee
 ```
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTcyMDIzNjI0MCw5ODQ3MDUyODMsOTYyNj
+eyJoaXN0b3J5IjpbLTM3MDc2Mzg0Nyw5ODQ3MDUyODMsOTYyNj
 Q3MzAsMTM4OTg1NTIxMywtMTgyMjg0MDY3Niw3MTA1MDM0MzEs
 LTYzOTQ4OTExNiwtMjE2NTY0Nzg1LDEyNDA1Nzg3MjddfQ==
 -->
