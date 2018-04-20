@@ -38,9 +38,14 @@ General Purpose Registers:
 
 #### 伪寄存器
 Go 的汇编还引入了 4 个伪寄存器，援引官方文档的描述:
->
+>-   `FP`: Frame pointer: arguments and locals.
+>-   `PC`: Program counter: jumps and branches.
+>-   `SB`: Static base pointer: global symbols.
+>-   `SP`: Stack pointer: top of stack.
+
+
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbMTMwNjYyNDIwNiwtMTgyMjg0MDY3Niw3MT
+eyJoaXN0b3J5IjpbMTM4OTg1NTIxMywtMTgyMjg0MDY3Niw3MT
 A1MDM0MzEsLTYzOTQ4OTExNiwtMjE2NTY0Nzg1LDEyNDA1Nzg3
 MjddfQ==
 -->
