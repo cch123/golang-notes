@@ -57,6 +57,7 @@ Go 的汇编还引入了 4 个伪寄存器，援引官方文档的描述:
 
 实际上这些描述并不精确，虽然官方文档之后还有一些稍微具体了一点的说明，不过也是综合多个平台来进行说明，很多细节并没有说明白。
 
+
 ```
                                                                                                                               
                                        caller                                                                                 
@@ -112,7 +113,7 @@ Go 的汇编还引入了 4 个伪寄存器，援引官方文档的描述:
                                                               callee
 ```
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbMjEyNjEzMzA2MSw5NjI2NDczMCwxMzg5OD
-U1MjEzLC0xODIyODQwNjc2LDcxMDUwMzQzMSwtNjM5NDg5MTE2
-LC0yMTY1NjQ3ODUsMTI0MDU3ODcyN119
+eyJoaXN0b3J5IjpbMTczOTQ0ODMsOTYyNjQ3MzAsMTM4OTg1NT
+IxMywtMTgyMjg0MDY3Niw3MTA1MDM0MzEsLTYzOTQ4OTExNiwt
+MjE2NTY0Nzg1LDEyNDA1Nzg3MjddfQ==
 -->
