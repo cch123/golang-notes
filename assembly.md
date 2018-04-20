@@ -62,7 +62,11 @@ TODO，这里有图
 
 图上的 caller BP，指的是 caller 的 BP 寄存器值，有些人把 caller BP 叫作 caller 的 frame pointer，实际上这个习惯是从 x86 架构沿袭来的。虽然在 Go 的 asm 文档中把伪寄存器 FP 也称为 frame pointer，但是这两个 frame pointer 根本不是一回事。
 
-此外需要注意的是，caller BP 是在编译期由编译器插入的，用户手写代码时，计算 frame size 时是不包括这个 caller BP 部分的。图上可以看到，FP 伪寄存器指向函数的传入参数的开始位置，因为zx
+此外需要注意的是，caller BP 是在编译期由编译器插入的，用户手写代码时，计算 frame size 时是不包括这个 caller BP 部分的。图上可以看到，FP 伪寄存器指向函数的传入参数的开始位置，因为栈是朝低地址方向增长，为了通过寄存器引用参数时方便，所以参数的摆放方向和栈的增长方向是相反的，即：
+```
+high ----------------------> low
+argN, argN-1
+```
 
 ```
                                                                                                                               
@@ -119,7 +123,7 @@ TODO，这里有图
                                                               callee
 ```
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTE5MzAzNTE2NTksOTg0NzA1MjgzLDk2Mj
+eyJoaXN0b3J5IjpbLTE0OTg0NjAwNTUsOTg0NzA1MjgzLDk2Mj
 Y0NzMwLDEzODk4NTUyMTMsLTE4MjI4NDA2NzYsNzEwNTAzNDMx
 LC02Mzk0ODkxMTYsLTIxNjU2NDc4NSwxMjQwNTc4NzI3XX0=
 -->
