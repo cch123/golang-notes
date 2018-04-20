@@ -34,10 +34,9 @@ General Purpose Registers:
         fs = 0x0000000000000000
         gs = 0x0000000000000000
 ```
-在 plan9 汇编里都是可以使用的，应用代码层面会用到的通用寄存器主要是:
-rax, rbx, rcx, rdx, rdi, rsi, r8~r15
+在 plan9 汇编里都是可以使用的，应用代码层面会用到的通用寄存器主要是: rax, rbx, rcx, rdx, rdi, rsi, r8~r15 这 14 个寄存器，虽然 rbp 和 rsp 也可以用，不过 bp 和 sp 一般会被用来管理栈顶和栈底，最好不要拿来进行运算。
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTE1ODA1NTQwMDUsNzEwNTAzNDMxLC02Mz
-k0ODkxMTYsLTIxNjU2NDc4NSwxMjQwNTc4NzI3XX0=
+eyJoaXN0b3J5IjpbLTYyNzEyNzEyMiw3MTA1MDM0MzEsLTYzOT
+Q4OTExNiwtMjE2NTY0Nzg1LDEyNDA1Nzg3MjddfQ==
 -->
