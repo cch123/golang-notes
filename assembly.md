@@ -56,7 +56,9 @@ Go 的汇编还引入了 4 个伪寄存器，援引官方文档的描述:
 >-   `SB`: Static base pointer: global symbols.
 >-   `SP`: Stack pointer: top of stack.
 
-如果没有 FP 和 SP(注意这里的 SP 不是硬件的那个 SP) 的情况下，例如在 intel 汇编中，我们只能使用 bp 或者 sp + offset 来找我们的变量位置。而有了 FP 和 SP，我们可以直接以其为基准进行参数查找和局部by实际上这些描述并不精确，虽然官方文档之后还有一些稍微具体了一点的说明，不过也是综合多个平台来进行说明，很多细节并没有说明白。我们来画一个通常情况下被调用的函数的栈结构图:
+如果没有 FP 和 SP(注意这里的 SP 不是硬件的那个 SP) 的情况下，例如在 intel 汇编中，我们只能使用 bp 或者 sp + offset 来找我们的变量位置。而有了 FP 和 SP，我们可以直接以其为基准进行参数查找和局部变量引用，即使编译之后他们的相对位置变化了，对手写代码也是无感知的。至于它们的相对位置为什么会变化，在后文中会进行说明。
+
+实际上这里官方文档中，对这几个伪寄存器的描述并不精确，虽然官方文档之后还有一些稍微具体了一点的说明，不过也是综合多个平台来进行说明，很多细节并没有说明白。我们来画一个通常情况下被调用的函数的栈结构图:
 
 TODO，这里有图
 
@@ -139,7 +141,7 @@ TEXT ·add(SB), NOSPLIT, $0-8
                                                               callee
 ```
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTk4MjQ0NTA1NSwtMjA2ODEzMjk1MywxMD
+eyJoaXN0b3J5IjpbMTAyNTQ1MTk0NSwtMjA2ODEzMjk1MywxMD
 Y4NDUzOTAzLC0zNzA3NjM4NDcsOTg0NzA1MjgzLDk2MjY0NzMw
 LDEzODk4NTUyMTMsLTE4MjI4NDA2NzYsNzEwNTAzNDMxLC02Mz
 k0ODkxMTYsLTIxNjU2NDc4NSwxMjQwNTc4NzI3XX0=
