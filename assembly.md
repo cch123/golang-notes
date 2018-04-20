@@ -72,9 +72,12 @@ argN, ... arg3, arg2, arg1, arg0
 
 我们来看看一个典型的 plan9 的汇编函数的定义：
 ```go
-// func add()
+// func add(a, b int) int
 TEXT ·add(SB), NOSPLIT, $0-8
-	MOVQ a
+	MOVQ a+0(FP), AX
+	MOVQ a+8(FP), BX
+	ADDQ AX, BX
+	MOVQ BX, 16FP
 ```
 
 ```
@@ -132,7 +135,7 @@ TEXT ·add(SB), NOSPLIT, $0-8
                                                               callee
 ```
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTE4NjM4NDQ2ODgsLTM3MDc2Mzg0Nyw5OD
+eyJoaXN0b3J5IjpbLTIwNDUyMjkxNzMsLTM3MDc2Mzg0Nyw5OD
 Q3MDUyODMsOTYyNjQ3MzAsMTM4OTg1NTIxMywtMTgyMjg0MDY3
 Niw3MTA1MDM0MzEsLTYzOTQ4OTExNiwtMjE2NTY0Nzg1LDEyND
 A1Nzg3MjddfQ==
