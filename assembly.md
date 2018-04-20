@@ -65,6 +65,7 @@ Go 的汇编还引入了 4 个伪寄存器，援引官方文档的描述:
 
 实际上这里官方文档中，对这几个伪寄存器的描述并不精确，虽然文档之后还有一点补充说明说明，但由于是拿很多硬件平台泛泛而谈，细节并没有讲明白。
 
+### 栈结构
 TODO，这里有图
 
 图上的 caller BP，指的是 caller 的 BP 寄存器值，有些人把 caller BP 叫作 caller 的 frame pointer，实际上这个习惯是从 x86 架构沿袭来的。虽然在 Go 的 asm 文档中把伪寄存器 FP 也称为 frame pointer，但是这两个 frame pointer 根本不是一回事。
@@ -76,6 +77,8 @@ high ----------------------> low
 argN, ... arg3, arg2, arg1, arg0
 ```
 假设所有参数均为 8 字节，这样我们就可以用 symname+0(FP) 访问第一个 参数，symname+8(FP) 访问第二个参数，以此类推。
+
+### 函数声明
 
 我们来看看一个典型的 plan9 的汇编函数的定义：
 ```go
@@ -151,14 +154,12 @@ TEXT (pkgname)·add(SB), NOSPLIT, $0-8
 ### 变量声明
 在汇编里所谓的全局变量，一般是存储在 .rodata 或者 .data 段中的只读值。对应到应用层的话，就是已初始化过的全局的 const、var、static 变量/常量。
 
-### 函数声明
 
 ### framesize 计算规则
 
-### 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbMTc1NzkwNDMwOSwtMjA2ODEzMjk1MywxMD
-Y4NDUzOTAzLC0zNzA3NjM4NDcsOTg0NzA1MjgzLDk2MjY0NzMw
-LDEzODk4NTUyMTMsLTE4MjI4NDA2NzYsNzEwNTAzNDMxLC02Mz
-k0ODkxMTYsLTIxNjU2NDc4NSwxMjQwNTc4NzI3XX0=
+eyJoaXN0b3J5IjpbLTE0ODE2MzU4NjIsLTIwNjgxMzI5NTMsMT
+A2ODQ1MzkwMywtMzcwNzYzODQ3LDk4NDcwNTI4Myw5NjI2NDcz
+MCwxMzg5ODU1MjEzLC0xODIyODQwNjc2LDcxMDUwMzQzMSwtNj
+M5NDg5MTE2LC0yMTY1NjQ3ODUsMTI0MDU3ODcyN119
 -->
