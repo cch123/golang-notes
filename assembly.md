@@ -40,10 +40,13 @@ General Purpose Registers:
 ```go
 MOVQ $101, AX
 ```
-和
-`
 
-其它以此类推。
+和
+
+```asm
+mov rax, 101
+```
+是等价的。其它寄存器以此类推。
 
 #### 伪寄存器
 Go 的汇编还引入了 4 个伪寄存器，援引官方文档的描述:
@@ -109,7 +112,7 @@ Go 的汇编还引入了 4 个伪寄存器，援引官方文档的描述:
                                                        callee
 ```
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbNDcxNjI1NTE3LDEzODk4NTUyMTMsLTE4Mj
-I4NDA2NzYsNzEwNTAzNDMxLC02Mzk0ODkxMTYsLTIxNjU2NDc4
-NSwxMjQwNTc4NzI3XX0=
+eyJoaXN0b3J5IjpbOTYyNjQ3MzAsMTM4OTg1NTIxMywtMTgyMj
+g0MDY3Niw3MTA1MDM0MzEsLTYzOTQ4OTExNiwtMjE2NTY0Nzg1
+LDEyNDA1Nzg3MjddfQ==
 -->
