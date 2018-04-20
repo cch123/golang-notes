@@ -70,6 +70,8 @@ argN, ... arg3, arg2, arg1, arg0
 ```
 假设所有参数均为 8 字节，这样我们就可以用 symname+0(FP) 访问第一个 参数，symname+8(FP) 访问第二个参数，以此类推。
 
+
+
 ```
                                                                                                                               
                                        caller                                                                                 
@@ -125,7 +127,7 @@ argN, ... arg3, arg2, arg1, arg0
                                                               callee
 ```
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbODQ0NDI5NjM5LC0zNzA3NjM4NDcsOTg0Nz
+eyJoaXN0b3J5IjpbODk4MzUwNjI3LC0zNzA3NjM4NDcsOTg0Nz
 A1MjgzLDk2MjY0NzMwLDEzODk4NTUyMTMsLTE4MjI4NDA2NzYs
 NzEwNTAzNDMxLC02Mzk0ODkxMTYsLTIxNjU2NDc4NSwxMjQwNT
 c4NzI3XX0=
