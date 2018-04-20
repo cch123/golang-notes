@@ -165,6 +165,9 @@ argN, ... arg3, arg2, arg1, arg0
 我们之前举的例子中，函数的 stack frame size 都大于 0。实际上有很多简单的函数，其 stack frame size 都是等于 0 的。这种情况下，编译器是不会插入 caller BP 的。本文研究对象为 amd64 平台，实际上目前(go1.10)中，会插入 caller BP 的也只有 amd64 平台。可以参见代码:
 
 ```go
+func Framepointer_enabled(goos, goarch string) bool {
+	return framepointer_enabled != 0 && goarch == "amd64" && goos != "nacl"
+}
 ```
 
 ### 变量声明
@@ -173,9 +176,9 @@ argN, ... arg3, arg2, arg1, arg0
 ### framesize 计算规则
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbMTc5NDU0MDUyMyw2MjA4ODAzOTcsLTE0OD
-E2MzU4NjIsLTIwNjgxMzI5NTMsMTA2ODQ1MzkwMywtMzcwNzYz
-ODQ3LDk4NDcwNTI4Myw5NjI2NDczMCwxMzg5ODU1MjEzLC0xOD
-IyODQwNjc2LDcxMDUwMzQzMSwtNjM5NDg5MTE2LC0yMTY1NjQ3
-ODUsMTI0MDU3ODcyN119
+eyJoaXN0b3J5IjpbMTA4NDY0MjUwNSwxNzk0NTQwNTIzLDYyMD
+g4MDM5NywtMTQ4MTYzNTg2MiwtMjA2ODEzMjk1MywxMDY4NDUz
+OTAzLC0zNzA3NjM4NDcsOTg0NzA1MjgzLDk2MjY0NzMwLDEzOD
+k4NTUyMTMsLTE4MjI4NDA2NzYsNzEwNTAzNDMxLC02Mzk0ODkx
+MTYsLTIxNjU2NDc4NSwxMjQwNTc4NzI3XX0=
 -->
