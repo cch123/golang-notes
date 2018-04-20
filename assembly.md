@@ -6,8 +6,9 @@ plan9 assembly 完全解析
 
 本文所使用的平台是 linux amd64，因为不同的平台指令集和寄存器都不一样，所以没有办法共同探讨。这也是由汇编本身的性质决定的。
 
+### 寄存器
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTYzOTQ4OTExNiwtMjE2NTY0Nzg1LDEyND
-A1Nzg3MjddfQ==
+eyJoaXN0b3J5IjpbNzEwNTAzNDMxLC02Mzk0ODkxMTYsLTIxNj
+U2NDc4NSwxMjQwNTc4NzI3XX0=
 -->
