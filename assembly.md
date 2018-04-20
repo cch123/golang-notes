@@ -5,6 +5,10 @@
 本文将对 plan9 汇编进行全面的介绍，同时解答你在接触 plan9 汇编时可能遇到的大部分问题。
 
 本文所使用的平台是 linux amd64，因为不同的平台指令集和寄存器都不一样，所以没有办法共同探讨。这也是由汇编本身的性质决定的。
+### 指令构成
+
+```go
+```
 
 ### 寄存器
 #### 通用寄存器
@@ -77,7 +81,7 @@ argN, ... arg3, arg2, arg1, arg0
 我们来看看一个典型的 plan9 的汇编函数的定义：
 ```go
 // func add(a, b int) int
-TEXT ·add(SB), NOSPLIT, $0-8
+TEXT (pkgname)·add(SB), NOSPLIT, $0-8
 	MOVQ a+0(FP), AX
 	MOVQ a+8(FP), BX
 	ADDQ AX, BX
@@ -85,6 +89,8 @@ TEXT ·add(SB), NOSPLIT, $0-8
 	RET
 ```
 为什么要以 TEXT 来开头呢？如果对程序数据在文件中和内存中的分段稍有了解的同学应该知道，我们的代码在二进制文件中，是存储在 .text 段中的，这里也就是一种约定俗成的使用方法。
+
+定义中的 pkgname 部分是可以省略的，如果你有强迫症，那写上也没有什么问题。
 
 中点 `·` 比较特殊，是一个 unicode 的中点，该点在 mac 下的输入方法是 `option+shift+9`。在程序被链接之后，所有的中点`·` 都会被替换为`.`，比如你的方法是 `runtime·main`，在编译之后的程序里的符号则是 `runtime.main`。嗯，看起来很变态。
 
@@ -143,8 +149,8 @@ TEXT ·add(SB), NOSPLIT, $0-8
                                                               callee
 ```
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbMTA0NTM1MjgxLC0yMDY4MTMyOTUzLDEwNj
-g0NTM5MDMsLTM3MDc2Mzg0Nyw5ODQ3MDUyODMsOTYyNjQ3MzAs
-MTM4OTg1NTIxMywtMTgyMjg0MDY3Niw3MTA1MDM0MzEsLTYzOT
-Q4OTExNiwtMjE2NTY0Nzg1LDEyNDA1Nzg3MjddfQ==
+eyJoaXN0b3J5IjpbLTE5NzQwMTQxOTUsLTIwNjgxMzI5NTMsMT
+A2ODQ1MzkwMywtMzcwNzYzODQ3LDk4NDcwNTI4Myw5NjI2NDcz
+MCwxMzg5ODU1MjEzLC0xODIyODQwNjc2LDcxMDUwMzQzMSwtNj
+M5NDg5MTE2LC0yMTY1NjQ3ODUsMTI0MDU3ODcyN119
 -->
