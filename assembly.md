@@ -64,9 +64,11 @@ TODO，这里有图
 
 此外需要注意的是，caller BP 是在编译期由编译器插入的，用户手写代码时，计算 frame size 时是不包括这个 caller BP 部分的。图上可以看到，FP 伪寄存器指向函数的传入参数的开始位置，因为栈是朝低地址方向增长，为了通过寄存器引用参数时方便，所以参数的摆放方向和栈的增长方向是相反的，即：
 ```
+                              FP
 high ----------------------> low
-argN, argN-1
+argN, ... arg3, arg2, arg1, arg0
 ```
+假设所有参数均为 8 字节，这样我们就可以用 0(FP) 访问第一个 a
 
 ```
                                                                                                                               
@@ -123,7 +125,7 @@ argN, argN-1
                                                               callee
 ```
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTE0OTg0NjAwNTUsOTg0NzA1MjgzLDk2Mj
-Y0NzMwLDEzODk4NTUyMTMsLTE4MjI4NDA2NzYsNzEwNTAzNDMx
-LC02Mzk0ODkxMTYsLTIxNjU2NDc4NSwxMjQwNTc4NzI3XX0=
+eyJoaXN0b3J5IjpbLTcyMDIzNjI0MCw5ODQ3MDUyODMsOTYyNj
+Q3MzAsMTM4OTg1NTIxMywtMTgyMjg0MDY3Niw3MTA1MDM0MzEs
+LTYzOTQ4OTExNiwtMjE2NTY0Nzg1LDEyNDA1Nzg3MjddfQ==
 -->
