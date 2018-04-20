@@ -70,7 +70,12 @@ argN, ... arg3, arg2, arg1, arg0
 ```
 假设所有参数均为 8 字节，这样我们就可以用 symname+0(FP) 访问第一个 参数，symname+8(FP) 访问第二个参数，以此类推。
 
-
+我们来看看一个典型的 plan9 的汇编函数的定义：
+```go
+// func add()
+TEXT ·add(SB), NOSPLIT, $0-8
+	MOVQ a
+```
 
 ```
                                                                                                                               
@@ -127,8 +132,8 @@ argN, ... arg3, arg2, arg1, arg0
                                                               callee
 ```
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbODk4MzUwNjI3LC0zNzA3NjM4NDcsOTg0Nz
-A1MjgzLDk2MjY0NzMwLDEzODk4NTUyMTMsLTE4MjI4NDA2NzYs
-NzEwNTAzNDMxLC02Mzk0ODkxMTYsLTIxNjU2NDc4NSwxMjQwNT
-c4NzI3XX0=
+eyJoaXN0b3J5IjpbLTE4NjM4NDQ2ODgsLTM3MDc2Mzg0Nyw5OD
+Q3MDUyODMsOTYyNjQ3MzAsMTM4OTg1NTIxMywtMTgyMjg0MDY3
+Niw3MTA1MDM0MzEsLTYzOTQ4OTExNiwtMjE2NTY0Nzg1LDEyND
+A1Nzg3MjddfQ==
 -->
