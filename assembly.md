@@ -98,7 +98,7 @@ TEXT (pkgname)·add(SB), NOSPLIT, $0-8
 ### 栈结构
 TODO，这里有图
 
-图上的 caller BP，指的是 caller 的 BP 寄存器值，有些人把 caller BP 叫作 caller 的 frame pointer，实际上这个习惯是从 x86 架构沿袭来的。虽然在 Go 的 asm 文档中把伪寄存器 FP 也称为 frame pointer，但是这两个 frame pointer 根本不是一回事。
+图上的 caller BP，指的是 caller 的 BP 寄存器值，有些人把 caller BP 叫作 caller 的 frame pointer，实际上这个习惯是从 x86 架构沿袭来的。Go 的 asm 文档中把伪寄存器 FP 也称为 frame pointer，但是这两个 frame pointer 根本不是一回事。
 
 此外需要注意的是，caller BP 是在编译期由编译器插入的，用户手写代码时，计算 frame size 时是不包括这个 caller BP 部分的。图上可以看到，FP 伪寄存器指向函数的传入参数的开始位置，因为栈是朝低地址方向增长，为了通过寄存器引用参数时方便，所以参数的摆放方向和栈的增长方向是相反的，即：
 ```
@@ -162,6 +162,7 @@ argN, ... arg3, arg2, arg1, arg0
                                                                                                                               
                                                               callee
 ```
+我们之前举的例子中，函数的 stack frame size 都大于 0。实际上
 
 ### 变量声明
 在汇编里所谓的全局变量，一般是存储在 .rodata 或者 .data 段中的只读值。对应到应用层的话，就是已初始化过的全局的 const、var、static 变量/常量。
@@ -169,9 +170,9 @@ argN, ... arg3, arg2, arg1, arg0
 ### framesize 计算规则
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbNjIwODgwMzk3LC0xNDgxNjM1ODYyLC0yMD
-Y4MTMyOTUzLDEwNjg0NTM5MDMsLTM3MDc2Mzg0Nyw5ODQ3MDUy
-ODMsOTYyNjQ3MzAsMTM4OTg1NTIxMywtMTgyMjg0MDY3Niw3MT
-A1MDM0MzEsLTYzOTQ4OTExNiwtMjE2NTY0Nzg1LDEyNDA1Nzg3
-MjddfQ==
+eyJoaXN0b3J5IjpbLTkyNDg5MzY1OSw2MjA4ODAzOTcsLTE0OD
+E2MzU4NjIsLTIwNjgxMzI5NTMsMTA2ODQ1MzkwMywtMzcwNzYz
+ODQ3LDk4NDcwNTI4Myw5NjI2NDczMCwxMzg5ODU1MjEzLC0xOD
+IyODQwNjc2LDcxMDUwMzQzMSwtNjM5NDg5MTE2LC0yMTY1NjQ3
+ODUsMTI0MDU3ODcyN119
 -->
