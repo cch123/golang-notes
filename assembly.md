@@ -66,7 +66,7 @@ Go 的汇编还引入了 4 个伪寄存器，援引官方文档的描述:
 >-   `SB`: Static base pointer: global symbols.
 >-   `SP`: Stack pointer: top of stack.
 
-如果没有 FP 和 SP(注意这里的 SP 不是硬件的那个 SP) 的情况下，例如在 intel 汇编中，我们只能使用 bp 或者 sp + offset 来找我们的变量位置。而有了 FP 和 SP，我们可以直接以其为基准进行参数查找和局部变量引用，即使编译之后他们的相对位置变化了，对手写代码也是无感知的。至于它们的相对位置为什么会变化，在后文中会进行说明。
+如果没有 FP 和 SP(注意这里的 SP 不是硬件的那个 SP) 的情况下，例如在 intel 汇编中，我们只能使用 bp 或者 sp + offset 来找我们的变量位置。而有了 FP 和 SP，我们可以直接以其为基准进行参数查找和局部变量引用，即使编译之后他们的相对位置变化了，对手写代码也是透明的。至于它们的相对位置为什么会变化，在后文中会进行说明。
 
 实际上这里官方文档中，对这几个伪寄存器的描述并不精确，虽然文档之后还有一点补充说明说明，但由于是拿很多硬件平台泛泛而谈，细节并没有讲明白。
 
@@ -169,6 +169,7 @@ func Framepointer_enabled(goos, goarch string) bool {
 	return framepointer_enabled != 0 && goarch == "amd64" && goos != "nacl"
 }
 ```
+在不插入这个 caller BP(frame )
 
 ### 变量声明
 在汇编里所谓的变量，一般是存储在 .rodata 或者 .data 段中的只读值。对应到应用层的话，就是已初始化过的全局的 const、var、static 变量/常量。
@@ -176,7 +177,7 @@ func Framepointer_enabled(goos, goarch string) bool {
 ### framesize 计算规则
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTk5MDkyNjU1NSwxNzk0NTQwNTIzLDYyMD
+eyJoaXN0b3J5IjpbMTM1NDI2ODU5MiwxNzk0NTQwNTIzLDYyMD
 g4MDM5NywtMTQ4MTYzNTg2MiwtMjA2ODEzMjk1MywxMDY4NDUz
 OTAzLC0zNzA3NjM4NDcsOTg0NzA1MjgzLDk2MjY0NzMwLDEzOD
 k4NTUyMTMsLTE4MjI4NDA2NzYsNzEwNTAzNDMxLC02Mzk0ODkx
