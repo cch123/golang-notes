@@ -1,6 +1,6 @@
 ## plan9 assembly 完全解析
 
-众所周知，Go 使用了 Unix 老古董(误 们发明的 plan9 汇编。就算你对 x86 汇编有所了解，在 plan9 里还是有些许区别。说不定你在看代码的时候，偶然发现代码里的 SP 看起来是 SP，但它实际上不 SP 的时候就被恶心到一下什么的。
+众所周知，Go 使用了 Unix 老古董(误 们发明的 plan9 汇编。就算你对 x86 汇编有所了解，在 plan9 里还是有些许区别。说不定你在看代码的时候，偶然发现代码里的 SP 看起来是 SP，但它实际上不是 SP 的时候就抓狂了哈哈哈。
 
 本文将对 plan9 汇编进行全面的介绍，同时解答你在接触 plan9 汇编时可能遇到的大部分问题。
 
@@ -177,7 +177,7 @@ func Framepointer_enabled(goos, goarch string) bool {
 ### framesize 计算规则
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTc0NjA4NjMwNiwxNzk0NTQwNTIzLDYyMD
+eyJoaXN0b3J5IjpbMjEzODk2Njk0MSwxNzk0NTQwNTIzLDYyMD
 g4MDM5NywtMTQ4MTYzNTg2MiwtMjA2ODEzMjk1MywxMDY4NDUz
 OTAzLC0zNzA3NjM4NDcsOTg0NzA1MjgzLDk2MjY0NzMwLDEzOD
 k4NTUyMTMsLTE4MjI4NDA2NzYsNzEwNTAzNDMxLC02Mzk0ODkx
