@@ -34,8 +34,10 @@ General Purpose Registers:
         fs = 0x0000000000000000
         gs = 0x0000000000000000
 ```
-在 plan9
+在 plan9 汇编里都是可以使用的，应用代码层面会用到的通用寄存器主要是:
+rax, rbx, rcx, rdx, rdi, rsi, r8~r15
+
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTEyNTAxMDI4NjksNzEwNTAzNDMxLC02Mz
+eyJoaXN0b3J5IjpbLTE1ODA1NTQwMDUsNzEwNTAzNDMxLC02Mz
 k0ODkxMTYsLTIxNjU2NDc4NSwxMjQwNTc4NzI3XX0=
 -->
