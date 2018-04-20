@@ -4,10 +4,10 @@ plan9 assembly 完全解析
 
 本文将对 plan9 汇编进行全面的介绍，同时解答你在接触 plan9 汇编时可能遇到的大部分问题。
 
-本文所使用的平台是 linux amd64，因为不同的平台指令集和寄存器都不一样，所以没有办法共同探讨。这也是由汇编本身的性质jy
+本文所使用的平台是 linux amd64，因为不同的平台指令集和寄存器都不一样，所以没有办法共同探讨。这也是由汇编本身的性质决定的。
 
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTEyNzk2Mjk2MDYsLTIxNjU2NDc4NSwxMj
-QwNTc4NzI3XX0=
+eyJoaXN0b3J5IjpbLTYzOTQ4OTExNiwtMjE2NTY0Nzg1LDEyND
+A1Nzg3MjddfQ==
 -->
