@@ -56,7 +56,7 @@ Go 的汇编还引入了 4 个伪寄存器，援引官方文档的描述:
 >-   `SB`: Static base pointer: global symbols.
 >-   `SP`: Stack pointer: top of stack.
 
-实际上这些描述并不精确，虽然官方文档之后还有一些稍微具体了一点的说明，不过也是综合多个平台来进行说明，很多细节并没有说明白。我们来画一个通常情况下被调用的函数的栈结构图:
+如果没有这些w实际上这些描述并不精确，虽然官方文档之后还有一些稍微具体了一点的说明，不过也是综合多个平台来进行说明，很多细节并没有说明白。我们来画一个通常情况下被调用的函数的栈结构图:
 
 TODO，这里有图
 
@@ -139,8 +139,8 @@ TEXT ·add(SB), NOSPLIT, $0-8
                                                               callee
 ```
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTIwNjgxMzI5NTMsMTA2ODQ1MzkwMywtMz
-cwNzYzODQ3LDk4NDcwNTI4Myw5NjI2NDczMCwxMzg5ODU1MjEz
-LC0xODIyODQwNjc2LDcxMDUwMzQzMSwtNjM5NDg5MTE2LC0yMT
-Y1NjQ3ODUsMTI0MDU3ODcyN119
+eyJoaXN0b3J5IjpbLTYxNTgxNjg4MCwtMjA2ODEzMjk1MywxMD
+Y4NDUzOTAzLC0zNzA3NjM4NDcsOTg0NzA1MjgzLDk2MjY0NzMw
+LDEzODk4NTUyMTMsLTE4MjI4NDA2NzYsNzEwNTAzNDMxLC02Mz
+k0ODkxMTYsLTIxNjU2NDc4NSwxMjQwNTc4NzI3XX0=
 -->
