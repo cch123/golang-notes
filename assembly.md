@@ -80,7 +80,9 @@ TEXT ·add(SB), NOSPLIT, $0-8
 	MOVQ BX, ret+16(FP)
 	RET
 ```
-为什么要以 TEXT 来开头呢？如果对程序在内存中的分段稍有了解的同学应该知道，我们的代码在二进制文件中，是存在 .text 段中的。中点 `·` 比较特殊，是一个 unicode 的中点，该点在 mac 下的输入方法是 `option+shift+9`
+为什么要以 TEXT 来开头呢？如果对程序在内存中的分段稍有了解的同学应该知道，我们的代码在二进制文件中，是存在 .text 段中的，这里也就是一种约定俗成的使用方法。
+
+中点 `·` 比较特殊，是一个 unicode 的中点，该点在 mac 下的输入方法是 `option+shift+9`。在程序被链接之后，所有的中点`·` 都会被替换为`.`，比如你的方法是
 
 ```
                                                                                                                               
@@ -137,8 +139,8 @@ TEXT ·add(SB), NOSPLIT, $0-8
                                                               callee
 ```
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbMTA2OTc4MzE0LC0zNzA3NjM4NDcsOTg0Nz
-A1MjgzLDk2MjY0NzMwLDEzODk4NTUyMTMsLTE4MjI4NDA2NzYs
-NzEwNTAzNDMxLC02Mzk0ODkxMTYsLTIxNjU2NDc4NSwxMjQwNT
-c4NzI3XX0=
+eyJoaXN0b3J5IjpbLTE2MTUwMzI5MjAsLTM3MDc2Mzg0Nyw5OD
+Q3MDUyODMsOTYyNjQ3MzAsMTM4OTg1NTIxMywtMTgyMjg0MDY3
+Niw3MTA1MDM0MzEsLTYzOTQ4OTExNiwtMjE2NTY0Nzg1LDEyND
+A1Nzg3MjddfQ==
 -->
