@@ -43,9 +43,9 @@ Go 的汇编还引入了 4 个伪寄存器，援引官方文档的描述:
 >-   `SB`: Static base pointer: global symbols.
 >-   `SP`: Stack pointer: top of stack.
 
-
+实际上这些描述并不精确，虽然官方文档之后还有一些稍微具体了一点的说明，不过
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbMTM4OTg1NTIxMywtMTgyMjg0MDY3Niw3MT
-A1MDM0MzEsLTYzOTQ4OTExNiwtMjE2NTY0Nzg1LDEyNDA1Nzg3
-MjddfQ==
+eyJoaXN0b3J5IjpbLTEwODIyMjI2NTUsMTM4OTg1NTIxMywtMT
+gyMjg0MDY3Niw3MTA1MDM0MzEsLTYzOTQ4OTExNiwtMjE2NTY0
+Nzg1LDEyNDA1Nzg3MjddfQ==
 -->
