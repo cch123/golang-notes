@@ -68,7 +68,8 @@ Go 的汇编还引入了 4 个伪寄存器，援引官方文档的描述:
 我们这里先对容易混淆的几点进行说明：
 1. 伪 SP 和硬件 SP 不是一回事，在手写代码时，伪 SP 和硬件 SP 的区分方法是看该 SP 前是否有 symbol。如果有 symbol，那么即为伪寄存器，如果没有，那么说明是硬件 SP 寄存器。
 2. SP 和 FP 的相对位置是会变的，所以不应该尝试用伪 SP 寄存器去找那些用 FP + offset 来引用的值，例如函数的入参和返回值。
-3. 官方文档中说的伪 SP 指向 stack 的 top，是有问题的。
+3. 官方文档中说的伪 SP 指向 stack 的 top，是有问题的。说 bottom 更合适一些。
+4. 在 go tool obj/go tool compile -S 输出的代码中，是没有伪 SP 和 FP 寄存器的，我们上面说的区分伪 SP 和硬件 SP 寄存器的方法，对于上述两个命令
 
 
 ### 函数声明
@@ -163,9 +164,9 @@ argN, ... arg3, arg2, arg1, arg0
 ### framesize 计算规则
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbMzQ3MjYzNzU4LC0xNDgxNjM1ODYyLC0yMD
-Y4MTMyOTUzLDEwNjg0NTM5MDMsLTM3MDc2Mzg0Nyw5ODQ3MDUy
-ODMsOTYyNjQ3MzAsMTM4OTg1NTIxMywtMTgyMjg0MDY3Niw3MT
-A1MDM0MzEsLTYzOTQ4OTExNiwtMjE2NTY0Nzg1LDEyNDA1Nzg3
-MjddfQ==
+eyJoaXN0b3J5IjpbLTc1ODQ0MzE1OCwtMTQ4MTYzNTg2MiwtMj
+A2ODEzMjk1MywxMDY4NDUzOTAzLC0zNzA3NjM4NDcsOTg0NzA1
+MjgzLDk2MjY0NzMwLDEzODk4NTUyMTMsLTE4MjI4NDA2NzYsNz
+EwNTAzNDMxLC02Mzk0ODkxMTYsLTIxNjU2NDc4NSwxMjQwNTc4
+NzI3XX0=
 -->
