@@ -77,8 +77,10 @@ TEXT ·add(SB), NOSPLIT, $0-8
 	MOVQ a+0(FP), AX
 	MOVQ a+8(FP), BX
 	ADDQ AX, BX
-	MOVQ BX, 16FP
+	MOVQ BX, ret+16(FP)
+	RET
 ```
+为什么要以 TEXT 来开头呢？如果对程序在内存中的分段稍有了解的同学应该知道，我们的代码在二进制文件中
 
 ```
                                                                                                                               
@@ -135,8 +137,8 @@ TEXT ·add(SB), NOSPLIT, $0-8
                                                               callee
 ```
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTIwNDUyMjkxNzMsLTM3MDc2Mzg0Nyw5OD
-Q3MDUyODMsOTYyNjQ3MzAsMTM4OTg1NTIxMywtMTgyMjg0MDY3
-Niw3MTA1MDM0MzEsLTYzOTQ4OTExNiwtMjE2NTY0Nzg1LDEyND
-A1Nzg3MjddfQ==
+eyJoaXN0b3J5IjpbMjc1ODg0Njk4LC0zNzA3NjM4NDcsOTg0Nz
+A1MjgzLDk2MjY0NzMwLDEzODk4NTUyMTMsLTE4MjI4NDA2NzYs
+NzEwNTAzNDMxLC02Mzk0ODkxMTYsLTIxNjU2NDc4NSwxMjQwNT
+c4NzI3XX0=
 -->
