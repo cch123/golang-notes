@@ -36,6 +36,8 @@ General Purpose Registers:
 ```
 在 plan9 汇编里都是可以使用的，应用代码层面会用到的通用寄存器主要是: rax, rbx, rcx, rdx, rdi, rsi, r8~r15 这 14 个寄存器，虽然 rbp 和 rsp 也可以用，不过 bp 和 sp 一般会被用来管理栈顶和栈底，最好不要拿来进行运算。
 
+在使用这些真实寄存器时，不需要把名
+
 #### 伪寄存器
 Go 的汇编还引入了 4 个伪寄存器，援引官方文档的描述:
 >-   `FP`: Frame pointer: arguments and locals.
@@ -100,7 +102,7 @@ Go 的汇编还引入了 4 个伪寄存器，援引官方文档的描述:
                                                        callee
 ```
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTEzNTkzMTUxOTIsMTM4OTg1NTIxMywtMT
-gyMjg0MDY3Niw3MTA1MDM0MzEsLTYzOTQ4OTExNiwtMjE2NTY0
-Nzg1LDEyNDA1Nzg3MjddfQ==
+eyJoaXN0b3J5IjpbLTMwODk2MTc4NSwxMzg5ODU1MjEzLC0xOD
+IyODQwNjc2LDcxMDUwMzQzMSwtNjM5NDg5MTE2LC0yMTY1NjQ3
+ODUsMTI0MDU3ODcyN119
 -->
