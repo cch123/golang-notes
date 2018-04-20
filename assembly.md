@@ -169,7 +169,7 @@ func Framepointer_enabled(goos, goarch string) bool {
 	return framepointer_enabled != 0 && goarch == "amd64" && goos != "nacl"
 }
 ```
-在不插入这个 caller BP(源代码中所称的 frame pointer)的情况下，在伪 SP 和伪 FP 之间，就只有 8 个字节的 caller 的 return address，而插入了 BP 的话，就会多出额外的 8 字节。这也就是前面提到过的，伪 FP 和伪 SP 的相对位置是不确定的，
+在不插入这个 caller BP(源代码中所称的 frame pointer)的情况下，在伪 SP 和伪 FP 之间，就只有 8 个字节的 caller 的 return address，而插入了 BP 的话，就会多出额外的 8 字节。这也就是前面提到过的，伪 FP 和伪 SP 的相对位置是不确定的，不能用伪 SP 的正向偏移来写代码的缘由。
 
 ### 变量声明
 在汇编里所谓的变量，一般是存储在 .rodata 或者 .data 段中的只读值。对应到应用层的话，就是已初始化过的全局的 const、var、static 变量/常量。
@@ -177,9 +177,9 @@ func Framepointer_enabled(goos, goarch string) bool {
 ### framesize 计算规则
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTE2NDE2ODIxMzksMTc5NDU0MDUyMyw2Mj
-A4ODAzOTcsLTE0ODE2MzU4NjIsLTIwNjgxMzI5NTMsMTA2ODQ1
-MzkwMywtMzcwNzYzODQ3LDk4NDcwNTI4Myw5NjI2NDczMCwxMz
-g5ODU1MjEzLC0xODIyODQwNjc2LDcxMDUwMzQzMSwtNjM5NDg5
-MTE2LC0yMTY1NjQ3ODUsMTI0MDU3ODcyN119
+eyJoaXN0b3J5IjpbNzAxMDQxMDc3LDE3OTQ1NDA1MjMsNjIwOD
+gwMzk3LC0xNDgxNjM1ODYyLC0yMDY4MTMyOTUzLDEwNjg0NTM5
+MDMsLTM3MDc2Mzg0Nyw5ODQ3MDUyODMsOTYyNjQ3MzAsMTM4OT
+g1NTIxMywtMTgyMjg0MDY3Niw3MTA1MDM0MzEsLTYzOTQ4OTEx
+NiwtMjE2NTY0Nzg1LDEyNDA1Nzg3MjddfQ==
 -->
