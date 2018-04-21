@@ -47,7 +47,11 @@ MOVQ $0x10, AX ===== mov rax, 0x10
 ### 常见计算指令
 
 ```go
+ADDQ  AX, BX   // BX += AX
+SUBQ  AX, BX   // BX -= AX
+IMULQ AX, BX   // BX *= AX
 ```
+类似数据搬运指令，同样可以通过修改指令的后缀来对应不同长度的操作数。例如 ADDQ/ADDW/ADDL/ADDB。
 
 ### 条件跳转/无条件跳转
 ```go
@@ -226,11 +230,11 @@ func Framepointer_enabled(goos, goarch string) bool {
 ## framesize 计算规则
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTUzNzEwODcxMywxNzk2OTQzMDcwLDEwNz
-Y4OTA2ODIsLTEzMTU0Nzk4MjcsMTg0NjY4MzA3NiwyMTM4OTY2
-OTQxLDE3OTQ1NDA1MjMsNjIwODgwMzk3LC0xNDgxNjM1ODYyLC
-0yMDY4MTMyOTUzLDEwNjg0NTM5MDMsLTM3MDc2Mzg0Nyw5ODQ3
-MDUyODMsOTYyNjQ3MzAsMTM4OTg1NTIxMywtMTgyMjg0MDY3Ni
-w3MTA1MDM0MzEsLTYzOTQ4OTExNiwtMjE2NTY0Nzg1LDEyNDA1
-Nzg3MjddfQ==
+eyJoaXN0b3J5IjpbMTk0OTEzMDAwNCwtNTM3MTA4NzEzLDE3OT
+Y5NDMwNzAsMTA3Njg5MDY4MiwtMTMxNTQ3OTgyNywxODQ2Njgz
+MDc2LDIxMzg5NjY5NDEsMTc5NDU0MDUyMyw2MjA4ODAzOTcsLT
+E0ODE2MzU4NjIsLTIwNjgxMzI5NTMsMTA2ODQ1MzkwMywtMzcw
+NzYzODQ3LDk4NDcwNTI4Myw5NjI2NDczMCwxMzg5ODU1MjEzLC
+0xODIyODQwNjc2LDcxMDUwMzQzMSwtNjM5NDg5MTE2LC0yMTY1
+NjQ3ODVdfQ==
 -->
