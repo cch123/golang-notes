@@ -1,4 +1,4 @@
-## plan9 assembly 完全解析
+# plan9 assembly 完全解析
 
 众所周知，Go 使用了 Unix 老古董(误 们发明的 plan9 汇编。就算你对 x86 汇编有所了解，在 plan9 里还是有些许区别。说不定你在看代码的时候，偶然发现代码里的 SP 看起来是 SP，但它实际上不是 SP 的时候就抓狂了哈哈哈。
 
@@ -6,18 +6,18 @@
 
 本文所使用的平台是 linux amd64，因为不同的平台指令集和寄存器都不一样，所以没有办法共同探讨。这也是由汇编本身的性质决定的。
 
-### 基本指令
-#### 数据搬运
+## 基本指令
+### 数据搬运
 ```go
 MOVQ $10, AX
 MOVW $0x100, BX
 MOVL $-13, CX
 MOVD $1, DX
 ```
-#### 条件跳转/无条件跳转
+### 条件跳转/无条件跳转
 #### 
-### 寄存器
-#### 通用寄存器
+## 寄存器
+### 通用寄存器
 amd64 的通用寄存器:
 ```
 (lldb) reg read
@@ -59,7 +59,7 @@ mov rax, 101
 ```
 是等价的。其它寄存器以此类推。
 
-#### 伪寄存器
+### 伪寄存器
 Go 的汇编还引入了 4 个伪寄存器，援引官方文档的描述:
 >-   `FP`: Frame pointer: arguments and locals.
 >-   `PC`: Program counter: jumps and branches.
@@ -78,7 +78,7 @@ Go 的汇编还引入了 4 个伪寄存器，援引官方文档的描述:
 5. FP 和 Go 的源代码里的 framepointer 不是一回事，源代码里的 framepointer 指的是 caller BP 寄存器的值，在这里和 caller 的伪 SP 是值是相等的。
 
 
-### 函数声明
+## 函数声明
 
 我们来看看一个典型的 plan9 的汇编函数的定义：
 ```go
@@ -106,7 +106,7 @@ TEXT pkgname·add(SB), NOSPLIT, $0-8
 
 ```
 
-### 栈结构
+## 栈结构
 TODO，这里有图
 
 图上的 caller BP，指的是 caller 的 BP 寄存器值，有些人把 caller BP 叫作 caller 的 frame pointer，实际上这个习惯是从 x86 架构沿袭来的。Go 的 asm 文档中把伪寄存器 FP 也称为 frame pointer，但是这两个 frame pointer 根本不是一回事。
@@ -182,16 +182,16 @@ func Framepointer_enabled(goos, goarch string) bool {
 ```
 在不插入这个 caller BP(源代码中所称的 frame pointer)的情况下，在伪 SP 和伪 FP 之间，就只有 8 个字节的 caller 的 return address，而插入了 BP 的话，就会多出额外的 8 字节。这也就是前面提到过的，伪 FP 和伪 SP 的相对位置是不确定的，不能用伪 SP 的正向偏移来写代码的缘由。
 
-### 变量声明
+## 变量声明
 在汇编里所谓的变量，一般是存储在 .rodata 或者 .data 段中的只读值。对应到应用层的话，就是已初始化过的全局的 const、var、static 变量/常量。
 
-### framesize 计算规则
+## framesize 计算规则
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbNTcwNzU3ODM2LDE4NDY2ODMwNzYsMjEzOD
-k2Njk0MSwxNzk0NTQwNTIzLDYyMDg4MDM5NywtMTQ4MTYzNTg2
-MiwtMjA2ODEzMjk1MywxMDY4NDUzOTAzLC0zNzA3NjM4NDcsOT
-g0NzA1MjgzLDk2MjY0NzMwLDEzODk4NTUyMTMsLTE4MjI4NDA2
-NzYsNzEwNTAzNDMxLC02Mzk0ODkxMTYsLTIxNjU2NDc4NSwxMj
-QwNTc4NzI3XX0=
+eyJoaXN0b3J5IjpbLTE4NTgzOTU4NjUsMTg0NjY4MzA3NiwyMT
+M4OTY2OTQxLDE3OTQ1NDA1MjMsNjIwODgwMzk3LC0xNDgxNjM1
+ODYyLC0yMDY4MTMyOTUzLDEwNjg0NTM5MDMsLTM3MDc2Mzg0Ny
+w5ODQ3MDUyODMsOTYyNjQ3MzAsMTM4OTg1NTIxMywtMTgyMjg0
+MDY3Niw3MTA1MDM0MzEsLTYzOTQ4OTExNiwtMjE2NTY0Nzg1LD
+EyNDA1Nzg3MjddfQ==
 -->
