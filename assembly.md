@@ -311,16 +311,17 @@ argN, ... arg3, arg2, arg1, arg0
 函数的 framesize 就稍微复杂一些了，手写代码的 framesize 不需要考虑由编译器插入的 caller BP，只要考虑：
 
 1. 局部变量，及其每个变量的 size。
-2. 在函数中是否有对其它函数调用时，如果有的话，调用时需要将 callee 的参数、返回值、
+2. 在函数中是否有对其它函数调用时，如果有的话，调用时需要将 callee 的参数、返回值、以及在调用 callee 时，保存在栈顶的当前函数的返回地址的 8 个字节。
 
-## 
+## 函数调用过程
+
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTE1ODA1NDIwNjUsLTExMDM5MDk2NDcsLT
-IwMTIwMzQxMjIsLTc3MzY4MDYyMSwtMzU4ODM0NTY4LDkyNDky
-Nzk0OSwtODUxNzA4NDQ3LC0xNjQ2MzEwODI1LC00NTkxNTgzLD
-EwNDI4NzQyNTYsMTk0OTEzMDAwNCwtNTM3MTA4NzEzLDE3OTY5
-NDMwNzAsMTA3Njg5MDY4MiwtMTMxNTQ3OTgyNywxODQ2NjgzMD
-c2LDIxMzg5NjY5NDEsMTc5NDU0MDUyMyw2MjA4ODAzOTcsLTE0
-ODE2MzU4NjJdfQ==
+eyJoaXN0b3J5IjpbNTAxMzYxMjIsLTExMDM5MDk2NDcsLTIwMT
+IwMzQxMjIsLTc3MzY4MDYyMSwtMzU4ODM0NTY4LDkyNDkyNzk0
+OSwtODUxNzA4NDQ3LC0xNjQ2MzEwODI1LC00NTkxNTgzLDEwND
+I4NzQyNTYsMTk0OTEzMDAwNCwtNTM3MTA4NzEzLDE3OTY5NDMw
+NzAsMTA3Njg5MDY4MiwtMTMxNTQ3OTgyNywxODQ2NjgzMDc2LD
+IxMzg5NjY5NDEsMTc5NDU0MDUyMyw2MjA4ODAzOTcsLTE0ODE2
+MzU4NjJdfQ==
 -->
