@@ -19,6 +19,7 @@ TEXT main.output(SB) /users/cch/test/go/test.go
 通用的指令和 IA64 平台差不多，比如:
 ### 数据搬运
 常数在 plan9 汇编用 $num 表示，可以为负数，默认情况下为十进制。可以用 $0x123 的形式来表示十六进制数。
+
 ```go
 MOVB $1, DI      // 1 byte
 MOVW $0x10, BX   // 2 bytes
@@ -35,7 +36,9 @@ mov al, 0x44   // 1 byte
 ```
 plan9 的汇编的操作数的方向是和 intel 汇编相反的，与 AT&T 类似。
 ```go
-MOVQ 
+MOVQ $0x10, AX ===== mov rax, 0x10
+             |------------|
+       |----------
 ```
 ### 条件跳转/无条件跳转
 ```go
@@ -213,10 +216,10 @@ func Framepointer_enabled(goos, goarch string) bool {
 ## framesize 计算规则
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTI3MTUyMjU3NywtMTMxNTQ3OTgyNywxOD
-Q2NjgzMDc2LDIxMzg5NjY5NDEsMTc5NDU0MDUyMyw2MjA4ODAz
-OTcsLTE0ODE2MzU4NjIsLTIwNjgxMzI5NTMsMTA2ODQ1MzkwMy
-wtMzcwNzYzODQ3LDk4NDcwNTI4Myw5NjI2NDczMCwxMzg5ODU1
-MjEzLC0xODIyODQwNjc2LDcxMDUwMzQzMSwtNjM5NDg5MTE2LC
-0yMTY1NjQ3ODUsMTI0MDU3ODcyN119
+eyJoaXN0b3J5IjpbLTE3Mzg5MjAzNjYsLTEzMTU0Nzk4MjcsMT
+g0NjY4MzA3NiwyMTM4OTY2OTQxLDE3OTQ1NDA1MjMsNjIwODgw
+Mzk3LC0xNDgxNjM1ODYyLC0yMDY4MTMyOTUzLDEwNjg0NTM5MD
+MsLTM3MDc2Mzg0Nyw5ODQ3MDUyODMsOTYyNjQ3MzAsMTM4OTg1
+NTIxMywtMTgyMjg0MDY3Niw3MTA1MDM0MzEsLTYzOTQ4OTExNi
+wtMjE2NTY0Nzg1LDEyNDA1Nzg3MjddfQ==
 -->
