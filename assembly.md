@@ -144,6 +144,8 @@ Go 的汇编还引入了 4 个伪寄存器，援引官方文档的描述:
 ```go
 DATA	symbol+offset(SB)/width, value
 ```
+大多数变量都是字面意思，不过这个 offset 需要稍微注意。其含义是该值相对于符号 symbol 的偏移，而不是相对于全局某个地址的偏移。
+
 使用 GLOBL 指令将变量声明为 global，额外接收两个参数，一个是 flag，另一个是变量的总大小。
 
 ```go
@@ -162,7 +164,9 @@ GLOBL pi(SB), RODATA, $8
 DATA birthYear+0(SB)/4, $1988
 GLOBL birthYear(SB), RODATA, $4
 ```
-有时也可能会想在全局变量中定义数组，或字符串，例如:
+正如之前所说，所有符号在声明时，其 offset 一般都是 0。
+
+有时也可能会想在全局变量中定义数组，或字符串，这时候就需要用上非 0 的 offset 了，例如:
 ```go
 DATA bio<>+0(SB)/8, $"oh yes i"
 DATA bio<>+8(SB)/8, $"am here "
@@ -382,6 +386,6 @@ argN, ... arg3, arg2, arg1, arg0
 
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTE1NTYyODU0NDAsMTI2MTcwMTYyMyw3NT
-I0MDk2NTUsMTg4NDQ5NTE5MF19
+eyJoaXN0b3J5IjpbMjA4NDA2MzcyMCwtMTU1NjI4NTQ0MCwxMj
+YxNzAxNjIzLDc1MjQwOTY1NSwxODg0NDk1MTkwXX0=
 -->
