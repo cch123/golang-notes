@@ -95,9 +95,9 @@ MOVQ $101, AX = mov rax, 101
 ```
 下面是通用通用寄存器的名字在 IA64 和 plan9 中的对应关系:
 
-| IA64 | rax | rbx| rcx | rdx | rdi | rsi | rbp | rsp | r8 | r9 | r10 | r11 | r12 | r13 | r14 |
-|--|--|--|--| --| --|--| --|--|--|--|--|--|--|--|--|
-| Plan9 | AX | BX | CX | DX | DI | SI | BP | SP | R8 | R9 | R10 | R11 | R12 | R13 | R14 |
+| IA64 | rax | rbx| rcx | rdx | rdi | rsi | rbp | rsp | r8 | r9 | r10 | r11 | r12 | r13 | r14 | rip|
+|--|--|--|--| --| --|--| --|--|--|--|--|--|--|--|--|--|
+| Plan9 | AX | BX | CX | DX | DI | SI | BP | SP | R8 | R9 | R10 | R11 | R12 | R13 | R14 | PC |
 
 
 
@@ -230,11 +230,11 @@ func Framepointer_enabled(goos, goarch string) bool {
 ## framesize 计算规则
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbOTMzNTEwMzY2LDE5NDkxMzAwMDQsLTUzNz
-EwODcxMywxNzk2OTQzMDcwLDEwNzY4OTA2ODIsLTEzMTU0Nzk4
-MjcsMTg0NjY4MzA3NiwyMTM4OTY2OTQxLDE3OTQ1NDA1MjMsNj
-IwODgwMzk3LC0xNDgxNjM1ODYyLC0yMDY4MTMyOTUzLDEwNjg0
-NTM5MDMsLTM3MDc2Mzg0Nyw5ODQ3MDUyODMsOTYyNjQ3MzAsMT
-M4OTg1NTIxMywtMTgyMjg0MDY3Niw3MTA1MDM0MzEsLTYzOTQ4
-OTExNl19
+eyJoaXN0b3J5IjpbMTA0Mjg3NDI1NiwxOTQ5MTMwMDA0LC01Mz
+cxMDg3MTMsMTc5Njk0MzA3MCwxMDc2ODkwNjgyLC0xMzE1NDc5
+ODI3LDE4NDY2ODMwNzYsMjEzODk2Njk0MSwxNzk0NTQwNTIzLD
+YyMDg4MDM5NywtMTQ4MTYzNTg2MiwtMjA2ODEzMjk1MywxMDY4
+NDUzOTAzLC0zNzA3NjM4NDcsOTg0NzA1MjgzLDk2MjY0NzMwLD
+EzODk4NTUyMTMsLTE4MjI4NDA2NzYsNzEwNTAzNDMxLC02Mzk0
+ODkxMTZdfQ==
 -->
