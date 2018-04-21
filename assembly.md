@@ -139,7 +139,10 @@ Go 的汇编还引入了 4 个伪寄存器，援引官方文档的描述:
 ## 变量声明
 在汇编里所谓的变量，一般是存储在 .rodata 或者 .data 段中的只读值。对应到应用层的话，就是已初始化过的全局的 const、var、static 变量/常量。
 
-使用 DATA 结合 GLOBL 来定义一个变量。DATA的
+使用 DATA 结合 GLOBL 来定义一个变量。DATA 的用法为:
+```go
+DATA	symbol+offset(SB)/width, value
+```
 
 ## 函数声明
 
@@ -329,6 +332,6 @@ argN, ... arg3, arg2, arg1, arg0
 
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTE2MDk5MjA3MjgsMTI2MTcwMTYyMyw3NT
-I0MDk2NTUsMTg4NDQ5NTE5MF19
+eyJoaXN0b3J5IjpbLTQzOTEzNTc3LDEyNjE3MDE2MjMsNzUyND
+A5NjU1LDE4ODQ0OTUxOTBdfQ==
 -->
