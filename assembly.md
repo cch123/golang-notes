@@ -85,7 +85,7 @@ MOVQ $101, AX = mov rax, 101
 | IA64 | rax | rbx| rcx | rdx | rdi | rsi | rbp | rsp | r8 | r9 | r10 | r11 | r12 | r13 | r14 |
 |--|--|--|--| --| --|--| --|--|--|--|--|--|--|--|--|
 | Plan9 | AX | BX | CX | DX | DI | SI | BP | SP | R8 | R9 | R10 | R11 | R12 | R13 | R14 |
-| 
+
 
 
 ### 伪寄存器
@@ -217,7 +217,7 @@ func Framepointer_enabled(goos, goarch string) bool {
 ## framesize 计算规则
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTEzODE3MzI4MTUsLTEzMTU0Nzk4MjcsMT
+eyJoaXN0b3J5IjpbLTIwNDExNTUxNzksLTEzMTU0Nzk4MjcsMT
 g0NjY4MzA3NiwyMTM4OTY2OTQxLDE3OTQ1NDA1MjMsNjIwODgw
 Mzk3LC0xNDgxNjM1ODYyLC0yMDY4MTMyOTUzLDEwNjg0NTM5MD
 MsLTM3MDc2Mzg0Nyw5ODQ3MDUyODMsOTYyNjQ3MzAsMTM4OTg1
