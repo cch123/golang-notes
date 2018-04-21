@@ -132,12 +132,15 @@ Go 的汇编还引入了 4 个伪寄存器，援引官方文档的描述:
 4. 在 go tool objdump/go tool compile -S 输出的代码中，是没有伪 SP 和 FP 寄存器的，我们上面说的区分伪 SP 和硬件 SP 寄存器的方法，对于上述两个命令的输出结果是没法使用的。在编译和反汇编的结果中，只有真实的 SP 寄存器。
 5. FP 和 Go 的源代码里的 framepointer 不是一回事，源代码里的 framepointer 指的是 caller BP 寄存器的值，在这里和 caller 的伪 SP 是值是相等的。
 
+## 变量声明
+在汇编里所谓的变量，一般是存储在 .rodata 或者 .data 段中的只读值。对应到应用层的话，就是已初始化过的全局的 const、var、static 变量/常量。
 
 ## 函数声明
 
 我们来看看一个典型的 plan9 的汇编函数的定义：
 ```go
 // func add(a, b int) int
+//   => 该声明定义在 xxx.go 文件中，只有函数头，没有实现
 TEXT pkgname·add(SB), NOSPLIT, $0-8
 	MOVQ a+0(FP), AX
 	MOVQ a+8(FP), BX
@@ -294,17 +297,17 @@ argN, ... arg3, arg2, arg1, arg0
 ```
 
 
-## 变量声明
-在汇编里所谓的变量，一般是存储在 .rodata 或者 .data 段中的只读值。对应到应用层的话，就是已初始化过的全局的 const、var、static 变量/常量。
+
+
 
 ## framesize 计算规则
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTM1ODgzNDU2OCw5MjQ5Mjc5NDksLTg1MT
-cwODQ0NywtMTY0NjMxMDgyNSwtNDU5MTU4MywxMDQyODc0MjU2
-LDE5NDkxMzAwMDQsLTUzNzEwODcxMywxNzk2OTQzMDcwLDEwNz
-Y4OTA2ODIsLTEzMTU0Nzk4MjcsMTg0NjY4MzA3NiwyMTM4OTY2
-OTQxLDE3OTQ1NDA1MjMsNjIwODgwMzk3LC0xNDgxNjM1ODYyLC
-0yMDY4MTMyOTUzLDEwNjg0NTM5MDMsLTM3MDc2Mzg0Nyw5ODQ3
-MDUyODNdfQ==
+eyJoaXN0b3J5IjpbMTkzMzEzOTcxMywtMzU4ODM0NTY4LDkyND
+kyNzk0OSwtODUxNzA4NDQ3LC0xNjQ2MzEwODI1LC00NTkxNTgz
+LDEwNDI4NzQyNTYsMTk0OTEzMDAwNCwtNTM3MTA4NzEzLDE3OT
+Y5NDMwNzAsMTA3Njg5MDY4MiwtMTMxNTQ3OTgyNywxODQ2Njgz
+MDc2LDIxMzg5NjY5NDEsMTc5NDU0MDUyMyw2MjA4ODAzOTcsLT
+E0ODE2MzU4NjIsLTIwNjgxMzI5NTMsMTA2ODQ1MzkwMywtMzcw
+NzYzODQ3XX0=
 -->
