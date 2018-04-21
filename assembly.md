@@ -298,6 +298,9 @@ argN, ... arg3, arg2, arg1, arg0
 ```
 
 ## argsize 和 framesize 计算规则
+
+### argsize
+
 在函数声明中:
 ```go
  TEXT pkgname·add(SB),NOSPLIT,$16-32
@@ -308,6 +311,7 @@ argN, ... arg3, arg2, arg1, arg0
 
 如果不确定自己的函数签名需要多大的 argsize，可以通过简单实现一个相同签名的空函数，然后 go tool objdump 来逆向查找应该分配多少空间。
 
+### framesize
 函数的 framesize 就稍微复杂一些了，手写代码的 framesize 不需要考虑由编译器插入的 caller BP，只要考虑：
 
 1. 局部变量，及其每个变量的 size。
@@ -317,11 +321,11 @@ argN, ... arg3, arg2, arg1, arg0
 
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbNTAxMzYxMjIsLTExMDM5MDk2NDcsLTIwMT
-IwMzQxMjIsLTc3MzY4MDYyMSwtMzU4ODM0NTY4LDkyNDkyNzk0
-OSwtODUxNzA4NDQ3LC0xNjQ2MzEwODI1LC00NTkxNTgzLDEwND
-I4NzQyNTYsMTk0OTEzMDAwNCwtNTM3MTA4NzEzLDE3OTY5NDMw
-NzAsMTA3Njg5MDY4MiwtMTMxNTQ3OTgyNywxODQ2NjgzMDc2LD
-IxMzg5NjY5NDEsMTc5NDU0MDUyMyw2MjA4ODAzOTcsLTE0ODE2
-MzU4NjJdfQ==
+eyJoaXN0b3J5IjpbMTE0OTMwNjkxMywtMTEwMzkwOTY0NywtMj
+AxMjAzNDEyMiwtNzczNjgwNjIxLC0zNTg4MzQ1NjgsOTI0OTI3
+OTQ5LC04NTE3MDg0NDcsLTE2NDYzMTA4MjUsLTQ1OTE1ODMsMT
+A0Mjg3NDI1NiwxOTQ5MTMwMDA0LC01MzcxMDg3MTMsMTc5Njk0
+MzA3MCwxMDc2ODkwNjgyLC0xMzE1NDc5ODI3LDE4NDY2ODMwNz
+YsMjEzODk2Njk0MSwxNzk0NTQwNTIzLDYyMDg4MDM5NywtMTQ4
+MTYzNTg2Ml19
 -->
