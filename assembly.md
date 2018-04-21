@@ -3,12 +3,24 @@
 众所周知，Go 使用了 Unix 老古董(误 们发明的 plan9 汇编。就算你对 x86 汇编有所了解，在 plan9 里还是有些许区别。说不定你在看代码的时候，偶然发现代码里的 SP 看起来是 SP，但它实际上不是 SP 的时候就抓狂了哈哈哈。
 
 本文将对 plan9 汇编进行全面的介绍，同时解答你在接触 plan9 汇编时可能遇到的大部分问题。
-
 本文所使用的平台是 linux amd64，因为不同的平台指令集和寄存器都不一样，所以没有办法共同探讨。这也是由汇编本身的性质决定的。
 
 ## 基本指令
 plan9 没有像 intel IA64 那样的 push 和 pop 指令，栈的调整是通过对硬件 SP 寄存器进行运算来实现的，例如:
 ```go
+TEXT main.output(SB) 
+	SUBQ $0x18, SP
+	MOVQ BP, 0x10(SP)
+	LEAQ 0x10(SP), BP
+	XORPS X0, X0
+	MOVUPS X0, 0(SP)
+	MOVQ 0x20(SP), AX
+	MOVQ AX, 0(SP)
+	MOVQ 0x8(SP), CX
+	MOVQ CX, 0x30(SP)
+	MOVQ AX, 0x38(SP)
+	MOVQ 0x10(SP), BP
+	ADDQ $0x18, SP
 ```
 
 ### 数据搬运
@@ -194,10 +206,10 @@ func Framepointer_enabled(goos, goarch string) bool {
 ## framesize 计算规则
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTEzMTU0Nzk4MjcsMTg0NjY4MzA3NiwyMT
-M4OTY2OTQxLDE3OTQ1NDA1MjMsNjIwODgwMzk3LC0xNDgxNjM1
-ODYyLC0yMDY4MTMyOTUzLDEwNjg0NTM5MDMsLTM3MDc2Mzg0Ny
-w5ODQ3MDUyODMsOTYyNjQ3MzAsMTM4OTg1NTIxMywtMTgyMjg0
-MDY3Niw3MTA1MDM0MzEsLTYzOTQ4OTExNiwtMjE2NTY0Nzg1LD
-EyNDA1Nzg3MjddfQ==
+eyJoaXN0b3J5IjpbLTIwNDY2OTMzMTksLTEzMTU0Nzk4MjcsMT
+g0NjY4MzA3NiwyMTM4OTY2OTQxLDE3OTQ1NDA1MjMsNjIwODgw
+Mzk3LC0xNDgxNjM1ODYyLC0yMDY4MTMyOTUzLDEwNjg0NTM5MD
+MsLTM3MDc2Mzg0Nyw5ODQ3MDUyODMsOTYyNjQ3MzAsMTM4OTg1
+NTIxMywtMTgyMjg0MDY3Niw3MTA1MDM0MzEsLTYzOTQ4OTExNi
+wtMjE2NTY0Nzg1LDEyNDA1Nzg3MjddfQ==
 -->
