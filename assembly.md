@@ -40,10 +40,10 @@ MOVQ $0x10, AX ===== mov rax, 0x10
        |    |------------|      |
        |------------------------|
 ```
-这里说的顺序只涉及两个操作数的指令，一些只需要一个
 ### 条件跳转/无条件跳转
 ```go
 ```
+### 指令集
 
 ## 寄存器
 ### 通用寄存器
@@ -78,7 +78,7 @@ General Purpose Registers:
 在使用这些真实寄存器时，可以直接忽略前缀 `r`，例如要使用 rax 寄存器时，只要写 AX 即可，例如:
 
 ```go
-MOVQ $101, AX
+MOVQ $101, AX = mov rax, 
 ```
 
 和
@@ -217,10 +217,10 @@ func Framepointer_enabled(goos, goarch string) bool {
 ## framesize 计算规则
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbMTcyODg4OTk0OSwtMTMxNTQ3OTgyNywxOD
-Q2NjgzMDc2LDIxMzg5NjY5NDEsMTc5NDU0MDUyMyw2MjA4ODAz
-OTcsLTE0ODE2MzU4NjIsLTIwNjgxMzI5NTMsMTA2ODQ1MzkwMy
-wtMzcwNzYzODQ3LDk4NDcwNTI4Myw5NjI2NDczMCwxMzg5ODU1
-MjEzLC0xODIyODQwNjc2LDcxMDUwMzQzMSwtNjM5NDg5MTE2LC
-0yMTY1NjQ3ODUsMTI0MDU3ODcyN119
+eyJoaXN0b3J5IjpbNTU4NTUxNjk0LC0xMzE1NDc5ODI3LDE4ND
+Y2ODMwNzYsMjEzODk2Njk0MSwxNzk0NTQwNTIzLDYyMDg4MDM5
+NywtMTQ4MTYzNTg2MiwtMjA2ODEzMjk1MywxMDY4NDUzOTAzLC
+0zNzA3NjM4NDcsOTg0NzA1MjgzLDk2MjY0NzMwLDEzODk4NTUy
+MTMsLTE4MjI4NDA2NzYsNzEwNTAzNDMxLC02Mzk0ODkxMTYsLT
+IxNjU2NDc4NSwxMjQwNTc4NzI3XX0=
 -->
