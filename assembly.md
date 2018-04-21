@@ -26,11 +26,11 @@ MOVQ $10, AX     // 8 bytes
 ```
 可以看到，搬运的长度是由 MOV 的后缀决定的，这一点与 intel 汇编稍有不同，看看类似的 IA64 汇编:
 ```asm
-mov rax, 0x1
-mov eax, 0x100
-mov ax, 0x22
-mov ah, 0x33
-mov al, 0x44
+mov rax, 0x1   // 8 bytes
+mov eax, 0x100 // 4 bytes
+mov ax, 0x22   // 2 bytes
+mov ah, 0x33   // 1 byte
+mov al, 0x44   // 1 byte
 ```
 ### 条件跳转/无条件跳转
 ```go
@@ -208,10 +208,10 @@ func Framepointer_enabled(goos, goarch string) bool {
 ## framesize 计算规则
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbMTgwOTk1MDEzNiwtMTMxNTQ3OTgyNywxOD
-Q2NjgzMDc2LDIxMzg5NjY5NDEsMTc5NDU0MDUyMyw2MjA4ODAz
-OTcsLTE0ODE2MzU4NjIsLTIwNjgxMzI5NTMsMTA2ODQ1MzkwMy
-wtMzcwNzYzODQ3LDk4NDcwNTI4Myw5NjI2NDczMCwxMzg5ODU1
-MjEzLC0xODIyODQwNjc2LDcxMDUwMzQzMSwtNjM5NDg5MTE2LC
-0yMTY1NjQ3ODUsMTI0MDU3ODcyN119
+eyJoaXN0b3J5IjpbLTIwMjYyODE5NzEsLTEzMTU0Nzk4MjcsMT
+g0NjY4MzA3NiwyMTM4OTY2OTQxLDE3OTQ1NDA1MjMsNjIwODgw
+Mzk3LC0xNDgxNjM1ODYyLC0yMDY4MTMyOTUzLDEwNjg0NTM5MD
+MsLTM3MDc2Mzg0Nyw5ODQ3MDUyODMsOTYyNjQ3MzAsMTM4OTg1
+NTIxMywtMTgyMjg0MDY3Niw3MTA1MDM0MzEsLTYzOTQ4OTExNi
+wtMjE2NTY0Nzg1LDEyNDA1Nzg3MjddfQ==
 -->
