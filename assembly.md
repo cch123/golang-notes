@@ -89,6 +89,8 @@ MOVQ $101, AX = mov rax, 101
 | rdx | DX |
 | rdi | DI |
 | rsi | SI |
+| r8  | R8 |
+| r9  | R9 |
 
 
 ### 伪寄存器
@@ -220,7 +222,7 @@ func Framepointer_enabled(goos, goarch string) bool {
 ## framesize 计算规则
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTE1MzU2Nzg4MjUsLTEzMTU0Nzk4MjcsMT
+eyJoaXN0b3J5IjpbLTEwMDU5NTIzNTUsLTEzMTU0Nzk4MjcsMT
 g0NjY4MzA3NiwyMTM4OTY2OTQxLDE3OTQ1NDA1MjMsNjIwODgw
 Mzk3LC0xNDgxNjM1ODYyLC0yMDY4MTMyOTUzLDEwNjg0NTM5MD
 MsLTM3MDc2Mzg0Nyw5ODQ3MDUyODMsOTYyNjQ3MzAsMTM4OTg1
