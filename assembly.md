@@ -7,6 +7,7 @@
 本文所使用的平台是 linux amd64，因为不同的平台指令集和寄存器都不一样，所以没有办法共同探讨。这也是由汇编本身的性质决定的。
 
 ## 基本指令
+plan9 没有像 intel IA64 那样的 push 和
 ### 数据搬运
 ```go
 MOVQ $10, AX
@@ -15,7 +16,9 @@ MOVL $-13, CX
 MOVD $1, DX
 ```
 ### 条件跳转/无条件跳转
-#### 
+```go
+```
+
 ## 寄存器
 ### 通用寄存器
 amd64 的通用寄存器:
@@ -188,10 +191,10 @@ func Framepointer_enabled(goos, goarch string) bool {
 ## framesize 计算规则
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTE4NTgzOTU4NjUsMTg0NjY4MzA3NiwyMT
-M4OTY2OTQxLDE3OTQ1NDA1MjMsNjIwODgwMzk3LC0xNDgxNjM1
-ODYyLC0yMDY4MTMyOTUzLDEwNjg0NTM5MDMsLTM3MDc2Mzg0Ny
-w5ODQ3MDUyODMsOTYyNjQ3MzAsMTM4OTg1NTIxMywtMTgyMjg0
-MDY3Niw3MTA1MDM0MzEsLTYzOTQ4OTExNiwtMjE2NTY0Nzg1LD
-EyNDA1Nzg3MjddfQ==
+eyJoaXN0b3J5IjpbMTQ2ODU2MDQ2OCwxODQ2NjgzMDc2LDIxMz
+g5NjY5NDEsMTc5NDU0MDUyMyw2MjA4ODAzOTcsLTE0ODE2MzU4
+NjIsLTIwNjgxMzI5NTMsMTA2ODQ1MzkwMywtMzcwNzYzODQ3LD
+k4NDcwNTI4Myw5NjI2NDczMCwxMzg5ODU1MjEzLC0xODIyODQw
+Njc2LDcxMDUwMzQzMSwtNjM5NDg5MTE2LC0yMTY1NjQ3ODUsMT
+I0MDU3ODcyN119
 -->
