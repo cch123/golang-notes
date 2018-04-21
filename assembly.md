@@ -55,9 +55,10 @@ IMULQ AX, BX   // BX *= AX
 
 ### 条件跳转/无条件跳转
 ```go
-JMP addr // 跳转到地址，
-JMP label
-JMP 2(PC)
+JMP addr   // 跳转到地址，地址可为代码中的地址，不过实际上手写不会出现这种东西
+JMP label  // 跳转到标签，可以跳转到同一函数内的标签位置
+JMP 2(PC)  // 以当前指令为基础，向前/后跳转 x 行
+JMP -2(PC) // 同上
 ```
 ### 指令集
 
@@ -233,11 +234,11 @@ func Framepointer_enabled(goos, goarch string) bool {
 ## framesize 计算规则
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTIxODQ4MzYzOSwxMDQyODc0MjU2LDE5ND
-kxMzAwMDQsLTUzNzEwODcxMywxNzk2OTQzMDcwLDEwNzY4OTA2
-ODIsLTEzMTU0Nzk4MjcsMTg0NjY4MzA3NiwyMTM4OTY2OTQxLD
-E3OTQ1NDA1MjMsNjIwODgwMzk3LC0xNDgxNjM1ODYyLC0yMDY4
-MTMyOTUzLDEwNjg0NTM5MDMsLTM3MDc2Mzg0Nyw5ODQ3MDUyOD
-MsOTYyNjQ3MzAsMTM4OTg1NTIxMywtMTgyMjg0MDY3Niw3MTA1
-MDM0MzFdfQ==
+eyJoaXN0b3J5IjpbMjA0MTcyMjM5LDEwNDI4NzQyNTYsMTk0OT
+EzMDAwNCwtNTM3MTA4NzEzLDE3OTY5NDMwNzAsMTA3Njg5MDY4
+MiwtMTMxNTQ3OTgyNywxODQ2NjgzMDc2LDIxMzg5NjY5NDEsMT
+c5NDU0MDUyMyw2MjA4ODAzOTcsLTE0ODE2MzU4NjIsLTIwNjgx
+MzI5NTMsMTA2ODQ1MzkwMywtMzcwNzYzODQ3LDk4NDcwNTI4My
+w5NjI2NDczMCwxMzg5ODU1MjEzLC0xODIyODQwNjc2LDcxMDUw
+MzQzMV19
 -->
