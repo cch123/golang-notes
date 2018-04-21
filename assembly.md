@@ -153,9 +153,12 @@ GLOBL 必须跟在 DATA 指令之后，下面是一个定义了多个 readonly �
 
 ```go
 DATA age+0x00(SB)/4, $18  // forever 18
-GLOBL age(SB), RODATA $4
+GLOBL age(SB), RODATA, $4
 
 DATA pi+0(SB)/8, $3.1415926
+GLOBL pi(SB), RODATA, $8
+
+DATA birthYear(SB)
 ```
 
 ## 函数声明
@@ -346,6 +349,6 @@ argN, ... arg3, arg2, arg1, arg0
 
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTIwNTcwNDA1OTIsMTI2MTcwMTYyMyw3NT
-I0MDk2NTUsMTg4NDQ5NTE5MF19
+eyJoaXN0b3J5IjpbMTAyNzIyNjcyMCwxMjYxNzAxNjIzLDc1Mj
+QwOTY1NSwxODg0NDk1MTkwXX0=
 -->
