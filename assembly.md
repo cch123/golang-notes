@@ -98,11 +98,11 @@ TEXT pkgname·add(SB), NOSPLIT, $0-8
 
 ```go
 
-                                          参数及返回值大小
-                                          | 
+                              参数及返回值大小
+                                  | 
  TEXT pkgname·add(SB),NOSPLIT,$32-32
        |        |               |
-      包名     函数名                   栈帧大小（不包括参数及返回值）
+      包名     函数名         栈帧大小(局部变量+可能需要的额外的 ret address 的总大小)
 
 ```
 
@@ -188,7 +188,7 @@ func Framepointer_enabled(goos, goarch string) bool {
 ### framesize 计算规则
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbODc4NjE2NjQ4LDE4NDY2ODMwNzYsMjEzOD
+eyJoaXN0b3J5IjpbNTcwNzU3ODM2LDE4NDY2ODMwNzYsMjEzOD
 k2Njk0MSwxNzk0NTQwNTIzLDYyMDg4MDM5NywtMTQ4MTYzNTg2
 MiwtMjA2ODEzMjk1MywxMDY4NDUzOTAzLC0zNzA3NjM4NDcsOT
 g0NzA1MjgzLDk2MjY0NzMwLDEzODk4NTUyMTMsLTE4MjI4NDA2
