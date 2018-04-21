@@ -137,6 +137,7 @@ Go 的汇编还引入了 4 个伪寄存器，援引官方文档的描述:
 以上说明看不懂也没关系，在熟悉了函数的栈结构之后再反复回来查看应该就可以明白了。个人意见，这些是 Go 官方挖的坑。。
 
 ## 变量声明
+
 在汇编里所谓的变量，一般是存储在 .rodata 或者 .data 段中的只读值。对应到应用层的话，就是已初始化过的全局的 const、var、static 变量/常量。
 
 使用 DATA 结合 GLOBL 来定义一个变量。DATA 的用法为:
@@ -167,7 +168,7 @@ DATA bio<>+0(SB)/8, $"oh yes i"
 DATA bio<>+8(SB)/8, $"am here "
 GLOBL bio<>+0(SB), RODATA, $16
 ```
-这里我们又有了新的标记 `<>`，这个跟在符号名之后，表示该变量是
+大部分都比较好理解，不过这里我们又引入了新的标记 `<>`，这个跟在符号名之后，表示该全局变量只在当前文件中生效，类似于 C 语言中的 static。如果在另外文件中引用该变量的话，会报 `relocation target not found` 的错误。
 
 ## 函数声明
 
@@ -357,6 +358,6 @@ argN, ... arg3, arg2, arg1, arg0
 
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbMTkxNjIzNTU2MywxMjYxNzAxNjIzLDc1Mj
+eyJoaXN0b3J5IjpbLTMzODczMjc1NCwxMjYxNzAxNjIzLDc1Mj
 QwOTY1NSwxODg0NDk1MTkwXX0=
 -->
