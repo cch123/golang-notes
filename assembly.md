@@ -18,11 +18,12 @@ TEXT main.output(SB) /users/cch/test/go/test.go
 通用的指令和 IA64 平台差不多，比如:
 ### 数据搬运
 ```go
-MOVQ $10, AX
+MOVB $1, DI
 MOVW $0x100, BX
-MOVL $-13, CX
 MOVD $1, DX
+MOVQ $10, AX
 ```
+kzy
 ### 条件跳转/无条件跳转
 ```go
 ```
@@ -199,10 +200,10 @@ func Framepointer_enabled(goos, goarch string) bool {
 ## framesize 计算规则
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTE5OTE0MDEyNTQsLTEzMTU0Nzk4MjcsMT
-g0NjY4MzA3NiwyMTM4OTY2OTQxLDE3OTQ1NDA1MjMsNjIwODgw
-Mzk3LC0xNDgxNjM1ODYyLC0yMDY4MTMyOTUzLDEwNjg0NTM5MD
-MsLTM3MDc2Mzg0Nyw5ODQ3MDUyODMsOTYyNjQ3MzAsMTM4OTg1
-NTIxMywtMTgyMjg0MDY3Niw3MTA1MDM0MzEsLTYzOTQ4OTExNi
-wtMjE2NTY0Nzg1LDEyNDA1Nzg3MjddfQ==
+eyJoaXN0b3J5IjpbMjQ3OTg5MDQwLC0xMzE1NDc5ODI3LDE4ND
+Y2ODMwNzYsMjEzODk2Njk0MSwxNzk0NTQwNTIzLDYyMDg4MDM5
+NywtMTQ4MTYzNTg2MiwtMjA2ODEzMjk1MywxMDY4NDUzOTAzLC
+0zNzA3NjM4NDcsOTg0NzA1MjgzLDk2MjY0NzMwLDEzODk4NTUy
+MTMsLTE4MjI4NDA2NzYsNzEwNTAzNDMxLC02Mzk0ODkxMTYsLT
+IxNjU2NDc4NSwxMjQwNTc4NzI3XX0=
 -->
