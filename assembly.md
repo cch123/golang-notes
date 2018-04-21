@@ -81,16 +81,10 @@ plan9 中使用寄存器不需要带 r 或 e 的前缀，例如 rax，只要写 
 MOVQ $101, AX = mov rax, 101
 ```
 下面是通用通用寄存器的名字在 IA64 和 plan9 中的对应关系:
-| IA64 | rax | rbx| rcx | rdx|
-|--|--|--|--|
-| Plan9 | AX |
-| rbx | BX |
-| rcx | CX |
-| rdx | DX |
-| rdi | DI |
-| rsi | SI |
-| r8  | R8 |
-| r9  | R9 |
+| IA64 | rax | rbx| rcx | rdx | rdi | rsi | rbp | rsp | r8 | r9 | r10 | r11 | r12 | r13 | r14 |
+|--|--|--|--| --| --|--| --|--|--|--|--|--|--
+| Plan9 | AX | BX | CX | DX | DI | SI | 
+| 
 
 
 ### 伪寄存器
@@ -100,7 +94,7 @@ Go 的汇编还引入了 4 个伪寄存器，援引官方文档的描述:
 >-   `SB`: Static base pointer: global symbols.
 >-   `SP`: Stack pointer: top of stack.
 
-如果没有 FP 和 SP(注意这里的 SP 不是硬件的那个 SP) 的情况下，例如在 intel 汇编中，我们只能使用 bp 或者 sp + offset 来找我们的变量位置。而有了 FP 和 SP，我们可以直接以其为基准进行参数查找和局部变量引用，即使编译之后他们的相对位置变化了，对手写代码也是透明的。至于它们的相对位置为什么会变化，在后文中会进行说明。
+如果没有 FP 和 SP(注意这里的 SP 不是硬件的那个 SP) 的情况下，例如在 intel 汇编中，我们只能使用 bp 或者 sp + offset 来找我们的变量位置。而有了 FP 和 SP，我们可以直接以其为基准进行参数查找和局部变量引用，即使编译之后他们的相对位置变化了，对手写代码也是透明的。至于它们的相对位置为什么变化，在后文中会进行说明。
 
 实际上这里官方文档中，对这几个伪寄存器的描述并不精确，虽然文档之后还有一点补充说明说明，但由于是拿很多硬件平台泛泛而谈，细节并没有讲明白。
 
@@ -222,10 +216,10 @@ func Framepointer_enabled(goos, goarch string) bool {
 ## framesize 计算规则
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbMTI5NjM2NDE0LC0xMzE1NDc5ODI3LDE4ND
-Y2ODMwNzYsMjEzODk2Njk0MSwxNzk0NTQwNTIzLDYyMDg4MDM5
-NywtMTQ4MTYzNTg2MiwtMjA2ODEzMjk1MywxMDY4NDUzOTAzLC
-0zNzA3NjM4NDcsOTg0NzA1MjgzLDk2MjY0NzMwLDEzODk4NTUy
-MTMsLTE4MjI4NDA2NzYsNzEwNTAzNDMxLC02Mzk0ODkxMTYsLT
-IxNjU2NDc4NSwxMjQwNTc4NzI3XX0=
+eyJoaXN0b3J5IjpbLTEzODI2OTgwMDQsLTEzMTU0Nzk4MjcsMT
+g0NjY4MzA3NiwyMTM4OTY2OTQxLDE3OTQ1NDA1MjMsNjIwODgw
+Mzk3LC0xNDgxNjM1ODYyLC0yMDY4MTMyOTUzLDEwNjg0NTM5MD
+MsLTM3MDc2Mzg0Nyw5ODQ3MDUyODMsOTYyNjQ3MzAsMTM4OTg1
+NTIxMywtMTgyMjg0MDY3Niw3MTA1MDM0MzEsLTYzOTQ4OTExNi
+wtMjE2NTY0Nzg1LDEyNDA1Nzg3MjddfQ==
 -->
