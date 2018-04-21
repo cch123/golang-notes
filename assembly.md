@@ -122,7 +122,7 @@ Go 的汇编还引入了 4 个伪寄存器，援引官方文档的描述:
 >-   `SP`: Stack pointer: top of stack.
 
 官方的描述稍微有一些问题，我们对这些说明进行一点扩充:
-- FP: 我虽然这里叫它 frame pointer，实际上它根本不是 frame pointer，比如我们当前的 callee 函数是 add，在 add 的代码中引用 FP，该 FP 指向的既不是 callee 的 frame，也不是 caller 的 frame。而是当前函数的输入参数的位置。在输入参数之上，还有 caller 的 return address。
+- FP: 用相对于 FP 的偏移可取到函数的输入参数，例如 arg0+0(FP)，arg1+8(FP)，在使用 FP 时，虽然这里叫它 frame pointer，实际上它根本不是 frame pointer，比如我们当前的 callee 函数是 add，在 add 的代码中引用 FP，该 FP 指向的既不是 callee 的 frame，也不是 caller 的 frame。而是当前函数的输入参数的位置。在输入参数之上，还有 caller 的 return address。
 - 
 
 如果没有 FP 和 SP(注意这里的 SP 不是硬件的那个 SP) 的情况下，例如在 intel 汇编中，我们只能使用 bp 或者 sp + offset 来找我们的变量位置。而有了 FP 和 SP，我们可以直接以其为基准进行参数查找和局部变量引用，即使编译之后他们的相对位置变化了，对手写代码也是透明的。至于它们的相对位置为什么变化，在后文中会进行说明。使用伪 FP 和伪 SP 去引用参数或局部变量时，必须带 symbol: arg0+0(FP)，local0-8(SP)。使用 FP 寄存器不带 symbol 的话，编译会报错。而使用 SP 寄存器不带 symbol 的情况下，会被编译器认为引用的是硬件的 SP 寄存器。
@@ -327,5 +327,5 @@ argN, ... arg3, arg2, arg1, arg0
 
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbMTQxNDU2ODY4Ml19
+eyJoaXN0b3J5IjpbMTU2Mjg0MTM3OV19
 -->
