@@ -140,7 +140,8 @@ Go 的汇编还引入了 4 个伪寄存器，援引官方文档的描述:
 我们来看看一个典型的 plan9 的汇编函数的定义：
 ```go
 // func add(a, b int) int
-//   => 该声明定义在 xxx.go 文件中，只有函数头，没有实现
+//   => 该声明定义在同一个 package 下的任意 .go 文件中
+//   => 只有函数头，没有实现
 TEXT pkgname·add(SB), NOSPLIT, $0-8
 	MOVQ a+0(FP), AX
 	MOVQ a+8(FP), BX
@@ -296,14 +297,10 @@ argN, ... arg3, arg2, arg1, arg0
                                                               callee
 ```
 
-
-
-
-
 ## framesize 计算规则
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbMTkzMzEzOTcxMywtMzU4ODM0NTY4LDkyND
+eyJoaXN0b3J5IjpbLTc3MzY4MDYyMSwtMzU4ODM0NTY4LDkyND
 kyNzk0OSwtODUxNzA4NDQ3LC0xNjQ2MzEwODI1LC00NTkxNTgz
 LDEwNDI4NzQyNTYsMTk0OTEzMDAwNCwtNTM3MTA4NzEzLDE3OT
 Y5NDMwNzAsMTA3Njg5MDY4MiwtMTMxNTQ3OTgyNywxODQ2Njgz
