@@ -97,7 +97,7 @@ Go 的汇编还引入了 4 个伪寄存器，援引官方文档的描述:
 
 如果没有 FP 和 SP(注意这里的 SP 不是硬件的那个 SP) 的情况下，例如在 intel 汇编中，我们只能使用 bp 或者 sp + offset 来找我们的变量位置。而有了 FP 和 SP，我们可以直接以其为基准进行参数查找和局部变量引用，即使编译之后他们的相对位置变化了，对手写代码也是透明的。至于它们的相对位置为什么变化，在后文中会进行说明。
 
-实际上这里官方文档中，对这几个伪寄存器的描述并不精确，虽然文档之后还有一点补充说明说明，但由于是拿很多硬件平台泛泛而谈，细节并没有讲明白。
+实际上这里官方文档中，对这几个伪寄存器的描述并不精确，虽然文档之后还有一点补充说明，但由于是拿很多硬件平台泛泛而谈，细节并没有讲明白。
 
 我们这里先对容易混淆的几点进行说明：
 1. 伪 SP 和硬件 SP 不是一回事，在手写代码时，伪 SP 和硬件 SP 的区分方法是看该 SP 前是否有 symbol。如果有 symbol，那么即为伪寄存器，如果没有，那么说明是硬件 SP 寄存器。
@@ -217,7 +217,7 @@ func Framepointer_enabled(goos, goarch string) bool {
 ## framesize 计算规则
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTIwNDExNTUxNzksLTEzMTU0Nzk4MjcsMT
+eyJoaXN0b3J5IjpbLTEzODUyNDU1MjEsLTEzMTU0Nzk4MjcsMT
 g0NjY4MzA3NiwyMTM4OTY2OTQxLDE3OTQ1NDA1MjMsNjIwODgw
 Mzk3LC0xNDgxNjM1ODYyLC0yMDY4MTMyOTUzLDEwNjg0NTM5MD
 MsLTM3MDc2Mzg0Nyw5ODQ3MDUyODMsOTYyNjQ3MzAsMTM4OTg1
