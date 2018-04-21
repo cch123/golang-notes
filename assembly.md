@@ -171,19 +171,19 @@ GLOBL bio<>+0(SB), RODATA, $16
 大部分都比较好理解，不过这里我们又引入了新的标记 `<>`，这个跟在符号名之后，表示该全局变量只在当前文件中生效，类似于 C 语言中的 static。如果在另外文件中引用该变量的话，会报 `relocation target not found` 的错误。
 
 本小节中提到的 flag，还可以有其它的取值:
--   `NOPROF`  = 1  
+>-   `NOPROF`  = 1  
     (For  `TEXT`  items.) Don't profile the marked function. This flag is deprecated.
--   `DUPOK`  = 2  
+>-   `DUPOK`  = 2  
     It is legal to have multiple instances of this symbol in a single binary. The linker will choose one of the duplicates to use.
--   `NOSPLIT`  = 4  
+>-   `NOSPLIT`  = 4  
     (For  `TEXT`  items.) Don't insert the preamble to check if the stack must be split. The frame for the routine, plus anything it calls, must fit in the spare space at the top of the stack segment. Used to protect routines such as the stack splitting code itself.
--   `RODATA`  = 8  
+>-   `RODATA`  = 8  
     (For  `DATA`  and  `GLOBL`  items.) Put this data in a read-only section.
--   `NOPTR`  = 16  
+>-   `NOPTR`  = 16  
     (For  `DATA`  and  `GLOBL`  items.) This data contains no pointers and therefore does not need to be scanned by the garbage collector.
--   `WRAPPER`  = 32  
+>-   `WRAPPER`  = 32  
     (For  `TEXT`  items.) This is a wrapper function and should not count as disabling  `recover`.
--   `NEEDCTXT`  = 64  
+>-   `NEEDCTXT`  = 64  
     (For  `TEXT`  items.) This function is a closure so it uses its incoming context register.
 
 当使用这些 flag 的字面量时，需要在汇编文件中 `#include "textflag.h"`。
@@ -372,10 +372,12 @@ argN, ... arg3, arg2, arg1, arg0
 3. 原则上来说，只要调用函数时只要不把局部变量覆盖掉就可以了。稍微多分配几个字节的 framesize 也不会死。
 4. 在确保逻辑没有问题的前提下，你愿意覆盖局部变量也没有问题。只要保证进入和退出汇编函数时的 caller 和 callee 能正确拿到返回值就可以。
 
-## 函数调用过程
+## 示例
+
+#
 
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbNTYxNDc5MTQwLDEyNjE3MDE2MjMsNzUyND
+eyJoaXN0b3J5IjpbNzkwMzkyMzE2LDEyNjE3MDE2MjMsNzUyND
 A5NjU1LDE4ODQ0OTUxOTBdfQ==
 -->
