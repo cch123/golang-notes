@@ -316,13 +316,14 @@ argN, ... arg3, arg2, arg1, arg0
 
 1. 局部变量，及其每个变量的 size。
 2. 在函数中是否有对其它函数调用时，如果有的话，调用时需要将 callee 的参数、返回值、以及在调用 callee 时需要保存的 PC 寄存器的值，保存在栈顶的当前函数栈顶，所以这些值的 size 也需要考虑在内。
-3. 原则上来说，只要调用h
+3. 原则上来说，只要调用函数时只要不把局部变量覆盖掉就可以了。稍微多分配几个字节的 framesize 也不会死。
+4. 在确保逻辑没有问题的前提下，覆盖局部yb
 
 ## 函数调用过程
 
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbMTQzMzQ4NzgzMiwxMTQ5MzA2OTEzLC0xMT
+eyJoaXN0b3J5IjpbLTg5MTA0NTEyNiwxMTQ5MzA2OTEzLC0xMT
 AzOTA5NjQ3LC0yMDEyMDM0MTIyLC03NzM2ODA2MjEsLTM1ODgz
 NDU2OCw5MjQ5Mjc5NDksLTg1MTcwODQ0NywtMTY0NjMxMDgyNS
 wtNDU5MTU4MywxMDQyODc0MjU2LDE5NDkxMzAwMDQsLTUzNzEw
