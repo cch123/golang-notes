@@ -186,7 +186,7 @@ GLOBL bio<>+0(SB), RODATA, $16
 -   `NEEDCTXT`  = 64  
     (For  `TEXT`  items.) This function is a closure so it uses its incoming context register.
 
-当
+当使用这些 flag 的字面量时，需要在汇编文件中 `#include "textflag.h"`。
 
 ## 函数声明
 
@@ -376,6 +376,6 @@ argN, ... arg3, arg2, arg1, arg0
 
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTIxMjU4OTk3MjksMTI2MTcwMTYyMyw3NT
-I0MDk2NTUsMTg4NDQ5NTE5MF19
+eyJoaXN0b3J5IjpbNTYxNDc5MTQwLDEyNjE3MDE2MjMsNzUyND
+A5NjU1LDE4ODQ0OTUxOTBdfQ==
 -->
