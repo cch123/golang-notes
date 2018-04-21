@@ -66,7 +66,6 @@ JNZ target // 如果 zero flag 被 set 过，则跳转
 
 ```
 
-
 ### 指令集
 可以参考源代码的 [arch](https://github.com/golang/arch/blob/master/x86/x86.csv) 部分。
 
@@ -244,7 +243,7 @@ func Framepointer_enabled(goos, goarch string) bool {
 ## framesize 计算规则
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTEyMTkzMjgxODcsLTQ1OTE1ODMsMTA0Mj
+eyJoaXN0b3J5IjpbLTE2NDYzMTA4MjUsLTQ1OTE1ODMsMTA0Mj
 g3NDI1NiwxOTQ5MTMwMDA0LC01MzcxMDg3MTMsMTc5Njk0MzA3
 MCwxMDc2ODkwNjgyLC0xMzE1NDc5ODI3LDE4NDY2ODMwNzYsMj
 EzODk2Njk0MSwxNzk0NTQwNTIzLDYyMDg4MDM5NywtMTQ4MTYz
