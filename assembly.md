@@ -144,7 +144,7 @@ Go 的汇编还引入了 4 个伪寄存器，援引官方文档的描述:
 ```go
 DATA	symbol+offset(SB)/width, value
 ```
-大多数变量都是字面意思，不过这个 offset 需要稍微注意。其含义是该值相对于符号 symbol 的偏移，而不是相对于全局某个地址的偏移。
+大多数参数都是字面意思，不过这个 offset 需要稍微注意。其含义是该值相对于符号 symbol 的偏移，而不是相对于全局某个地址的偏移。
 
 使用 GLOBL 指令将变量声明为 global，额外接收两个参数，一个是 flag，另一个是变量的总大小。
 
@@ -386,6 +386,7 @@ argN, ... arg3, arg2, arg1, arg0
 
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbMjA4NDA2MzcyMCwtMTU1NjI4NTQ0MCwxMj
-YxNzAxNjIzLDc1MjQwOTY1NSwxODg0NDk1MTkwXX0=
+eyJoaXN0b3J5IjpbLTM0ODEwNDYyMywyMDg0MDYzNzIwLC0xNT
+U2Mjg1NDQwLDEyNjE3MDE2MjMsNzUyNDA5NjU1LDE4ODQ0OTUx
+OTBdfQ==
 -->
