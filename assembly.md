@@ -18,7 +18,7 @@ TEXT main.output(SB) /users/cch/test/go/test.go
 ```
 通用的指令和 IA64 平台差不多，比如:
 ### 数据搬运
-plan9 的指令方向和 
+常数 
 ```go
 MOVB $1, DI      // 1 byte
 MOVW $0x100, BX  // 2 bytes
@@ -32,6 +32,10 @@ mov eax, 0x100 // 4 bytes
 mov ax, 0x22   // 2 bytes
 mov ah, 0x33   // 1 byte
 mov al, 0x44   // 1 byte
+```
+plan9 的汇编的操作数的方向是和 intel 汇编相反的，与 AT&T 类似。
+```go
+MOVQ 
 ```
 ### 条件跳转/无条件跳转
 ```go
@@ -209,10 +213,10 @@ func Framepointer_enabled(goos, goarch string) bool {
 ## framesize 计算规则
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbNTAyNDE3ODYwLC0xMzE1NDc5ODI3LDE4ND
-Y2ODMwNzYsMjEzODk2Njk0MSwxNzk0NTQwNTIzLDYyMDg4MDM5
-NywtMTQ4MTYzNTg2MiwtMjA2ODEzMjk1MywxMDY4NDUzOTAzLC
-0zNzA3NjM4NDcsOTg0NzA1MjgzLDk2MjY0NzMwLDEzODk4NTUy
-MTMsLTE4MjI4NDA2NzYsNzEwNTAzNDMxLC02Mzk0ODkxMTYsLT
-IxNjU2NDc4NSwxMjQwNTc4NzI3XX0=
+eyJoaXN0b3J5IjpbMTk3Mzk1Nzg1MSwtMTMxNTQ3OTgyNywxOD
+Q2NjgzMDc2LDIxMzg5NjY5NDEsMTc5NDU0MDUyMyw2MjA4ODAz
+OTcsLTE0ODE2MzU4NjIsLTIwNjgxMzI5NTMsMTA2ODQ1MzkwMy
+wtMzcwNzYzODQ3LDk4NDcwNTI4Myw5NjI2NDczMCwxMzg5ODU1
+MjEzLC0xODIyODQwNjc2LDcxMDUwMzQzMSwtNjM5NDg5MTE2LC
+0yMTY1NjQ3ODUsMTI0MDU3ODcyN119
 -->
