@@ -10,10 +10,9 @@
 plan9 没有像 intel IA64 那样的 push 和 pop 指令，栈的调整是通过对硬件 SP 寄存器进行运算来实现的，例如:
 ```go
 TEXT main.output(SB) /users/cch/test/go/test.go
-	SUBQ $0x18, SP // 对 SP 做减法，为函数分配函数栈
-	MOVQ BP, 0x10(SP)
-	...
-	ADDQ $0x18, SP
+	SUBQ $0x18, SP // 对 SP 做减法，为函数分配函数栈帧
+	...			   // 省略无用代码
+	ADDQ $0x18, SP // 对 SP 做加法，清除函数栈帧
 ```
 
 ### 数据搬运
@@ -199,7 +198,7 @@ func Framepointer_enabled(goos, goarch string) bool {
 ## framesize 计算规则
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTE0MjE3Mzg3ODcsLTEzMTU0Nzk4MjcsMT
+eyJoaXN0b3J5IjpbLTEzOTIzNDcxOTIsLTEzMTU0Nzk4MjcsMT
 g0NjY4MzA3NiwyMTM4OTY2OTQxLDE3OTQ1NDA1MjMsNjIwODgw
 Mzk3LC0xNDgxNjM1ODYyLC0yMDY4MTMyOTUzLDEwNjg0NTM5MD
 MsLTM3MDc2Mzg0Nyw5ODQ3MDUyODMsOTYyNjQ3MzAsMTM4OTg1
