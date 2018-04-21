@@ -18,12 +18,12 @@ TEXT main.output(SB) /users/cch/test/go/test.go
 通用的指令和 IA64 平台差不多，比如:
 ### 数据搬运
 ```go
-MOVB $1, DI
-MOVW $0x100, BX
-MOVD $1, DX
-MOVQ $10, AX
+MOVB $1, DI      // 1 byte
+MOVW $0x100, BX  // 2 bytes
+MOVD $1, DX      // 4 bytes
+MOVQ $10, AX     // 8 bytes
 ```
-kzy
+可以看到，与 IA64 汇编稍有不同的是，搬运的长度是由 MOV 的后缀决定的，这一点与 intel 汇编
 ### 条件跳转/无条件跳转
 ```go
 ```
@@ -200,10 +200,10 @@ func Framepointer_enabled(goos, goarch string) bool {
 ## framesize 计算规则
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbMjQ3OTg5MDQwLC0xMzE1NDc5ODI3LDE4ND
-Y2ODMwNzYsMjEzODk2Njk0MSwxNzk0NTQwNTIzLDYyMDg4MDM5
-NywtMTQ4MTYzNTg2MiwtMjA2ODEzMjk1MywxMDY4NDUzOTAzLC
-0zNzA3NjM4NDcsOTg0NzA1MjgzLDk2MjY0NzMwLDEzODk4NTUy
-MTMsLTE4MjI4NDA2NzYsNzEwNTAzNDMxLC02Mzk0ODkxMTYsLT
-IxNjU2NDc4NSwxMjQwNTc4NzI3XX0=
+eyJoaXN0b3J5IjpbMTg2NjAzODIyNSwtMTMxNTQ3OTgyNywxOD
+Q2NjgzMDc2LDIxMzg5NjY5NDEsMTc5NDU0MDUyMyw2MjA4ODAz
+OTcsLTE0ODE2MzU4NjIsLTIwNjgxMzI5NTMsMTA2ODQ1MzkwMy
+wtMzcwNzYzODQ3LDk4NDcwNTI4Myw5NjI2NDczMCwxMzg5ODU1
+MjEzLC0xODIyODQwNjc2LDcxMDUwMzQzMSwtNjM5NDg5MTE2LC
+0yMTY1NjQ3ODUsMTI0MDU3ODcyN119
 -->
