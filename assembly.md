@@ -125,7 +125,7 @@ Go 的汇编还引入了 4 个伪寄存器，援引官方文档的描述:
 - FP:  使用形如 `symbol+offset(FP)` 的方式，引用函数的输入参数。例如 `arg0+0(FP)`，`arg1+8(FP)`，使用 FP 不加 symbol 时，无法通过编译，在汇编层面来讲，symbol 并没有什么用，加 symbol 主要是为了提升代码可读性。另外，官方文档虽然将伪寄存器 FP 称之为 frame pointer，实际上它根本不是 frame pointer，按照传统的 x86 的习惯来讲，frame pointer 是指向整个 stack frame 底部的 BP 寄存器。假如当前的 callee 函数是 add，在 add 的代码中引用 FP，该 FP 指向的位置不在 callee 的 stack frame 之内，而是在 此路er 的 stack frame 上。具体可参见之后的 **栈结构** 一章。
 - PC: 实际上就是在体系结构的知识中常见的 pc 寄存器，在 x86 平台下对应 ip 寄存器，amd64 上则是 rip。除了个别跳转之外，手写 plan9 代码与 PC 寄存器打交道的情况较少。
 - SB: 全局静态基指针，一般用来声明函数或全局变量，在之后的函数知识和示例部分会看到具体用法。
-- SP: plan9 的这个 SP 寄存器指向当前栈帧的局部变量的开始位置，使用形如 `symbol+offset(SP)` 的方式，引用函数的输入参数。offset 的合法取值是 [-framesize, 0)，注意是个左闭右开的区间。假如局部变量都是 8 字节，那么第一个局部变量就可以用 `localvar0-8(SP)` 来表示。这也是一个词不表意的寄存器。与硬件寄存器 SP 是两个不同的东西。
+- SP: plan9 的这个 SP 寄存器指向当前栈帧的局部变量的开始位置，使用形如 `symbol+offset(SP)` 的方式，引用函数的输入参数。offset 的合法取值是 [-framesize, 0)，注意是个左闭右开的区间。假如局部变量都是 8 字节，那么第一个局部变量就可以用 `localvar0-8(SP)` 来表示。这也是一个词不表意的寄存器。与硬件寄存器 SP 是两个不同的东西，在栈帧 size 为 0 的情况下，伪寄存器 SP 和硬件寄存器 SP 指向同一位置。
 
 如果没有 FP 和 SP(注意这里的 SP 不是硬件的那个 SP) 的情况下，例如在 intel 汇编中，我们只能使用 bp 或者 sp + offset 来找我们的变量位置。而有了 FP 和 SP，我们可以直接以其为基准进行参数查找和局部变量引用，即使编译之后他们的相对位置变化了，对手写代码也是透明的。至于它们的相对位置为什么变化，在后文中会进行说明。使用伪 FP 和伪 SP 去引用参数或局部变量时，必须带 symbol: arg0+0(FP)，local0-8(SP)。使用 FP 寄存器不带 symbol 的话，编译会报错。而使用 SP 寄存器不带 symbol 的情况下，会被编译器认为引用的是硬件的 SP 寄存器。
 
@@ -329,5 +329,5 @@ argN, ... arg3, arg2, arg1, arg0
 
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTE0MzU3NTU4MzRdfQ==
+eyJoaXN0b3J5IjpbMTU0NDM4MzA3NF19
 -->
