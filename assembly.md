@@ -94,7 +94,17 @@ TEXT pkgname·add(SB), NOSPLIT, $0-8
 
 定义中的 pkgname 部分是可以省略的，如果你有强迫症，那写上也没有什么问题。
 
-中点 `·` 比较特殊，是一个 unicode 的中点，该点在 mac 下的输入方法是 `option+shift+9`。在程序被链接之后，所有的中点`·` 都会被替换为`.`，比如你的方法是 `runtime·main`，在编译之后的程序里的符号则是 `runtime.main`。嗯，看起来很变态。简单总结一下
+中点 `·` 比较特殊，是一个 unicode 的中点，该点在 mac 下的输入方法是 `option+shift+9`。在程序被链接之后，所有的中点`·` 都会被替换为`.`，比如你的方法是 `runtime·main`，在编译之后的程序里的符号则是 `runtime.main`。嗯，看起来很变态。简单总结一下:
+
+```go
+
+                                          参数及返回值大小
+                                          | 
+ TEXT pkgname·add(SB),NOSPLIT,$32-32
+       |        |               |
+      包名     函数名                   栈帧大小（不包括参数及返回值）
+
+```
 
 ### 栈结构
 TODO，这里有图
@@ -178,7 +188,7 @@ func Framepointer_enabled(goos, goarch string) bool {
 ### framesize 计算规则
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbNTUwNDE3OTg2LDE4NDY2ODMwNzYsMjEzOD
+eyJoaXN0b3J5IjpbODc4NjE2NjQ4LDE4NDY2ODMwNzYsMjEzOD
 k2Njk0MSwxNzk0NTQwNTIzLDYyMDg4MDM5NywtMTQ4MTYzNTg2
 MiwtMjA2ODEzMjk1MywxMDY4NDUzOTAzLC0zNzA3NjM4NDcsOT
 g0NzA1MjgzLDk2MjY0NzMwLDEzODk4NTUyMTMsLTE4MjI4NDA2
