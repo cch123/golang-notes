@@ -18,10 +18,10 @@ TEXT main.output(SB) /users/cch/test/go/test.go
 ```
 通用的指令和 IA64 平台差不多，比如:
 ### 数据搬运
-常数 
+常数在 plan9 汇编用 $num 表示，可以为负数，默认情况下为十进制。可以用 $0x123 的形式来表示十六进制数。
 ```go
 MOVB $1, DI      // 1 byte
-MOVW $0x100, BX  // 2 bytes
+MOVW $0x10, BX   // 2 bytes
 MOVD $1, DX      // 4 bytes
 MOVQ $10, AX     // 8 bytes
 ```
@@ -213,7 +213,7 @@ func Framepointer_enabled(goos, goarch string) bool {
 ## framesize 计算规则
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbMTk3Mzk1Nzg1MSwtMTMxNTQ3OTgyNywxOD
+eyJoaXN0b3J5IjpbLTI3MTUyMjU3NywtMTMxNTQ3OTgyNywxOD
 Q2NjgzMDc2LDIxMzg5NjY5NDEsMTc5NDU0MDUyMyw2MjA4ODAz
 OTcsLTE0ODE2MzU4NjIsLTIwNjgxMzI5NTMsMTA2ODQ1MzkwMy
 wtMzcwNzYzODQ3LDk4NDcwNTI4Myw5NjI2NDczMCwxMzg5ODU1
