@@ -9,6 +9,7 @@
 ## 基本指令
 
 ### 栈调整
+
 在 intel 或 AT&T 汇编中，栈帧调整一般是通过对 rbp 和 rsp 进行 push  和 pop 操作来完成的。plan9 没有像 intel IA64 那样的 push 和 pop 指令，栈的调整是通过对硬件 SP 寄存器进行运算来实现的，例如:
 
 ```go
@@ -220,10 +221,10 @@ func Framepointer_enabled(goos, goarch string) bool {
 ## framesize 计算规则
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTE3OTA0MDEyMDQsMTA3Njg5MDY4MiwtMT
-MxNTQ3OTgyNywxODQ2NjgzMDc2LDIxMzg5NjY5NDEsMTc5NDU0
-MDUyMyw2MjA4ODAzOTcsLTE0ODE2MzU4NjIsLTIwNjgxMzI5NT
-MsMTA2ODQ1MzkwMywtMzcwNzYzODQ3LDk4NDcwNTI4Myw5NjI2
-NDczMCwxMzg5ODU1MjEzLC0xODIyODQwNjc2LDcxMDUwMzQzMS
-wtNjM5NDg5MTE2LC0yMTY1NjQ3ODUsMTI0MDU3ODcyN119
+eyJoaXN0b3J5IjpbMTc5Njk0MzA3MCwxMDc2ODkwNjgyLC0xMz
+E1NDc5ODI3LDE4NDY2ODMwNzYsMjEzODk2Njk0MSwxNzk0NTQw
+NTIzLDYyMDg4MDM5NywtMTQ4MTYzNTg2MiwtMjA2ODEzMjk1My
+wxMDY4NDUzOTAzLC0zNzA3NjM4NDcsOTg0NzA1MjgzLDk2MjY0
+NzMwLDEzODk4NTUyMTMsLTE4MjI4NDA2NzYsNzEwNTAzNDMxLC
+02Mzk0ODkxMTYsLTIxNjU2NDc4NSwxMjQwNTc4NzI3XX0=
 -->
