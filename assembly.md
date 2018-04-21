@@ -312,22 +312,22 @@ argN, ... arg3, arg2, arg1, arg0
 如果不确定自己的函数签名需要多大的 argsize，可以通过简单实现一个相同签名的空函数，然后 go tool objdump 来逆向查找应该分配多少空间。
 
 ### framesize
-函数的 framesize 就稍微复杂一些了，手写代码的 framesize 不需要考虑由编译器插入的 caller BP，只要考虑：
+函数的 framesize 就稍微复杂一些了，手写代码的 framesize 不需要考虑由编译器插入的 caller BP，要考虑：
 
 1. 局部变量，及其每个变量的 size。
 2. 在函数中是否有对其它函数调用时，如果有的话，调用时需要将 callee 的参数、返回值、以及在调用 callee 时需要保存的 PC 寄存器的值，保存在栈顶的当前函数栈顶，所以这些值的 size 也需要考虑在内。
 3. 原则上来说，只要调用函数时只要不把局部变量覆盖掉就可以了。稍微多分配几个字节的 framesize 也不会死。
-4. 在确保逻辑没有问题的前提下，覆盖局部yb
+4. 在确保逻辑没有问题的前提下，你愿意覆盖局部变量也没有问题。只要保证进入和退出汇编函数时的 caller 和 callee 能正确拿到返回值就可以。
 
 ## 函数调用过程
 
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTg5MTA0NTEyNiwxMTQ5MzA2OTEzLC0xMT
-AzOTA5NjQ3LC0yMDEyMDM0MTIyLC03NzM2ODA2MjEsLTM1ODgz
-NDU2OCw5MjQ5Mjc5NDksLTg1MTcwODQ0NywtMTY0NjMxMDgyNS
-wtNDU5MTU4MywxMDQyODc0MjU2LDE5NDkxMzAwMDQsLTUzNzEw
-ODcxMywxNzk2OTQzMDcwLDEwNzY4OTA2ODIsLTEzMTU0Nzk4Mj
-csMTg0NjY4MzA3NiwyMTM4OTY2OTQxLDE3OTQ1NDA1MjMsNjIw
-ODgwMzk3XX0=
+eyJoaXN0b3J5IjpbMjA5MTMzMDI5LDExNDkzMDY5MTMsLTExMD
+M5MDk2NDcsLTIwMTIwMzQxMjIsLTc3MzY4MDYyMSwtMzU4ODM0
+NTY4LDkyNDkyNzk0OSwtODUxNzA4NDQ3LC0xNjQ2MzEwODI1LC
+00NTkxNTgzLDEwNDI4NzQyNTYsMTk0OTEzMDAwNCwtNTM3MTA4
+NzEzLDE3OTY5NDMwNzAsMTA3Njg5MDY4MiwtMTMxNTQ3OTgyNy
+wxODQ2NjgzMDc2LDIxMzg5NjY5NDEsMTc5NDU0MDUyMyw2MjA4
+ODAzOTddfQ==
 -->
