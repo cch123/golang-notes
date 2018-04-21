@@ -121,7 +121,7 @@ Go 的汇编还引入了 4 个伪寄存器，援引官方文档的描述:
 >-   `SB`: Static base pointer: global symbols.
 >-   `SP`: Stack pointer: top of stack.
 
-如果没有 FP 和 SP(注意这里的 SP 不是硬件的那个 SP) 的情况下，例如在 intel 汇编中，我们只能使用 bp 或者 sp + offset 来找我们的变量位置。而有了 FP 和 SP，我们可以直接以其为基准进行参数查找和局部变量引用，即使编译之后他们的相对位置变化了，对手写代码也是透明的。至于它们的相对位置为什么变化，在后文中会进行说明。
+如果没有 FP 和 SP(注意这里的 SP 不是硬件的那个 SP) 的情况下，例如在 intel 汇编中，我们只能使用 bp 或者 sp + offset 来找我们的变量位置。而有了 FP 和 SP，我们可以直接以其为基准进行参数查找和局部变量引用，即使编译之后他们的相对位置变化了，对手写代码也是透明的。至于它们的相对位置为什么变化，在后文中会进行说明。使用伪 FP 和伪 SP 去引用参数或局部变量时，必须带 symbol: arg0+0(FP)，local0-8(SP)。
 
 实际上这里官方文档中，对这几个伪寄存器的描述并不精确，虽然文档之后还有一点补充说明，但由于是拿很多硬件平台泛泛而谈，细节并没有讲明白。
 
@@ -300,11 +300,11 @@ argN, ... arg3, arg2, arg1, arg0
 ## argsize 和 framesize 计算规则
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTExMDM5MDk2NDcsLTIwMTIwMzQxMjIsLT
-c3MzY4MDYyMSwtMzU4ODM0NTY4LDkyNDkyNzk0OSwtODUxNzA4
-NDQ3LC0xNjQ2MzEwODI1LC00NTkxNTgzLDEwNDI4NzQyNTYsMT
-k0OTEzMDAwNCwtNTM3MTA4NzEzLDE3OTY5NDMwNzAsMTA3Njg5
-MDY4MiwtMTMxNTQ3OTgyNywxODQ2NjgzMDc2LDIxMzg5NjY5ND
-EsMTc5NDU0MDUyMyw2MjA4ODAzOTcsLTE0ODE2MzU4NjIsLTIw
-NjgxMzI5NTNdfQ==
+eyJoaXN0b3J5IjpbLTIxMzUyNTE0OTIsLTExMDM5MDk2NDcsLT
+IwMTIwMzQxMjIsLTc3MzY4MDYyMSwtMzU4ODM0NTY4LDkyNDky
+Nzk0OSwtODUxNzA4NDQ3LC0xNjQ2MzEwODI1LC00NTkxNTgzLD
+EwNDI4NzQyNTYsMTk0OTEzMDAwNCwtNTM3MTA4NzEzLDE3OTY5
+NDMwNzAsMTA3Njg5MDY4MiwtMTMxNTQ3OTgyNywxODQ2NjgzMD
+c2LDIxMzg5NjY5NDEsMTc5NDU0MDUyMyw2MjA4ODAzOTcsLTE0
+ODE2MzU4NjJdfQ==
 -->
