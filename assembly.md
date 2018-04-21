@@ -164,6 +164,11 @@ GLOBL birthYear(SB), RODATA, $4
 有时也可能会想在全局变量中定义数组，或字符串，例如:
 ```go
 ```
+DATA world<>+0(SB)/8, $"hello wo"
+DATA world<>+8(SB)/4, $"rld "
+GLOBL world<>+0(SB), RODATA, $12
+```
+```
 
 ## 函数声明
 
@@ -353,6 +358,6 @@ argN, ... arg3, arg2, arg1, arg0
 
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTEwNTU0ODExNDUsMTI2MTcwMTYyMyw3NT
-I0MDk2NTUsMTg4NDQ5NTE5MF19
+eyJoaXN0b3J5IjpbLTgwMTAzNDA4NCwxMjYxNzAxNjIzLDc1Mj
+QwOTY1NSwxODg0NDk1MTkwXX0=
 -->
