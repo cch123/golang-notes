@@ -143,9 +143,11 @@ Go 的汇编还引入了 4 个伪寄存器，援引官方文档的描述:
 ```go
 DATA	symbol+offset(SB)/width, value
 ```
-使用 GLOBL 指令将变量声明为 global，额外接收两个参数，一个
+使用 GLOBL 指令将变量声明为 global，额外接收两个参数，一个是 flag，另一个是变量的总大小。
 ```go
+GLOBL divtab<>(SB), RODATA, $64
 ```
+GLOBL 必须跟在 DATA 指令之后，下面是一个定义了多个 readonly 的全局变量的例子:
 
 ## 函数声明
 
@@ -335,6 +337,6 @@ argN, ... arg3, arg2, arg1, arg0
 
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTEwNDk2OTMxNjcsMTI2MTcwMTYyMyw3NT
-I0MDk2NTUsMTg4NDQ5NTE5MF19
+eyJoaXN0b3J5IjpbMTYyNjY5MjI2OCwxMjYxNzAxNjIzLDc1Mj
+QwOTY1NSwxODg0NDk1MTkwXX0=
 -->
