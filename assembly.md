@@ -78,15 +78,14 @@ General Purpose Registers:
 在使用这些真实寄存器时，可以直接忽略前缀 `r`，例如要使用 rax 寄存器时，只要写 AX 即可，例如:
 
 ```go
-MOVQ $101, AX = mov rax, 
+MOVQ $101, AX = mov rax, 101
 ```
+下面是通用通用寄存器的名字在 IA64 和 plan9 中的对应表:
+| IA64 | Plan9 |
+|--|--|
+| rax | AX |
+| rbx | B
 
-和
-
-```asm
-mov rax, 101
-```
-是等价的。其它寄存器以此类推。
 
 ### 伪寄存器
 Go 的汇编还引入了 4 个伪寄存器，援引官方文档的描述:
@@ -217,10 +216,10 @@ func Framepointer_enabled(goos, goarch string) bool {
 ## framesize 计算规则
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbNTU4NTUxNjk0LC0xMzE1NDc5ODI3LDE4ND
-Y2ODMwNzYsMjEzODk2Njk0MSwxNzk0NTQwNTIzLDYyMDg4MDM5
-NywtMTQ4MTYzNTg2MiwtMjA2ODEzMjk1MywxMDY4NDUzOTAzLC
-0zNzA3NjM4NDcsOTg0NzA1MjgzLDk2MjY0NzMwLDEzODk4NTUy
-MTMsLTE4MjI4NDA2NzYsNzEwNTAzNDMxLC02Mzk0ODkxMTYsLT
-IxNjU2NDc4NSwxMjQwNTc4NzI3XX0=
+eyJoaXN0b3J5IjpbLTI4MDk5NjI2MiwtMTMxNTQ3OTgyNywxOD
+Q2NjgzMDc2LDIxMzg5NjY5NDEsMTc5NDU0MDUyMyw2MjA4ODAz
+OTcsLTE0ODE2MzU4NjIsLTIwNjgxMzI5NTMsMTA2ODQ1MzkwMy
+wtMzcwNzYzODQ3LDk4NDcwNTI4Myw5NjI2NDczMCwxMzg5ODU1
+MjEzLC0xODIyODQwNjc2LDcxMDUwMzQzMSwtNjM5NDg5MTE2LC
+0yMTY1NjQ3ODUsMTI0MDU3ODcyN119
 -->
