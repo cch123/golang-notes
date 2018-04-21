@@ -131,7 +131,7 @@ TEXT pkgname·add(SB), NOSPLIT, $0-8
                                   | 
  TEXT pkgname·add(SB),NOSPLIT,$32-32
        |        |               |
-      包名     函数名         栈帧大小(局部变量+可能需要的额外的 ret address 的总大小)
+      包名     函数名         栈帧大小(局部变量+可能需要的额外调用函数的参数空间以及 ret address 的总大小)
 
 ```
 
@@ -217,10 +217,10 @@ func Framepointer_enabled(goos, goarch string) bool {
 ## framesize 计算规则
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTEzODUyNDU1MjEsLTEzMTU0Nzk4MjcsMT
-g0NjY4MzA3NiwyMTM4OTY2OTQxLDE3OTQ1NDA1MjMsNjIwODgw
-Mzk3LC0xNDgxNjM1ODYyLC0yMDY4MTMyOTUzLDEwNjg0NTM5MD
-MsLTM3MDc2Mzg0Nyw5ODQ3MDUyODMsOTYyNjQ3MzAsMTM4OTg1
-NTIxMywtMTgyMjg0MDY3Niw3MTA1MDM0MzEsLTYzOTQ4OTExNi
-wtMjE2NTY0Nzg1LDEyNDA1Nzg3MjddfQ==
+eyJoaXN0b3J5IjpbMTA3Njg5MDY4MiwtMTMxNTQ3OTgyNywxOD
+Q2NjgzMDc2LDIxMzg5NjY5NDEsMTc5NDU0MDUyMyw2MjA4ODAz
+OTcsLTE0ODE2MzU4NjIsLTIwNjgxMzI5NTMsMTA2ODQ1MzkwMy
+wtMzcwNzYzODQ3LDk4NDcwNTI4Myw5NjI2NDczMCwxMzg5ODU1
+MjEzLC0xODIyODQwNjc2LDcxMDUwMzQzMSwtNjM5NDg5MTE2LC
+0yMTY1NjQ3ODUsMTI0MDU3ODcyN119
 -->
