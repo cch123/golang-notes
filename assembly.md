@@ -139,6 +139,8 @@ Go 的汇编还引入了 4 个伪寄存器，援引官方文档的描述:
 ## 变量声明
 在汇编里所谓的变量，一般是存储在 .rodata 或者 .data 段中的只读值。对应到应用层的话，就是已初始化过的全局的 const、var、static 变量/常量。
 
+使用 DATA 结合 GLOBL 来定义一个变量。DATA的
+
 ## 函数声明
 
 我们来看看一个典型的 plan9 的汇编函数的定义：
@@ -153,7 +155,7 @@ TEXT pkgname·add(SB), NOSPLIT, $0-8
 	MOVQ BX, ret+16(FP)
 	RET
 ```
-为什么要叫 TEXT ？如果对程序数据在文件中和内存中的分段稍有了解的同学应该知道，我们的代码在二进制文件中，是存储在 .text 段中的，这里也就是一种约定俗成的使用方法。在 plan9 中 TEXT 是一个指令，用来定义一个函数。除了 TEXT 之外还有前面变量声明说到的 DATA/GLOBL。
+为什么要叫 TEXT ？如果对程序数据在文件中和内存中的分段稍有了解的同学应该知道，我们的代码在二进制文件中，是存储在 .text 段中的，这里也就是一种约定俗成的起名方式。实际上在 plan9 中 TEXT 是一个指令，用来定义一个函数。除了 TEXT 之外还有前面变量声明说到的 DATA/GLOBL。
 
 定义中的 pkgname 部分是可以省略的，如果你有强迫症，那写上也没有什么问题。
 
@@ -327,6 +329,6 @@ argN, ... arg3, arg2, arg1, arg0
 
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbMTI2MTcwMTYyMyw3NTI0MDk2NTUsMTg4ND
-Q5NTE5MF19
+eyJoaXN0b3J5IjpbLTE2MDk5MjA3MjgsMTI2MTcwMTYyMyw3NT
+I0MDk2NTUsMTg4NDQ5NTE5MF19
 -->
