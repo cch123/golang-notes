@@ -13,11 +13,11 @@
 在 intel 或 AT&T 汇编中，栈帧调整一般是通过对 rbp 和 rsp 进行 push  和 pop 操作来完成的。plan9 没有像 intel IA64 那样的 push 和 pop 指令，栈的调整是通过对硬件 SP 寄存器进行运算来实现的，例如:
 
 ```go
-TEXT main.output(SB) /users/cch/test/go/test.go
-	SUBQ $0x18, SP // 对 SP 做减法，为函数分配函数栈帧
-	...			   // 省略无用代码
-	ADDQ $0x18, SP // 对 SP 做加法，清除函数栈帧
+SUBQ $0x18, SP // 对 SP 做减法，为函数分配函数栈帧
+...			   // 省略无用代码
+ADDQ $0x18, SP // 对 SP 做加法，清除函数栈帧
 ```
+
 通用的指令和 IA64 平台差不多，比如:
 
 ### 数据搬运
@@ -230,11 +230,11 @@ func Framepointer_enabled(goos, goarch string) bool {
 ## framesize 计算规则
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbMTk0OTEzMDAwNCwtNTM3MTA4NzEzLDE3OT
-Y5NDMwNzAsMTA3Njg5MDY4MiwtMTMxNTQ3OTgyNywxODQ2Njgz
-MDc2LDIxMzg5NjY5NDEsMTc5NDU0MDUyMyw2MjA4ODAzOTcsLT
-E0ODE2MzU4NjIsLTIwNjgxMzI5NTMsMTA2ODQ1MzkwMywtMzcw
-NzYzODQ3LDk4NDcwNTI4Myw5NjI2NDczMCwxMzg5ODU1MjEzLC
-0xODIyODQwNjc2LDcxMDUwMzQzMSwtNjM5NDg5MTE2LC0yMTY1
-NjQ3ODVdfQ==
+eyJoaXN0b3J5IjpbOTMzNTEwMzY2LDE5NDkxMzAwMDQsLTUzNz
+EwODcxMywxNzk2OTQzMDcwLDEwNzY4OTA2ODIsLTEzMTU0Nzk4
+MjcsMTg0NjY4MzA3NiwyMTM4OTY2OTQxLDE3OTQ1NDA1MjMsNj
+IwODgwMzk3LC0xNDgxNjM1ODYyLC0yMDY4MTMyOTUzLDEwNjg0
+NTM5MDMsLTM3MDc2Mzg0Nyw5ODQ3MDUyODMsOTYyNjQ3MzAsMT
+M4OTg1NTIxMywtMTgyMjg0MDY3Niw3MTA1MDM0MzEsLTYzOTQ4
+OTExNl19
 -->
