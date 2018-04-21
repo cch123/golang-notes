@@ -216,14 +216,16 @@ TEXT pkgname·add(SB), NOSPLIT, $0-8
 
 此外需要注意的是，caller BP 是在编译期由编译器插入的，用户手写代码时，计算 frame size 时是不包括这个 caller BP 部分的。是否插入 caller BP 的主要判断依据是:
 
+1. 函数的栈帧大小大于 0
+2. 下述函数返回 true
+
 ```go
 func Framepointer_enabled(goos, goarch string) bool {
 	return framepointer_enabled != 0 && goarch == "amd64" && goos != "nacl"
 }
 ```
 
-
-在不插入这个 caller BP(源代码中所称的 frame pointer)的情况下，在伪 SP 和伪 FP 之间，就只有 8 个字节的 caller 的 return address，而插入了 BP 的话，就会多出额外的 8 字节。这也就是前面提到过的，伪 FP 和伪 SP 的相对位置是不确定的，不能用伪 SP 的正向偏移来写代码的缘由。
+如果编译器在最终的汇编结果中没有插入 caller BP(源代码中所称的 frame pointer)的情况下，伪 SP 和伪 FP 之间只有 8 个字节的 caller 的 return address，而插入了 BP 的话，就会多出额外的 8 字节。也就说伪 SP 和伪
 
 
 图上可以看到，FP 伪寄存器指向函数的传入参数的开始位置，因为栈是朝低地址方向增长，为了通过寄存器引用参数时方便，所以参数的摆放方向和栈的增长方向是相反的，即：
@@ -299,7 +301,7 @@ argN, ... arg3, arg2, arg1, arg0
 ## framesize 计算规则
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbNTU4MzU3NzY0LDkyNDkyNzk0OSwtODUxNz
+eyJoaXN0b3J5IjpbNTUyNTIwOTA3LDkyNDkyNzk0OSwtODUxNz
 A4NDQ3LC0xNjQ2MzEwODI1LC00NTkxNTgzLDEwNDI4NzQyNTYs
 MTk0OTEzMDAwNCwtNTM3MTA4NzEzLDE3OTY5NDMwNzAsMTA3Nj
 g5MDY4MiwtMTMxNTQ3OTgyNywxODQ2NjgzMDc2LDIxMzg5NjY5
