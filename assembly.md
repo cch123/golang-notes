@@ -165,47 +165,53 @@ TEXT pkgname·add(SB), NOSPLIT, $0-8
 
 下面是一个典型的函数的栈结构图:
 ```
-                       +---------------+                                        
-                       |   caller BP   |                                        
-                       -----------------                                        
-                       |   Local Var0  |                                        
-                       -----------------                                        
-                       |   Local Var1  |                                        
-                       -----------------                                        
-         -             |   Local Var2  |                                        
-                       -----------------                                        
-                       |   ........    |                                        
-                       -----------------                                        
-                       |   Local VarN  |                                        
-                       -----------------                                        
-                       |               |                                        
-                       |               |                                        
-                       |  temporarily  |                                        
-                       |  unused space |                                        
-                       |               |                                        
-                       |               |                                        
-                       -----------------                                        
-                       |  call retn    |                                        
-                       -----------------                                        
-                       |  call ret(n-1)|                                        
-                       -----------------                                        
-                       |  ..........   |                                        
-                       |---------------|                                        
-                       |  call ret1    |                                        
-                       -----------------                                        
-                       |  call argn    |                                        
-                       -----------------                                        
-                       |   .....       |                                        
-                       -----------------                                        
-                       |  call arg3    |                                        
-                       -----------------                                        
-                       |  call arg2    |                                        
-                       -----------------                                        
-                       |  call arg1    |                                        
-                       -----------------                                        
-                       |  return addr  |                                        
-                       +---------------+
+                                                                                   
+                       -----------------                                           
+                       current func arg0                                           
+                       ----------------- <----------- FP(pseudo FP)                
+                        caller ret addr                                            
+                       +---------------+                                           
+                       |   caller BP   |                                           
+                       ----------------- <----------- SP(pseudo SP，实际上是当前栈帧的 BP 位置)
+                       |   Local Var0  |                                           
+                       -----------------                                           
+                       |   Local Var1  |                                           
+                       -----------------                                           
+                       |   Local Var2  |                                           
+                       -----------------                                           
+                       |   ........    |                                           
+                       -----------------                                           
+                       |   Local VarN  |                                           
+                       -----------------                                           
+                       |               |                                           
+                       |               |                                           
+                       |  temporarily  |                                           
+                       |  unused space |                                           
+                       |               |                                           
+                       |               |                                           
+                       -----------------                                           
+                       |  call retn    |                                           
+                       -----------------                                           
+                       |  call ret(n-1)|                                           
+                       -----------------                                           
+                       |  ..........   |                                           
+                       -----------------                                           
+                       |  call ret1    |                                           
+                       -----------------                                           
+                       |  call argn    |                                           
+                       -----------------                                           
+                       |   .....       |                                           
+                       -----------------                                           
+                       |  call arg3    |                                           
+                       |---------------|                                           
+                       |  call arg2    |                                           
+                       -----------------                                           
+                       |  call arg1    |                                           
+                       -----------------                                           
+                       |  return addr  |                                           
+                       +---------------+  <------------ hardware SP 位置
 ```
+
 图上的 caller BP，指的是 caller 的 BP 寄存器值，有些人把 caller BP 叫作 caller 的 frame pointer，实际上这个习惯是从 x86 架构沿袭来的。Go 的 asm 文档中把伪寄存器 FP 也称为 frame pointer，但是这两个 frame pointer 根本不是一回事。
 
 此外需要注意的是，caller BP 是在编译期由编译器插入的，用户手写代码时，计算 frame size 时是不包括这个 caller BP 部分的。图上可以看到，FP 伪寄存器指向函数的传入参数的开始位置，因为栈是朝低地址方向增长，为了通过寄存器引用参数时方便，所以参数的摆放方向和栈的增长方向是相反的，即：
@@ -215,6 +221,8 @@ high ----------------------> low
 argN, ... arg3, arg2, arg1, arg0
 ```
 假设所有参数均为 8 字节，这样我们就可以用 symname+0(FP) 访问第一个 参数，symname+8(FP) 访问第二个参数，以此类推。
+
+图的最上部的 caller return address 和 call
 
 ```
                                                                                                                               
@@ -285,11 +293,11 @@ func Framepointer_enabled(goos, goarch string) bool {
 ## framesize 计算规则
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTg1MTcwODQ0NywtMTY0NjMxMDgyNSwtND
-U5MTU4MywxMDQyODc0MjU2LDE5NDkxMzAwMDQsLTUzNzEwODcx
-MywxNzk2OTQzMDcwLDEwNzY4OTA2ODIsLTEzMTU0Nzk4MjcsMT
-g0NjY4MzA3NiwyMTM4OTY2OTQxLDE3OTQ1NDA1MjMsNjIwODgw
-Mzk3LC0xNDgxNjM1ODYyLC0yMDY4MTMyOTUzLDEwNjg0NTM5MD
-MsLTM3MDc2Mzg0Nyw5ODQ3MDUyODMsOTYyNjQ3MzAsMTM4OTg1
-NTIxM119
+eyJoaXN0b3J5IjpbOTgzMzA2OTU1LC04NTE3MDg0NDcsLTE2ND
+YzMTA4MjUsLTQ1OTE1ODMsMTA0Mjg3NDI1NiwxOTQ5MTMwMDA0
+LC01MzcxMDg3MTMsMTc5Njk0MzA3MCwxMDc2ODkwNjgyLC0xMz
+E1NDc5ODI3LDE4NDY2ODMwNzYsMjEzODk2Njk0MSwxNzk0NTQw
+NTIzLDYyMDg4MDM5NywtMTQ4MTYzNTg2MiwtMjA2ODEzMjk1My
+wxMDY4NDUzOTAzLC0zNzA3NjM4NDcsOTg0NzA1MjgzLDk2MjY0
+NzMwXX0=
 -->
