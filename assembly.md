@@ -214,7 +214,16 @@ TEXT pkgname·add(SB), NOSPLIT, $0-8
 
 图上的 caller BP，指的是 caller 的 BP 寄存器值，有些人把 caller BP 叫作 caller 的 frame pointer，实际上这个习惯是从 x86 架构沿袭来的。Go 的 asm 文档中把伪寄存器 FP 也称为 frame pointer，但是这两个 frame pointer 根本不是一回事。
 
-此外需要注意的是，caller BP 是在编译期由编译器插入的，用户手写代码时，计算 frame size 时是不包括这个 caller BP 部分的。
+此外需要注意的是，caller BP 是在编译期由编译器插入的，用户手写代码时，计算 frame size 时是不包括这个 caller BP 部分的。不过
+
+
+```go
+func Framepointer_enabled(goos, goarch string) bool {
+	return framepointer_enabled != 0 && goarch == "amd64" && goos != "nacl"
+}
+```
+在不插入这个 caller BP(源代码中所称的 frame pointer)的情况下，在伪 SP 和伪 FP 之间，就只有 8 个字节的 caller 的 return address，而插入了 BP 的话，就会多出额外的 8 字节。这也就是前面提到过的，伪 FP 和伪 SP 的相对位置是不确定的，不能用伪 SP 的正向偏移来写代码的缘由。
+
 
 图上可以看到，FP 伪寄存器指向函数的传入参数的开始位置，因为栈是朝低地址方向增长，为了通过寄存器引用参数时方便，所以参数的摆放方向和栈的增长方向是相反的，即：
 ```
@@ -281,14 +290,7 @@ argN, ... arg3, arg2, arg1, arg0
                                                                                                                               
                                                               callee
 ```
-我们之前举的例子中，函数的 stack frame size 都大于 0。实际上有很多简单的函数，其 stack frame size 都是等于 0 的。这种情况下，编译器是不会插入 caller BP 的。本文研究对象为 amd64 平台，实际上目前(go1.10)中，会插入 caller BP 的也只有 amd64 平台。可以参见 Go 的源代码:
 
-```go
-func Framepointer_enabled(goos, goarch string) bool {
-	return framepointer_enabled != 0 && goarch == "amd64" && goos != "nacl"
-}
-```
-在不插入这个 caller BP(源代码中所称的 frame pointer)的情况下，在伪 SP 和伪 FP 之间，就只有 8 个字节的 caller 的 return address，而插入了 BP 的话，就会多出额外的 8 字节。这也就是前面提到过的，伪 FP 和伪 SP 的相对位置是不确定的，不能用伪 SP 的正向偏移来写代码的缘由。
 
 ## 变量声明
 在汇编里所谓的变量，一般是存储在 .rodata 或者 .data 段中的只读值。对应到应用层的话，就是已初始化过的全局的 const、var、static 变量/常量。
@@ -296,11 +298,11 @@ func Framepointer_enabled(goos, goarch string) bool {
 ## framesize 计算规则
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbMTExMzY5NDc5Myw5MjQ5Mjc5NDksLTg1MT
-cwODQ0NywtMTY0NjMxMDgyNSwtNDU5MTU4MywxMDQyODc0MjU2
-LDE5NDkxMzAwMDQsLTUzNzEwODcxMywxNzk2OTQzMDcwLDEwNz
-Y4OTA2ODIsLTEzMTU0Nzk4MjcsMTg0NjY4MzA3NiwyMTM4OTY2
-OTQxLDE3OTQ1NDA1MjMsNjIwODgwMzk3LC0xNDgxNjM1ODYyLC
-0yMDY4MTMyOTUzLDEwNjg0NTM5MDMsLTM3MDc2Mzg0Nyw5ODQ3
-MDUyODNdfQ==
+eyJoaXN0b3J5IjpbNTE3Nzg1OTQ0LDkyNDkyNzk0OSwtODUxNz
+A4NDQ3LC0xNjQ2MzEwODI1LC00NTkxNTgzLDEwNDI4NzQyNTYs
+MTk0OTEzMDAwNCwtNTM3MTA4NzEzLDE3OTY5NDMwNzAsMTA3Nj
+g5MDY4MiwtMTMxNTQ3OTgyNywxODQ2NjgzMDc2LDIxMzg5NjY5
+NDEsMTc5NDU0MDUyMyw2MjA4ODAzOTcsLTE0ODE2MzU4NjIsLT
+IwNjgxMzI5NTMsMTA2ODQ1MzkwMywtMzcwNzYzODQ3LDk4NDcw
+NTI4M119
 -->
