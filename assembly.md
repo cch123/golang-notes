@@ -143,6 +143,9 @@ Go 的汇编还引入了 4 个伪寄存器，援引官方文档的描述:
 ```go
 DATA	symbol+offset(SB)/width, value
 ```
+使用 GLOBL 指令将变量声明为 global，额外接收两个参数，一个
+```go
+```
 
 ## 函数声明
 
@@ -332,6 +335,6 @@ argN, ... arg3, arg2, arg1, arg0
 
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTQzOTEzNTc3LDEyNjE3MDE2MjMsNzUyND
-A5NjU1LDE4ODQ0OTUxOTBdfQ==
+eyJoaXN0b3J5IjpbLTEwNDk2OTMxNjcsMTI2MTcwMTYyMyw3NT
+I0MDk2NTUsMTg4NDQ5NTE5MF19
 -->
