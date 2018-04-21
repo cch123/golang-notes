@@ -163,12 +163,11 @@ GLOBL birthYear(SB), RODATA, $4
 ```
 有时也可能会想在全局变量中定义数组，或字符串，例如:
 ```go
+DATA bio<>+0(SB)/8, $"oh yes i"
+DATA bio<>+8(SB)/8, $"am here "
+GLOBL bio<>+0(SB), RODATA, $16
 ```
-DATA world<>+0(SB)/8, $"hello wo"
-DATA world<>+8(SB)/4, $"rld "
-GLOBL world<>+0(SB), RODATA, $12
-```
-```
+这里我们又有了新的标记 `<>`，这个跟在符号名之后，表示该变量是
 
 ## 函数声明
 
@@ -358,6 +357,6 @@ argN, ... arg3, arg2, arg1, arg0
 
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTgwMTAzNDA4NCwxMjYxNzAxNjIzLDc1Mj
+eyJoaXN0b3J5IjpbMTkxNjIzNTU2MywxMjYxNzAxNjIzLDc1Mj
 QwOTY1NSwxODg0NDk1MTkwXX0=
 -->
