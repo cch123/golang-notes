@@ -75,17 +75,20 @@ General Purpose Registers:
 ```
 在 plan9 汇编里都是可以使用的，应用代码层面会用到的通用寄存器主要是: rax, rbx, rcx, rdx, rdi, rsi, r8~r15 这 14 个寄存器，虽然 rbp 和 rsp 也可以用，不过 bp 和 sp 会被用来管理栈顶和栈底，最好不要拿来进行运算。
 
-在 IA64 平台，通过zu只要写 AX 即可，例如:
+plan9 中使用寄存器不需要带 r 或 e 的前缀，例如 rax，只要写 AX 即可:
 
 ```go
 MOVQ $101, AX = mov rax, 101
 ```
-下面是通用通用寄存器的名字在 IA64 和 plan9 中的对应表:
+下面是通用通用寄存器的名字在 IA64 和 plan9 中的对应关系:
 | IA64 | Plan9 |
 |--|--|
 | rax | AX |
 | rbx | BX |
-| r
+| rcx | CX |
+| rdx | DX |
+| rdi | DI |
+| rsi | SI |
 
 
 ### 伪寄存器
@@ -217,10 +220,10 @@ func Framepointer_enabled(goos, goarch string) bool {
 ## framesize 计算规则
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbMjAwNDY3NjU0MywtMTMxNTQ3OTgyNywxOD
-Q2NjgzMDc2LDIxMzg5NjY5NDEsMTc5NDU0MDUyMyw2MjA4ODAz
-OTcsLTE0ODE2MzU4NjIsLTIwNjgxMzI5NTMsMTA2ODQ1MzkwMy
-wtMzcwNzYzODQ3LDk4NDcwNTI4Myw5NjI2NDczMCwxMzg5ODU1
-MjEzLC0xODIyODQwNjc2LDcxMDUwMzQzMSwtNjM5NDg5MTE2LC
-0yMTY1NjQ3ODUsMTI0MDU3ODcyN119
+eyJoaXN0b3J5IjpbLTE1MzU2Nzg4MjUsLTEzMTU0Nzk4MjcsMT
+g0NjY4MzA3NiwyMTM4OTY2OTQxLDE3OTQ1NDA1MjMsNjIwODgw
+Mzk3LC0xNDgxNjM1ODYyLC0yMDY4MTMyOTUzLDEwNjg0NTM5MD
+MsLTM3MDc2Mzg0Nyw5ODQ3MDUyODMsOTYyNjQ3MzAsMTM4OTg1
+NTIxMywtMTgyMjg0MDY3Niw3MTA1MDM0MzEsLTYzOTQ4OTExNi
+wtMjE2NTY0Nzg1LDEyNDA1Nzg3MjddfQ==
 -->
