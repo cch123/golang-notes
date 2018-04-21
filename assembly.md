@@ -225,8 +225,7 @@ func Framepointer_enabled(goos, goarch string) bool {
 }
 ```
 
-如果编译器在最终的汇编结果中没有插入 caller BP(源代码中所称的 frame pointer)的情况下，伪 SP 和伪 FP 之间只有 8 个字节的 caller 的 return address，而插入了 BP 的话，就会多出额外的 8 字节。也就说伪 SP 和伪
-
+如果编译器在最终的汇编结果中没有插入 caller BP(源代码中所称的 frame pointer)的情况下，伪 SP 和伪 FP 之间只有 8 个字节的 caller 的 return address，而插入了 BP 的话，就会多出额外的 8 字节。也就说伪 SP 和伪 FP 的相对位置是不固定的，有可能是间隔 8 个字节，也有可能间隔 16 个字节。并且判断依据会根据平台和 Go 的版本有所不同。
 
 图上可以看到，FP 伪寄存器指向函数的传入参数的开始位置，因为栈是朝低地址方向增长，为了通过寄存器引用参数时方便，所以参数的摆放方向和栈的增长方向是相反的，即：
 ```
@@ -301,11 +300,11 @@ argN, ... arg3, arg2, arg1, arg0
 ## framesize 计算规则
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbNTUyNTIwOTA3LDkyNDkyNzk0OSwtODUxNz
-A4NDQ3LC0xNjQ2MzEwODI1LC00NTkxNTgzLDEwNDI4NzQyNTYs
-MTk0OTEzMDAwNCwtNTM3MTA4NzEzLDE3OTY5NDMwNzAsMTA3Nj
-g5MDY4MiwtMTMxNTQ3OTgyNywxODQ2NjgzMDc2LDIxMzg5NjY5
-NDEsMTc5NDU0MDUyMyw2MjA4ODAzOTcsLTE0ODE2MzU4NjIsLT
-IwNjgxMzI5NTMsMTA2ODQ1MzkwMywtMzcwNzYzODQ3LDk4NDcw
-NTI4M119
+eyJoaXN0b3J5IjpbLTM1ODgzNDU2OCw5MjQ5Mjc5NDksLTg1MT
+cwODQ0NywtMTY0NjMxMDgyNSwtNDU5MTU4MywxMDQyODc0MjU2
+LDE5NDkxMzAwMDQsLTUzNzEwODcxMywxNzk2OTQzMDcwLDEwNz
+Y4OTA2ODIsLTEzMTU0Nzk4MjcsMTg0NjY4MzA3NiwyMTM4OTY2
+OTQxLDE3OTQ1NDA1MjMsNjIwODgwMzk3LC0xNDgxNjM1ODYyLC
+0yMDY4MTMyOTUzLDEwNjg0NTM5MDMsLTM3MDc2Mzg0Nyw5ODQ3
+MDUyODNdfQ==
 -->
