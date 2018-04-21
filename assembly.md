@@ -44,6 +44,11 @@ MOVQ $0x10, AX ===== mov rax, 0x10
        |    |------------|      |
        |------------------------|
 ```
+### 常见计算指令
+
+```go
+```
+
 ### 条件跳转/无条件跳转
 ```go
 ```
@@ -221,10 +226,11 @@ func Framepointer_enabled(goos, goarch string) bool {
 ## framesize 计算规则
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbMTc5Njk0MzA3MCwxMDc2ODkwNjgyLC0xMz
-E1NDc5ODI3LDE4NDY2ODMwNzYsMjEzODk2Njk0MSwxNzk0NTQw
-NTIzLDYyMDg4MDM5NywtMTQ4MTYzNTg2MiwtMjA2ODEzMjk1My
-wxMDY4NDUzOTAzLC0zNzA3NjM4NDcsOTg0NzA1MjgzLDk2MjY0
-NzMwLDEzODk4NTUyMTMsLTE4MjI4NDA2NzYsNzEwNTAzNDMxLC
-02Mzk0ODkxMTYsLTIxNjU2NDc4NSwxMjQwNTc4NzI3XX0=
+eyJoaXN0b3J5IjpbLTUzNzEwODcxMywxNzk2OTQzMDcwLDEwNz
+Y4OTA2ODIsLTEzMTU0Nzk4MjcsMTg0NjY4MzA3NiwyMTM4OTY2
+OTQxLDE3OTQ1NDA1MjMsNjIwODgwMzk3LC0xNDgxNjM1ODYyLC
+0yMDY4MTMyOTUzLDEwNjg0NTM5MDMsLTM3MDc2Mzg0Nyw5ODQ3
+MDUyODMsOTYyNjQ3MzAsMTM4OTg1NTIxMywtMTgyMjg0MDY3Ni
+w3MTA1MDM0MzEsLTYzOTQ4OTExNiwtMjE2NTY0Nzg1LDEyNDA1
+Nzg3MjddfQ==
 -->
