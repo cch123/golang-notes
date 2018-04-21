@@ -302,9 +302,9 @@ argN, ... arg3, arg2, arg1, arg0
 ```go
  TEXT pkgname·add(SB),NOSPLIT,$16-32
 ```
-前面已经说过 $16-32 表示 $framesize-argsize。Go 在函数调用时，参数和返回值都需要由 
+前面已经说过 $16-32 表示 $framesize-argsize。Go 在函数调用时，参数和返回值都需要由 caller 在其栈帧上备好空间。callee 在声明时仍然需要知道这个 argsize。argsize 的计算方法是，
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbMTUxMTY0MTI0MiwtMTEwMzkwOTY0NywtMj
+eyJoaXN0b3J5IjpbMTI0MTQzMjIwMiwtMTEwMzkwOTY0NywtMj
 AxMjAzNDEyMiwtNzczNjgwNjIxLC0zNTg4MzQ1NjgsOTI0OTI3
 OTQ5LC04NTE3MDg0NDcsLTE2NDYzMTA4MjUsLTQ1OTE1ODMsMT
 A0Mjg3NDI1NiwxOTQ5MTMwMDA0LC01MzcxMDg3MTMsMTc5Njk0
