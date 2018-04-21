@@ -224,7 +224,7 @@ argN, ... arg3, arg2, arg1, arg0
 
 图的最上部的 caller return address 和 current func arg0 都是由 caller 来分配空间的。不算在当前的栈帧内。
 
-因为官方文档本身j;
+因为官方文档本身较模糊，我们来一个函数调用的全景图，来看一下这些真假 SP/FP/BP 到底是个什么关系:
 ```
                                                                                                                               
                                        caller                                                                                 
@@ -294,11 +294,11 @@ func Framepointer_enabled(goos, goarch string) bool {
 ## framesize 计算规则
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbMTY5NjY0NDg3OSwtODUxNzA4NDQ3LC0xNj
-Q2MzEwODI1LC00NTkxNTgzLDEwNDI4NzQyNTYsMTk0OTEzMDAw
-NCwtNTM3MTA4NzEzLDE3OTY5NDMwNzAsMTA3Njg5MDY4MiwtMT
-MxNTQ3OTgyNywxODQ2NjgzMDc2LDIxMzg5NjY5NDEsMTc5NDU0
-MDUyMyw2MjA4ODAzOTcsLTE0ODE2MzU4NjIsLTIwNjgxMzI5NT
-MsMTA2ODQ1MzkwMywtMzcwNzYzODQ3LDk4NDcwNTI4Myw5NjI2
-NDczMF19
+eyJoaXN0b3J5IjpbOTI0OTI3OTQ5LC04NTE3MDg0NDcsLTE2ND
+YzMTA4MjUsLTQ1OTE1ODMsMTA0Mjg3NDI1NiwxOTQ5MTMwMDA0
+LC01MzcxMDg3MTMsMTc5Njk0MzA3MCwxMDc2ODkwNjgyLC0xMz
+E1NDc5ODI3LDE4NDY2ODMwNzYsMjEzODk2Njk0MSwxNzk0NTQw
+NTIzLDYyMDg4MDM5NywtMTQ4MTYzNTg2MiwtMjA2ODEzMjk1My
+wxMDY4NDUzOTAzLC0zNzA3NjM4NDcsOTg0NzA1MjgzLDk2MjY0
+NzMwXX0=
 -->
