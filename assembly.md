@@ -7,6 +7,7 @@
 本文所使用的平台是 linux amd64，因为不同的平台指令集和寄存器都不一样，所以没有办法共同探讨。这也是由汇编本身的性质决定的。
 
 ## 基本指令
+
 ### 栈调整
 在 intel 或 AT&T 汇编中，栈帧调整一般是通过对 rbp 和 rsp 进行 push  和 pop 操作来完成的。plan9 没有像 intel IA64 那样的 push 和 pop 指令，栈的调整是通过对硬件 SP 寄存器进行运算来实现的，例如:
 
@@ -17,7 +18,9 @@ TEXT main.output(SB) /users/cch/test/go/test.go
 	ADDQ $0x18, SP // 对 SP 做加法，清除函数栈帧
 ```
 通用的指令和 IA64 平台差不多，比如:
+
 ### 数据搬运
+
 常数在 plan9 汇编用 $num 表示，可以为负数，默认情况下为十进制。可以用 $0x123 的形式来表示十六进制数。
 
 ```go
@@ -217,10 +220,10 @@ func Framepointer_enabled(goos, goarch string) bool {
 ## framesize 计算规则
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbMTA3Njg5MDY4MiwtMTMxNTQ3OTgyNywxOD
-Q2NjgzMDc2LDIxMzg5NjY5NDEsMTc5NDU0MDUyMyw2MjA4ODAz
-OTcsLTE0ODE2MzU4NjIsLTIwNjgxMzI5NTMsMTA2ODQ1MzkwMy
-wtMzcwNzYzODQ3LDk4NDcwNTI4Myw5NjI2NDczMCwxMzg5ODU1
-MjEzLC0xODIyODQwNjc2LDcxMDUwMzQzMSwtNjM5NDg5MTE2LC
-0yMTY1NjQ3ODUsMTI0MDU3ODcyN119
+eyJoaXN0b3J5IjpbLTE3OTA0MDEyMDQsMTA3Njg5MDY4MiwtMT
+MxNTQ3OTgyNywxODQ2NjgzMDc2LDIxMzg5NjY5NDEsMTc5NDU0
+MDUyMyw2MjA4ODAzOTcsLTE0ODE2MzU4NjIsLTIwNjgxMzI5NT
+MsMTA2ODQ1MzkwMywtMzcwNzYzODQ3LDk4NDcwNTI4Myw5NjI2
+NDczMCwxMzg5ODU1MjEzLC0xODIyODQwNjc2LDcxMDUwMzQzMS
+wtNjM5NDg5MTE2LC0yMTY1NjQ3ODUsMTI0MDU3ODcyN119
 -->
