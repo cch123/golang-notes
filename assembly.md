@@ -153,7 +153,7 @@ TEXT pkgname·add(SB), NOSPLIT, $0-8
 	MOVQ BX, ret+16(FP)
 	RET
 ```
-为什么要以 TEXT 来开头呢？如果对程序数据在文件中和内存中的分段稍有了解的同学应该知道，我们的代码在二进制文件中，是存储在 .text 段中的，这里也就是一种约定俗成的使用方法。
+为什么要叫 TEXT ？如果对程序数据在文件中和内存中的分段稍有了解的同学应该知道，我们的代码在二进制文件中，是存储在 .text 段中的，这里也就是一种约定俗成的使用方法。在 plan9 中 TEXT 是一个指令，用来定义
 
 定义中的 pkgname 部分是可以省略的，如果你有强迫症，那写上也没有什么问题。
 
@@ -327,5 +327,6 @@ argN, ... arg3, arg2, arg1, arg0
 
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbNzUyNDA5NjU1LDE4ODQ0OTUxOTBdfQ==
+eyJoaXN0b3J5IjpbLTE1MDc3Mzk4ODYsNzUyNDA5NjU1LDE4OD
+Q0OTUxOTBdfQ==
 -->
