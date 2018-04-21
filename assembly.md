@@ -73,7 +73,7 @@ Go 的汇编还引入了 4 个伪寄存器，援引官方文档的描述:
 我们这里先对容易混淆的几点进行说明：
 1. 伪 SP 和硬件 SP 不是一回事，在手写代码时，伪 SP 和硬件 SP 的区分方法是看该 SP 前是否有 symbol。如果有 symbol，那么即为伪寄存器，如果没有，那么说明是硬件 SP 寄存器。
 2. SP 和 FP 的相对位置是会变的，所以不应该尝试用伪 SP 寄存器去找那些用 FP + offset 来引用的值，例如函数的入参和返回值。
-3. 官方文档中说的伪 SP 指向 stack 的 top，是有问题的。实际上指说 bottom 更合适一些。
+3. 官方文档中说的伪 SP 指向 stack 的 top，是有问题的。其指向的局部变量位置实际上是整个栈的栈底(除 caller BP 之外)，所以说 bottom 更合适一些。
 4. 在 go tool objdump/go tool compile -S 输出的代码中，是没有伪 SP 和 FP 寄存器的，我们上面说的区分伪 SP 和硬件 SP 寄存器的方法，对于上述两个命令的输出结果是没法使用的。在编译和反汇编的结果中，只有真实的 SP 寄存器。
 5. FP 和 Go 的源代码里的 framepointer 不是一回事，源代码里的 framepointer 指的是 caller BP 寄存器的值，在这里和 caller 的伪 SP 是值是相等的。
 
@@ -83,7 +83,7 @@ Go 的汇编还引入了 4 个伪寄存器，援引官方文档的描述:
 我们来看看一个典型的 plan9 的汇编函数的定义：
 ```go
 // func add(a, b int) int
-TEXT (pkgname)·add(SB), NOSPLIT, $0-8
+TEXT pkgname·add(SB), NOSPLIT, $0-8
 	MOVQ a+0(FP), AX
 	MOVQ a+8(FP), BX
 	ADDQ AX, BX
@@ -94,7 +94,7 @@ TEXT (pkgname)·add(SB), NOSPLIT, $0-8
 
 定义中的 pkgname 部分是可以省略的，如果你有强迫症，那写上也没有什么问题。
 
-中点 `·` 比较特殊，是一个 unicode 的中点，该点在 mac 下的输入方法是 `option+shift+9`。在程序被链接之后，所有的中点`·` 都会被替换为`.`，比如你的方法是 `runtime·main`，在编译之后的程序里的符号则是 `runtime.main`。嗯，看起来很变态。
+中点 `·` 比较特殊，是一个 unicode 的中点，该点在 mac 下的输入方法是 `option+shift+9`。在程序被链接之后，所有的中点`·` 都会被替换为`.`，比如你的方法是 `runtime·main`，在编译之后的程序里的符号则是 `runtime.main`。嗯，看起来很变态。简单总结一下
 
 ### 栈结构
 TODO，这里有图
@@ -178,7 +178,7 @@ func Framepointer_enabled(goos, goarch string) bool {
 ### framesize 计算规则
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbNjg0OTc1MTQ0LDE4NDY2ODMwNzYsMjEzOD
+eyJoaXN0b3J5IjpbNTUwNDE3OTg2LDE4NDY2ODMwNzYsMjEzOD
 k2Njk0MSwxNzk0NTQwNTIzLDYyMDg4MDM5NywtMTQ4MTYzNTg2
 MiwtMjA2ODEzMjk1MywxMDY4NDUzOTAzLC0zNzA3NjM4NDcsOT
 g0NzA1MjgzLDk2MjY0NzMwLDEzODk4NTUyMTMsLTE4MjI4NDA2
