@@ -68,9 +68,12 @@ JNZ target // 如果 zero flag 被 set 过，则跳转
 
 
 ### 指令集
+可以参考源代码的 [arch](https://github.com/golang/arch/blob/master/x86/x86.csv) 部分。
 
 ## 寄存器
+
 ### 通用寄存器
+
 amd64 的通用寄存器:
 ```
 (lldb) reg read
@@ -241,11 +244,11 @@ func Framepointer_enabled(goos, goarch string) bool {
 ## framesize 计算规则
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTQ1OTE1ODMsMTA0Mjg3NDI1NiwxOTQ5MT
-MwMDA0LC01MzcxMDg3MTMsMTc5Njk0MzA3MCwxMDc2ODkwNjgy
-LC0xMzE1NDc5ODI3LDE4NDY2ODMwNzYsMjEzODk2Njk0MSwxNz
-k0NTQwNTIzLDYyMDg4MDM5NywtMTQ4MTYzNTg2MiwtMjA2ODEz
-Mjk1MywxMDY4NDUzOTAzLC0zNzA3NjM4NDcsOTg0NzA1MjgzLD
-k2MjY0NzMwLDEzODk4NTUyMTMsLTE4MjI4NDA2NzYsNzEwNTAz
-NDMxXX0=
+eyJoaXN0b3J5IjpbLTEyMTkzMjgxODcsLTQ1OTE1ODMsMTA0Mj
+g3NDI1NiwxOTQ5MTMwMDA0LC01MzcxMDg3MTMsMTc5Njk0MzA3
+MCwxMDc2ODkwNjgyLC0xMzE1NDc5ODI3LDE4NDY2ODMwNzYsMj
+EzODk2Njk0MSwxNzk0NTQwNTIzLDYyMDg4MDM5NywtMTQ4MTYz
+NTg2MiwtMjA2ODEzMjk1MywxMDY4NDUzOTAzLC0zNzA3NjM4ND
+csOTg0NzA1MjgzLDk2MjY0NzMwLDEzODk4NTUyMTMsLTE4MjI4
+NDA2NzZdfQ==
 -->
