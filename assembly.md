@@ -237,7 +237,7 @@ func Framepointer_enabled(goos, goarch string) bool {
 high ----------------------> low
 argN, ... arg3, arg2, arg1, arg0
 ```
-假设所有参数均为 8 字节，这样我们就可以用 symname+0(FP) 访问第一个 参数，symname+8(FP) 访问第二个参数，以此类推。用伪 SP 来引用局部变量，原理上来讲差不多，不过因为伪 SP 指向的是局部变量的底部，所以 symname-8(SP) 表示的是第一个局部变量，symname-16(SP)表示第二个，yc
+假设所有参数均为 8 字节，这样我们就可以用 symname+0(FP) 访问第一个 参数，symname+8(FP) 访问第二个参数，以此类推。用伪 SP 来引用局部变量，原理上来讲差不多，不过因为伪 SP 指向的是局部变量的底部，所以 symname-8(SP) 表示的是第一个局部变量，symname-16(SP)表示第二个，以此类推。当然，这里假设局部变量都占用 8 个字节。
 
 图的最上部的 caller return address 和 current func arg0 都是由 caller 来分配空间的。不算在当前的栈帧内。
 
@@ -300,7 +300,7 @@ argN, ... arg3, arg2, arg1, arg0
 ## argsize 和 framesize 计算规则
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTEwODAwMTgxNjEsLTIwMTIwMzQxMjIsLT
+eyJoaXN0b3J5IjpbLTExMDM5MDk2NDcsLTIwMTIwMzQxMjIsLT
 c3MzY4MDYyMSwtMzU4ODM0NTY4LDkyNDkyNzk0OSwtODUxNzA4
 NDQ3LC0xNjQ2MzEwODI1LC00NTkxNTgzLDEwNDI4NzQyNTYsMT
 k0OTEzMDAwNCwtNTM3MTA4NzEzLDE3OTY5NDMwNzAsMTA3Njg5
