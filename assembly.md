@@ -81,9 +81,9 @@ plan9 中使用寄存器不需要带 r 或 e 的前缀，例如 rax，只要写 
 MOVQ $101, AX = mov rax, 101
 ```
 下面是通用通用寄存器的名字在 IA64 和 plan9 中的对应关系:
-| IA64 | Plan9 |
-|--|--|
-| rax | AX |
+| IA64 | rax | rbx| rcx | rdx|
+|--|--|--|--|
+| Plan9 | AX |
 | rbx | BX |
 | rcx | CX |
 | rdx | DX |
@@ -222,10 +222,10 @@ func Framepointer_enabled(goos, goarch string) bool {
 ## framesize 计算规则
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTEwMDU5NTIzNTUsLTEzMTU0Nzk4MjcsMT
-g0NjY4MzA3NiwyMTM4OTY2OTQxLDE3OTQ1NDA1MjMsNjIwODgw
-Mzk3LC0xNDgxNjM1ODYyLC0yMDY4MTMyOTUzLDEwNjg0NTM5MD
-MsLTM3MDc2Mzg0Nyw5ODQ3MDUyODMsOTYyNjQ3MzAsMTM4OTg1
-NTIxMywtMTgyMjg0MDY3Niw3MTA1MDM0MzEsLTYzOTQ4OTExNi
-wtMjE2NTY0Nzg1LDEyNDA1Nzg3MjddfQ==
+eyJoaXN0b3J5IjpbMTI5NjM2NDE0LC0xMzE1NDc5ODI3LDE4ND
+Y2ODMwNzYsMjEzODk2Njk0MSwxNzk0NTQwNTIzLDYyMDg4MDM5
+NywtMTQ4MTYzNTg2MiwtMjA2ODEzMjk1MywxMDY4NDUzOTAzLC
+0zNzA3NjM4NDcsOTg0NzA1MjgzLDk2MjY0NzMwLDEzODk4NTUy
+MTMsLTE4MjI4NDA2NzYsNzEwNTAzNDMxLC02Mzk0ODkxMTYsLT
+IxNjU2NDc4NSwxMjQwNTc4NzI3XX0=
 -->
