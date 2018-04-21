@@ -304,13 +304,16 @@ argN, ... arg3, arg2, arg1, arg0
 ```
 前面已经说过 $16-32 表示 $framesize-argsize。Go 在函数调用时，参数和返回值都需要由 caller 在其栈帧上备好空间。callee 在声明时仍然需要知道这个 argsize。argsize 的计算方法是，参数大小求和+返回值大小求和，例如入参是 3 个 int64 类型，返回值是 1 个 int64 类型，那么这里的 argsize =  sizeof(int64) * 4。
 
-不过真实世界永远没有我们假设的这么美好，函数参数往往混合了多种类型，此外还需要考虑内存对齐问题。
+不过真实世界永远没有我们假设的这么美好，函数参数往往混合了多种类型，还需要考虑内存对齐问题。
 
 如果不确定自己的函数签名需要多大的 argsize，可以通过简单实现一个相同签名的空函数，然后 go tool objdump 来逆向查找应该分配多少空间。
 
+函数的 framesize 就稍微复杂一些了，手写代码的 framesize 不需要考虑由编译器插入的 caller BP，只要考虑：
 
+1. 局部变量
+2. 在本函数
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTQ4NTcxNjAzMiwtMTEwMzkwOTY0NywtMj
+eyJoaXN0b3J5IjpbLTUzOTc5MDk5MSwtMTEwMzkwOTY0NywtMj
 AxMjAzNDEyMiwtNzczNjgwNjIxLC0zNTg4MzQ1NjgsOTI0OTI3
 OTQ5LC04NTE3MDg0NDcsLTE2NDYzMTA4MjUsLTQ1OTE1ODMsMT
 A0Mjg3NDI1NiwxOTQ5MTMwMDA0LC01MzcxMDg3MTMsMTc5Njk0
