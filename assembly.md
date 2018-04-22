@@ -386,11 +386,11 @@ package main
 
 import "fmt"
 
-func add(a, b int) int
+func add(a, b int) int // 汇编函数声明
 
-func sub(a, b int) int
+func sub(a, b int) int // 汇编函数声明
 
-func mul(a, b int) int
+func mul(a, b int) int // 汇编函数声明
 
 func main() {
 	fmt.Println(add(10, 11))
@@ -400,7 +400,7 @@ func main() {
 ```
 math.s
 ```go
-#include "textflag.h"
+#include "textflag.h" // 因为我们声明函数用到了 NOSPLIT 这样的 flag，所以需要将 textflag.h 包含进来
 
 // func add(a, b int) int
 TEXT ·add(SB), NOSPLIT, $0-24
@@ -434,7 +434,7 @@ TEXT ·mul(SB), NOSPLIT, $0-24
 
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTIxMzI5NTg5MDIsLTM0ODEwNDYyMywyMD
+eyJoaXN0b3J5IjpbLTE4NjExNDE4MDgsLTM0ODEwNDYyMywyMD
 g0MDYzNzIwLC0xNTU2Mjg1NDQwLDEyNjE3MDE2MjMsNzUyNDA5
 NjU1LDE4ODQ0OTUxOTBdfQ==
 -->
