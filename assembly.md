@@ -406,7 +406,7 @@ math.s
 TEXT ·add(SB), NOSPLIT, $0-24
 	MOVQ a+0(FP), AX
 	MOVQ b+8(FP), BX
-	ADDQ BX, AX
+	ADDQ BX, AX    // AX += BX
 	MOVQ AX, ret+16(FP)
 	RET
 
@@ -414,7 +414,7 @@ TEXT ·add(SB), NOSPLIT, $0-24
 TEXT ·sub(SB), NOSPLIT, $0-24
 	MOVQ a+0(FP), AX
 	MOVQ b+8(FP), BX
-	SUBQ BX, AX
+	SUBQ BX, AX    // AX -= BX
 	MOVQ AX, ret+16(FP)
 	RET
 
@@ -422,18 +422,19 @@ TEXT ·sub(SB), NOSPLIT, $0-24
 TEXT ·mul(SB), NOSPLIT, $0-24
 	MOVQ  a+0(FP), AX
 	MOVQ  b+8(FP), BX
-	IMULQ BX, AX
+	IMULQ BX, AX    // AX *= BX
 	MOVQ  AX, ret+16(FP)
 	RET
     // 最后一行的空行是必须的，否则可能报 unexpected EOF
 ```
+
 ### 伪寄存器 SP 和伪寄存器 FP 的相对位置
 
 ### 汇编调用非汇编函数
 
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTE2NDY2MzYyNDAsLTM0ODEwNDYyMywyMD
+eyJoaXN0b3J5IjpbLTIxMzI5NTg5MDIsLTM0ODEwNDYyMywyMD
 g0MDYzNzIwLC0xNTU2Mjg1NDQwLDEyNjE3MDE2MjMsNzUyNDA5
 NjU1LDE4ODQ0OTUxOTBdfQ==
 -->
