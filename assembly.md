@@ -380,13 +380,60 @@ argN, ... arg3, arg2, arg1, arg0
 
 ###  add/sub/mul
 
+math.go: 
+```go
+package main
+
+import "fmt"
+
+func add(a, b int) int
+
+func sub(a, b int) int
+
+func mul(a, b int) int
+
+func main() {
+	fmt.Println(add(10, 11))
+	fmt.Println(sub(99, 15))
+	fmt.Println(mul(11, 12))
+}
+```
+math.s
+```go
+#include "textflag.h"
+
+// func add(a, b int) int
+TEXT ·add(SB), NOSPLIT, $0-24
+	MOVQ a+0(FP), AX
+	MOVQ b+8(FP), BX
+	ADDQ BX, AX
+	MOVQ AX, ret+16(FP)
+	RET
+
+// func sub(a, b int) int
+TEXT ·sub(SB), NOSPLIT, $0-24
+	MOVQ a+0(FP), AX
+	MOVQ b+8(FP), BX
+	SUBQ BX, AX
+	MOVQ AX, ret+16(FP)
+	RET
+
+// func mul(a, b int) int
+TEXT ·mul(SB), NOSPLIT, $0-24
+	MOVQ  a+0(FP), AX
+	MOVQ  b+8(FP), BX
+	IMULQ BX, AX
+	MOVQ  AX, ret+16(FP)
+	RET
+    // 最后一行的空行是必须的，否则可能报 unexpected EOF
+```
 ### 伪寄存器 SP 和伪寄存器 FP 的相对位置
 
 ### 汇编调用非汇编函数
 
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTM0ODEwNDYyMywyMDg0MDYzNzIwLC0xNT
-U2Mjg1NDQwLDEyNjE3MDE2MjMsNzUyNDA5NjU1LDE4ODQ0OTUx
-OTBdfQ==
+eyJoaXN0b3J5IjpbLTE2NDY2MzYyNDAsLTM0ODEwNDYyMywyMD
+g0MDYzNzIwLC0xNTU2Mjg1NDQwLDEyNjE3MDE2MjMsNzUyNDA5
+NjU1LDE4ODQ0OTUxOTBdfQ==
 -->
