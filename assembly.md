@@ -439,9 +439,9 @@ spspfp.s
 TEXT ·output(SB), $8-48
 	MOVQ 24(SP), DX // 不带 symbol，这里的 SP 是硬件寄存器 SP
 	MOVQ DX, ret3+24(FP) // 第三个返回值
-	MOVQ perhapsArg0+16(SP), BX // 当前函数栈大小 > 0，所以 FP 在 SP 的上方 16 字节处
+	MOVQ perhapsArg1+16(SP), BX // 当前函数栈大小 > 0，所以 FP 在 SP 的上方 16 字节处
 	MOVQ BX, ret2+16(FP) // 第二个返回值
-	MOVQ arg0+0(FP), AX
+	MOVQ arg1+0(FP), AX
 	MOVQ AX, ret1+8(FP)  // 第一个返回值
 	RET
 
@@ -468,6 +468,7 @@ func main() {
 ```
 和代码结合思考，可以知道我们当前的栈结构是这样的:
 ```
+------
 ret2 (8 bytes)
 ------
 ret1 (8 bytes)
@@ -483,11 +484,12 @@ caller BP (8 bytes)
 frame content (8 bytes)
 ------ hardware SP
 ```
+ 本小节例子的 framesize 是大于 0 的，读者k
 ### 汇编调用非汇编函数
 
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTE1ODgwOTYyMzUsLTM0ODEwNDYyMywyMD
-g0MDYzNzIwLC0xNTU2Mjg1NDQwLDEyNjE3MDE2MjMsNzUyNDA5
-NjU1LDE4ODQ0OTUxOTBdfQ==
+eyJoaXN0b3J5IjpbMjk1MzY5ODY2LC0zNDgxMDQ2MjMsMjA4ND
+A2MzcyMCwtMTU1NjI4NTQ0MCwxMjYxNzAxNjIzLDc1MjQwOTY1
+NSwxODg0NDk1MTkwXX0=
 -->
