@@ -461,12 +461,16 @@ func main() {
 	fmt.Println(a, b, c)
 }
 ```
-执行上面的df
+执行上面的代码，可以得到输出:
+```shell
+987654321 987654321 987654321
+```
+和代码结合思考，可以知道我们当前的栈结构是这y
 ### 汇编调用非汇编函数
 
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbNTAwODM0Mzg1LC0zNDgxMDQ2MjMsMjA4ND
+eyJoaXN0b3J5IjpbNTE0MjkyNTMwLC0zNDgxMDQ2MjMsMjA4ND
 A2MzcyMCwtMTU1NjI4NTQ0MCwxMjYxNzAxNjIzLDc1MjQwOTY1
 NSwxODg0NDk1MTkwXX0=
 -->
