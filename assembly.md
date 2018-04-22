@@ -404,10 +404,10 @@ math.s
 
 // func add(a, b int) int
 TEXT ·add(SB), NOSPLIT, $0-24
-	MOVQ a+0(FP), AX
-	MOVQ b+8(FP), BX
+	MOVQ a+0(FP), AX // 参数 a
+	MOVQ b+8(FP), BX // 参数 b
 	ADDQ BX, AX    // AX += BX
-	MOVQ AX, ret+16(FP)
+	MOVQ AX, ret+16(FP) // 返回
 	RET
 
 // func sub(a, b int) int
@@ -434,7 +434,7 @@ TEXT ·mul(SB), NOSPLIT, $0-24
 
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTE4NjExNDE4MDgsLTM0ODEwNDYyMywyMD
-g0MDYzNzIwLC0xNTU2Mjg1NDQwLDEyNjE3MDE2MjMsNzUyNDA5
-NjU1LDE4ODQ0OTUxOTBdfQ==
+eyJoaXN0b3J5IjpbMTE0MzY5NDM0MSwtMzQ4MTA0NjIzLDIwOD
+QwNjM3MjAsLTE1NTYyODU0NDAsMTI2MTcwMTYyMyw3NTI0MDk2
+NTUsMTg4NDQ5NTE5MF19
 -->
