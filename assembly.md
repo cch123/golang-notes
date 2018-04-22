@@ -484,12 +484,12 @@ caller BP (8 bytes)
 frame content (8 bytes)
 ------ hardware SP
 ```
- 本小节例子的 framesize 是大于 0 的，读者k
+ 本小节例子的 framesize 是大于 0 的，读者可以尝试修改 framesize 为 0，然后修改伪 SP 和硬件 SP 的偏移量，来使该程序也输出同样的结果。
 ### 汇编调用非汇编函数
 
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbMjk1MzY5ODY2LC0zNDgxMDQ2MjMsMjA4ND
-A2MzcyMCwtMTU1NjI4NTQ0MCwxMjYxNzAxNjIzLDc1MjQwOTY1
-NSwxODg0NDk1MTkwXX0=
+eyJoaXN0b3J5IjpbMTE2MDk0NzcyNSwtMzQ4MTA0NjIzLDIwOD
+QwNjM3MjAsLTE1NTYyODU0NDAsMTI2MTcwMTYyMyw3NTI0MDk2
+NTUsMTg4NDQ5NTE5MF19
 -->
