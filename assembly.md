@@ -121,6 +121,7 @@ plan9 中使用寄存器不需要带 r 或 e 的前缀，例如 rax，只要写 
 ```go
 MOVQ $101, AX = mov rax, 101
 ```
+
 下面是通用通用寄存器的名字在 IA64 和 plan9 中的对应关系:
 
 | IA64 | rax | rbx| rcx | rdx | rdi | rsi | rbp | rsp | r8 | r9 | r10 | r11 | r12 | r13 | r14 | rip|
@@ -574,7 +575,19 @@ func main() {
 
 ```
 
+### 汇编中的循环
+
+TODO
+
 ## 扩展话题
+
+### 标准库中的一些数据结构
+
+TODO
+
+### SIMD
+
+TODO
 
 ## 特别感谢
 
