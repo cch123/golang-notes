@@ -10,7 +10,7 @@
 
 ### 栈调整
 
-在 intel 或 AT&T 汇编中，栈帧调整一般是通过对 rbp 和 rsp 进行 push  和 pop 操作来完成的。plan9 没有像 intel IA64 那样的 push 和 pop 指令，栈的调整是通过对硬件 SP 寄存器进行运算来实现的，例如:
+intel 或 AT&T 汇编提供了 push 和 pop 指令族，plan9 中没有 push 和 pop，栈的调整是通过对硬件 SP 寄存器进行运算来实现的，例如:
 
 ```go
 SUBQ $0x18, SP // 对 SP 做减法，为函数分配函数栈帧
@@ -18,7 +18,7 @@ SUBQ $0x18, SP // 对 SP 做减法，为函数分配函数栈帧
 ADDQ $0x18, SP // 对 SP 做加法，清除函数栈帧
 ```
 
-通用的指令和 IA64 平台差不多，比如:
+通用的指令和 IA64 平台差不多，下面分节详述。
 
 ### 数据搬运
 
@@ -49,6 +49,8 @@ MOVQ $0x10, AX ===== mov rax, 0x10
        |------------------------|
 ```
 
+不过凡事总有例外，如果想了解这种意外，可以参见参考资料中的 [1]。
+
 ### 常见计算指令
 
 ```go
@@ -73,9 +75,12 @@ JNZ target // 如果 zero flag 被 set 过，则跳转
 
 ```
 
+
 ### 指令集
 
 可以参考源代码的 [arch](https://github.com/golang/arch/blob/master/x86/x86.csv) 部分。
+
+额外提一句，Go 1.10 添加了大量的 SIMD 指令支持，所以在该版本以上的话，不像之前写那样痛苦了，也就是不用人肉填 byte 了。
 
 ## 寄存器
 
@@ -527,6 +532,8 @@ frame content (8 bytes)
 
 本小节例子的 framesize 是大于 0 的，读者可以尝试修改 framesize 为 0，然后调整代码中引用伪 SP 和硬件 SP 时的 offset，来研究 framesize 为 0 时，伪 FP，伪 SP 和硬件 SP 三者之间的相对位置。
 
+本小节的例子是为了告诉大家，伪 SP 和伪 FP 的相对位置是会变化的，手写时不应该用伪 SP 和 >0 的 offset 来引用数据，否则结果可能会出乎你的预料。
+
 ### 汇编调用非汇编函数
 
 output.s:
@@ -568,6 +575,21 @@ func main() {
 ```
 
 ## 扩展话题
+
+## 特别感谢
+
+研究过程基本碰到不太明白的都去骚扰卓巨巨了，就是这位 https://mzh.io/ 大大。特别感谢他，给了不少线索和提示。
+
+## 参考资料
+
+1. https://quasilyte.github.io/blog/post/go-asm-complementary-reference/#external-resources
+2. http://davidwong.fr/goasm
+3. https://www.doxsey.net/blog/go-and-assembly
+4. https://github.com/golang/go/files/447163/GoFunctionsInAssembly.pdf
+
+参考资料[4]需要特别注意，在该 slide 中给出的 callee stack frame 中把 caller 的 return address 也包含进去了，个人认为不是很合适。
+
+
 
 
 <!--stackedit_data:
