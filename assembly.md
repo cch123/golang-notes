@@ -443,6 +443,7 @@ TEXT ·output(SB), $8-48
 	MOVQ arg0+0(FP), AX
 	MOVQ AX, ret1+8(FP)
 	RET
+
 ```
 
 ```go
@@ -452,7 +453,7 @@ import (
 	"fmt"
 )
 
-func output(int) (int, int, int)
+func output(int) (int, int, int) // 汇编函数声明
 
 func main() {
 	a, b, c := output(987654321)
@@ -464,7 +465,7 @@ func main() {
 
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTE1MTA2NTkzNDEsLTM0ODEwNDYyMywyMD
-g0MDYzNzIwLC0xNTU2Mjg1NDQwLDEyNjE3MDE2MjMsNzUyNDA5
-NjU1LDE4ODQ0OTUxOTBdfQ==
+eyJoaXN0b3J5IjpbODU0MjM3MjE3LC0zNDgxMDQ2MjMsMjA4ND
+A2MzcyMCwtMTU1NjI4NTQ0MCwxMjYxNzAxNjIzLDc1MjQwOTY1
+NSwxODg0NDk1MTkwXX0=
 -->
