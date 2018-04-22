@@ -14,7 +14,7 @@
 
 ```go
 SUBQ $0x18, SP // 对 SP 做减法，为函数分配函数栈帧
-...			   // 省略无用代码
+...               // 省略无用代码
 ADDQ $0x18, SP // 对 SP 做加法，清除函数栈帧
 ```
 
@@ -142,7 +142,7 @@ Go 的汇编还引入了 4 个伪寄存器，援引官方文档的描述:
 
 使用 DATA 结合 GLOBL 来定义一个变量。DATA 的用法为:
 ```go
-DATA	symbol+offset(SB)/width, value
+DATA    symbol+offset(SB)/width, value
 ```
 大多数参数都是字面意思，不过这个 offset 需要稍微注意。其含义是该值相对于符号 symbol 的偏移，而不是相对于全局某个地址的偏移。
 
@@ -200,11 +200,11 @@ GLOBL bio<>+0(SB), RODATA, $16
 //   => 该声明定义在同一个 package 下的任意 .go 文件中
 //   => 只有函数头，没有实现
 TEXT pkgname·add(SB), NOSPLIT, $0-8
-	MOVQ a+0(FP), AX
-	MOVQ a+8(FP), BX
-	ADDQ AX, BX
-	MOVQ BX, ret+16(FP)
-	RET
+    MOVQ a+0(FP), AX
+    MOVQ a+8(FP), BX
+    ADDQ AX, BX
+    MOVQ BX, ret+16(FP)
+    RET
 ```
 为什么要叫 TEXT ？如果对程序数据在文件中和内存中的分段稍有了解的同学应该知道，我们的代码在二进制文件中，是存储在 .text 段中的，这里也就是一种约定俗成的起名方式。实际上在 plan9 中 TEXT 是一个指令，用来定义一个函数。除了 TEXT 之外还有前面变量声明说到的 DATA/GLOBL。
 
@@ -282,7 +282,7 @@ TEXT pkgname·add(SB), NOSPLIT, $0-8
 
 ```go
 func Framepointer_enabled(goos, goarch string) bool {
-	return framepointer_enabled != 0 && goarch == "amd64" && goos != "nacl"
+    return framepointer_enabled != 0 && goarch == "amd64" && goos != "nacl"
 }
 ```
 
@@ -393,9 +393,9 @@ func sub(a, b int) int // 汇编函数声明
 func mul(a, b int) int // 汇编函数声明
 
 func main() {
-	fmt.Println(add(10, 11))
-	fmt.Println(sub(99, 15))
-	fmt.Println(mul(11, 12))
+    fmt.Println(add(10, 11))
+    fmt.Println(sub(99, 15))
+    fmt.Println(mul(11, 12))
 }
 ```
 math.s
@@ -404,27 +404,27 @@ math.s
 
 // func add(a, b int) int
 TEXT ·add(SB), NOSPLIT, $0-24
-	MOVQ a+0(FP), AX // 参数 a
-	MOVQ b+8(FP), BX // 参数 b
-	ADDQ BX, AX    // AX += BX
-	MOVQ AX, ret+16(FP) // 返回
-	RET
+    MOVQ a+0(FP), AX // 参数 a
+    MOVQ b+8(FP), BX // 参数 b
+    ADDQ BX, AX    // AX += BX
+    MOVQ AX, ret+16(FP) // 返回
+    RET
 
 // func sub(a, b int) int
 TEXT ·sub(SB), NOSPLIT, $0-24
-	MOVQ a+0(FP), AX
-	MOVQ b+8(FP), BX
-	SUBQ BX, AX    // AX -= BX
-	MOVQ AX, ret+16(FP)
-	RET
+    MOVQ a+0(FP), AX
+    MOVQ b+8(FP), BX
+    SUBQ BX, AX    // AX -= BX
+    MOVQ AX, ret+16(FP)
+    RET
 
 // func mul(a, b int) int
 TEXT ·mul(SB), NOSPLIT, $0-24
-	MOVQ  a+0(FP), AX
-	MOVQ  b+8(FP), BX
-	IMULQ BX, AX    // AX *= BX
-	MOVQ  AX, ret+16(FP)
-	RET
+    MOVQ  a+0(FP), AX
+    MOVQ  b+8(FP), BX
+    IMULQ BX, AX    // AX *= BX
+    MOVQ  AX, ret+16(FP)
+    RET
     // 最后一行的空行是必须的，否则可能报 unexpected EOF
 ```
 把这两个文件放在任意目录下，执行 `go build` 并运行就可以看到效果了。
@@ -437,13 +437,13 @@ spspfp.s
 
 // func output(int) (int, int, int)
 TEXT ·output(SB), $8-48
-	MOVQ 24(SP), DX // 不带 symbol，这里的 SP 是硬件寄存器 SP
-	MOVQ DX, ret3+24(FP) // 第三个返回值
-	MOVQ perhapsArg1+16(SP), BX // 当前函数栈大小 > 0，所以 FP 在 SP 的上方 16 字节处
-	MOVQ BX, ret2+16(FP) // 第二个返回值
-	MOVQ arg1+0(FP), AX
-	MOVQ AX, ret1+8(FP)  // 第一个返回值
-	RET
+    MOVQ 24(SP), DX // 不带 symbol，这里的 SP 是硬件寄存器 SP
+    MOVQ DX, ret3+24(FP) // 第三个返回值
+    MOVQ perhapsArg1+16(SP), BX // 当前函数栈大小 > 0，所以 FP 在 SP 的上方 16 字节处
+    MOVQ BX, ret2+16(FP) // 第二个返回值
+    MOVQ arg1+0(FP), AX
+    MOVQ AX, ret1+8(FP)  // 第一个返回值
+    RET
 
 ```
 spspfp.go:
@@ -451,14 +451,14 @@ spspfp.go:
 package main
 
 import (
-	"fmt"
+    "fmt"
 )
 
 func output(int) (int, int, int) // 汇编函数声明
 
 func main() {
-	a, b, c := output(987654321)
-	fmt.Println(a, b, c)
+    a, b, c := output(987654321)
+    fmt.Println(a, b, c)
 }
 ```
 执行上面的代码，可以得到输出:
@@ -492,7 +492,7 @@ frame content (8 bytes)
 
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTE3NDkwMTg1MjIsLTM0ODEwNDYyMywyMD
-g0MDYzNzIwLC0xNTU2Mjg1NDQwLDEyNjE3MDE2MjMsNzUyNDA5
-NjU1LDE4ODQ0OTUxOTBdfQ==
+eyJoaXN0b3J5IjpbLTg4Mjc1MTcwNiwtMTc0OTAxODUyMiwtMz
+Q4MTA0NjIzLDIwODQwNjM3MjAsLTE1NTYyODU0NDAsMTI2MTcw
+MTYyMyw3NTI0MDk2NTUsMTg4NDQ5NTE5MF19
 -->
