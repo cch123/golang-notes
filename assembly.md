@@ -437,11 +437,11 @@ TEXT ·mul(SB), NOSPLIT, $0-24
 // func output(int) (int, int, int)
 TEXT ·output(SB), $8-48
 	MOVQ 32(SP), DX // 不带 symbol，这里的 SP 是硬件寄存器 SP
-	MOVQ DX, ret3+24(FP)
-	MOVQ maybearg0+16(SP), BX // 当前函数栈大小 > 0，所以 FP 在 SP 的上方 16zo
-	MOVQ BX, ret2+16(FP)
+	MOVQ DX, ret3+24(FP) // 第三个返回值
+	MOVQ perhapsArg0+16(SP), BX // 当前函数栈大小 > 0，所以 FP 在 SP 的上方 16 字节处
+	MOVQ BX, ret2+16(FP) // 第二个返回值
 	MOVQ arg0+0(FP), AX
-	MOVQ AX, ret1+8(FP)
+	MOVQ AX, ret1+8(FP)  // 第一个返回值
 	RET
 
 ```
@@ -465,7 +465,7 @@ func main() {
 
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbNjA5MzM4NTI4LC0zNDgxMDQ2MjMsMjA4ND
+eyJoaXN0b3J5IjpbOTE0NDU5NjI2LC0zNDgxMDQ2MjMsMjA4ND
 A2MzcyMCwtMTU1NjI4NTQ0MCwxMjYxNzAxNjIzLDc1MjQwOTY1
 NSwxODg0NDk1MTkwXX0=
 -->
