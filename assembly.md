@@ -427,6 +427,7 @@ TEXT ·mul(SB), NOSPLIT, $0-24
 	RET
     // 最后一行的空行是必须的，否则可能报 unexpected EOF
 ```
+把这两个文件放在任意目录下，执行 `go build` 并运行就可以看到效果了。
 
 ### 伪寄存器 SP 和伪寄存器 FP 的相对位置
 
@@ -434,7 +435,7 @@ TEXT ·mul(SB), NOSPLIT, $0-24
 
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbMTE0MzY5NDM0MSwtMzQ4MTA0NjIzLDIwOD
+eyJoaXN0b3J5IjpbMTU2NzUwODQyMiwtMzQ4MTA0NjIzLDIwOD
 QwNjM3MjAsLTE1NTYyODU0NDAsMTI2MTcwMTYyMyw3NTI0MDk2
 NTUsMTg4NDQ5NTE5MF19
 -->
