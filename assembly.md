@@ -28,7 +28,7 @@ ADDQ $0x18, SP // 对 SP 做加法，清除函数栈帧
 MOVB $1, DI      // 1 byte
 MOVW $0x10, BX   // 2 bytes
 MOVD $1, DX      // 4 bytes
-MOVQ $10, AX     // 8 bytes
+MOVQ $-10, AX     // 8 bytes
 ```
 可以看到，搬运的长度是由 MOV 的后缀决定的，这一点与 intel 汇编稍有不同，看看类似的 IA64 汇编:
 ```asm
@@ -492,7 +492,7 @@ frame content (8 bytes)
 
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbMjA2MTA3NTA5NywtMzQ4MTA0NjIzLDIwOD
-QwNjM3MjAsLTE1NTYyODU0NDAsMTI2MTcwMTYyMyw3NTI0MDk2
-NTUsMTg4NDQ5NTE5MF19
+eyJoaXN0b3J5IjpbLTE3NDkwMTg1MjIsLTM0ODEwNDYyMywyMD
+g0MDYzNzIwLC0xNTU2Mjg1NDQwLDEyNjE3MDE2MjMsNzUyNDA5
+NjU1LDE4ODQ0OTUxOTBdfQ==
 -->
