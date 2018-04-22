@@ -484,12 +484,15 @@ caller BP (8 bytes)
 frame content (8 bytes)
 ------ hardware SP
 ```
- 本小节例子的 framesize 是大于 0 的，读者可以尝试修改 framesize 为 0，然后调整代码中引用伪 SP 和硬件 SP 时的 offset，来研究 framesize 为 0 时，
+ 本小节例子的 framesize 是大于 0 的，读者可以尝试修改 framesize 为 0，然后调整代码中引用伪 SP 和硬件 SP 时的 offset，来研究 framesize 为 0 时，伪 FP，伪 SP 和硬件 SP 三者之间的相对位置。
+ 
 ### 汇编调用非汇编函数
+
+## 扩展话题
 
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTE4MTM4MjQzNTcsLTM0ODEwNDYyMywyMD
-g0MDYzNzIwLC0xNTU2Mjg1NDQwLDEyNjE3MDE2MjMsNzUyNDA5
-NjU1LDE4ODQ0OTUxOTBdfQ==
+eyJoaXN0b3J5IjpbMjA2MTA3NTA5NywtMzQ4MTA0NjIzLDIwOD
+QwNjM3MjAsLTE1NTYyODU0NDAsMTI2MTcwMTYyMyw3NTI0MDk2
+NTUsMTg4NDQ5NTE5MF19
 -->
