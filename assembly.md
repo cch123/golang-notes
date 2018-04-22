@@ -191,7 +191,7 @@ GLOBL birthYear(SB), RODATA, $4
 ```go
 DATA bio<>+0(SB)/8, $"oh yes i"
 DATA bio<>+8(SB)/8, $"am here "
-GLOBL bio<>+0(SB), RODATA, $16
+GLOBL bio<>(SB), RODATA, $16
 ```
 
 大部分都比较好理解，不过这里我们又引入了新的标记 `<>`，这个跟在符号名之后，表示该全局变量只在当前文件中生效，类似于 C 语言中的 static。如果在另外文件中引用该变量的话，会报 `relocation target not found` 的错误。
@@ -242,7 +242,7 @@ TEXT pkgname·add(SB), NOSPLIT, $0-8
                                   | 
  TEXT pkgname·add(SB),NOSPLIT,$32-32
        |        |               |
-      包名     函数名         栈帧大小(局部变量+可能需要的额外调用函数的参数空间以及 ret address 的总大小)
+      包名     函数名         栈帧大小(局部变量+可能需要的额外调用函数的参数空间的总大小，但不包括调用其它函数时的 ret address 的大小)
 
 ```
 
