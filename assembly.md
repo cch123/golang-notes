@@ -429,13 +429,14 @@ TEXT ·mul(SB), NOSPLIT, $0-24
 ```
 把这两个文件放在任意目录下，执行 `go build` 并运行就可以看到效果了。
 
-### 伪寄存器 SP 和伪寄存器 FP 的相对位置
+### 伪寄存器 SP 、伪寄存器 FP 和硬件寄存器 SP 
+来写一段简单的代码证明伪 SP、伪 FP 和硬件 SP 的位置关系
 
 ### 汇编调用非汇编函数
 
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbMTU2NzUwODQyMiwtMzQ4MTA0NjIzLDIwOD
-QwNjM3MjAsLTE1NTYyODU0NDAsMTI2MTcwMTYyMyw3NTI0MDk2
-NTUsMTg4NDQ5NTE5MF19
+eyJoaXN0b3J5IjpbMzE5MDU2NjU1LC0zNDgxMDQ2MjMsMjA4ND
+A2MzcyMCwtMTU1NjI4NTQ0MCwxMjYxNzAxNjIzLDc1MjQwOTY1
+NSwxODg0NDk1MTkwXX0=
 -->
