@@ -462,15 +462,24 @@ func main() {
 }
 ```
 执行上面的代码，可以得到输出:
+
 ```shell
 987654321 987654321 987654321
 ```
-和代码结合思考，可以知道我们当前的栈结构是这y
+和代码结合思考，可以知道我们当前的栈结构是这样的:
+```
+------ FP
+ret addr (8 bytes)
+------ 
+caller BP (8 bytes)
+------ pseudo SP
+
+```
 ### 汇编调用非汇编函数
 
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbNTE0MjkyNTMwLC0zNDgxMDQ2MjMsMjA4ND
-A2MzcyMCwtMTU1NjI4NTQ0MCwxMjYxNzAxNjIzLDc1MjQwOTY1
-NSwxODg0NDk1MTkwXX0=
+eyJoaXN0b3J5IjpbLTExMzA5ODI5NDYsLTM0ODEwNDYyMywyMD
+g0MDYzNzIwLC0xNTU2Mjg1NDQwLDEyNjE3MDE2MjMsNzUyNDA5
+NjU1LDE4ODQ0OTUxOTBdfQ==
 -->
