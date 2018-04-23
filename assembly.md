@@ -295,7 +295,7 @@ TEXT pkgname·add(SB), NOSPLIT, $0-8
                        |---------------|                                           
                        |  call arg1    |                                           
                        -----------------   <------------  hardware SP 位置           
-                       | return addr   |                                           
+                         return addr                                               
                        +---------------+                                           
                                                                                    
 
