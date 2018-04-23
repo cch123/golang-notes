@@ -18,7 +18,7 @@ SUBQ $0x18, SP // 对 SP 做减法，为函数分配函数栈帧
 ADDQ $0x18, SP // 对 SP 做加法，清除函数栈帧
 ```
 
-通用的指令和 IA64 平台差不多，下面分节详述。
+通用的指令和 X64 平台差不多，下面分节详述。
 
 ### 数据搬运
 
@@ -31,7 +31,7 @@ MOVD $1, DX      // 4 bytes
 MOVQ $-10, AX     // 8 bytes
 ```
 
-可以看到，搬运的长度是由 MOV 的后缀决定的，这一点与 intel 汇编稍有不同，看看类似的 IA64 汇编:
+可以看到，搬运的长度是由 MOV 的后缀决定的，这一点与 intel 汇编稍有不同，看看类似的 X64 汇编:
 
 ```asm
 mov rax, 0x1   // 8 bytes
@@ -122,9 +122,9 @@ plan9 中使用寄存器不需要带 r 或 e 的前缀，例如 rax，只要写 
 MOVQ $101, AX = mov rax, 101
 ```
 
-下面是通用通用寄存器的名字在 IA64 和 plan9 中的对应关系:
+下面是通用通用寄存器的名字在 X64 和 plan9 中的对应关系:
 
-| IA64 | rax | rbx| rcx | rdx | rdi | rsi | rbp | rsp | r8 | r9 | r10 | r11 | r12 | r13 | r14 | rip|
+| X64 | rax | rbx| rcx | rdx | rdi | rsi | rbp | rsp | r8 | r9 | r10 | r11 | r12 | r13 | r14 | rip|
 |--|--|--|--| --| --|--| --|--|--|--|--|--|--|--|--|--|
 | Plan9 | AX | BX | CX | DX | DI | SI | BP | SP | R8 | R9 | R10 | R11 | R12 | R13 | R14 | PC |
 
