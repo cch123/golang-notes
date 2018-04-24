@@ -20,6 +20,6 @@ Overview
 12. [ ] Goroutine
 13. [ ] Scheduler
 14. [ ] GC
-15. [ ] Assembly
+15. [x] Assembly
 16. [ ] Map
 
