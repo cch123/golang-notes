@@ -626,6 +626,64 @@ func main() {
 
 ### 标准库中的一些数据结构
 
+#### 数值类型
+
+标准库中的数值类型很多:
+
+1. int/int8/int16/int32/int64
+2. uint/uint8/uint16/uint32/uint64
+3. float32/float64
+4. byte/rune
+5. uintptr
+
+这些类型在汇编中就是一段存储着数据的连续内存，只是内存长度不一样，操作的时候看好数据长度就行。
+
+#### slice
+
+前面的例子已经说过了，slice 在传递给函数的时候，实际上会展开成三个参数:
+
+1. 首元素地址
+2. slice 的 len
+3. slice 的 cap
+
+在汇编中处理时，只要知道这个原则那就很好办了，按顺序还是按索引操作随你开心。
+
+#### string
+
+```go
+package main
+
+//go:noinline
+func stringParam(s string) {}
+
+func main() {
+    var x = "abcc"
+    stringParam(x)
+}
+```
+
+用 `go tool compile -S` 输出其汇编:
+
+```go
+0x001d 00029 (stringParam.go:11)    LEAQ    go.string."abcc"(SB), AX  // 获取 RODATA 段中的字符串地址
+0x0024 00036 (stringParam.go:11)    MOVQ    AX, (SP) // 将获取到的地址放在栈顶，作为第一个参数
+0x0028 00040 (stringParam.go:11)    MOVQ    $4, 8(SP) // 字符串长度作为第二个参数
+0x0031 00049 (stringParam.go:11)    PCDATA  $0, $0 // gc 相关
+0x0031 00049 (stringParam.go:11)    CALL    "".stringParam(SB) // 调用 stringParam 函数
+```
+
+在汇编层面 string 就是地址 + 字符串长度。
+
+#### struct
+
+TODO
+
+#### map
+
+TODO
+
+#### channel
+
 TODO
 
 ### 获取 goroutine id
@@ -646,6 +704,7 @@ TODO
 2. http://davidwong.fr/goasm
 3. https://www.doxsey.net/blog/go-and-assembly
 4. https://github.com/golang/go/files/447163/GoFunctionsInAssembly.pdf
+5. https://golang.org/doc/asm
 
 参考资料[4]需要特别注意，在该 slide 中给出的 callee stack frame 中把 caller 的 return address 也包含进去了，个人认为不是很合适。
 
