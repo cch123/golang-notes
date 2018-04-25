@@ -688,7 +688,79 @@ TODO
 
 ### 获取 goroutine id
 
-TODO
+Go 的 goroutine 是一个叫 g 的结构体，内部有自己的唯一 id，不过 runtime 没有把这个 id 暴露出来，但不知道为什么有很多人就是想把这个 id 得到。于是就有了各种或其 goroutine id 的库。
+
+在学习了汇编之后，我们可以很容易地想到，结构体本身就是一段连续的内存，我们知道起始地址和字段的偏移量的话，很容易就可以把这段数据搬运出来:
+
+go_tls.h:
+
+```go
+#ifdef GOARCH_arm
+#define LR R14
+#endif
+
+#ifdef GOARCH_amd64
+#define    get_tls(r)    MOVQ TLS, r
+#define    g(r)    0(r)(TLS*1)
+#endif
+
+#ifdef GOARCH_amd64p32
+#define    get_tls(r)    MOVL TLS, r
+#define    g(r)    0(r)(TLS*1)
+#endif
+
+#ifdef GOARCH_386
+#define    get_tls(r)    MOVL TLS, r
+#define    g(r)    0(r)(TLS*1)
+#endif
+```
+
+goid.go:
+
+```go
+package goroutineid
+import "runtime"
+var offsetDict = map[string]int64{
+    // ... 省略一些行
+    "go1.7":    192,
+    "go1.7.1":  192,
+    "go1.7.2":  192,
+    "go1.7.3":  192,
+    "go1.7.4":  192,
+    "go1.7.5":  192,
+    "go1.7.6":  192,
+    // ... 省略一些行
+}
+
+var offset = offsetDict[runtime.Version()]
+
+// GetGoID returns the goroutine id
+func GetGoID() int64 {
+    return getGoID(offset)
+}
+
+func getGoID(off int64) int64
+```
+
+goid.s:
+
+```go
+#include "textflag.h"
+#include "go_tls.h"
+
+// func getGoID() int64
+TEXT ·getGoID(SB), NOSPLIT, $0-16
+    get_tls(CX)
+    MOVQ g(CX), AX
+    MOVQ offset(FP), BX
+    LEAQ 0(AX)(BX*1), DX
+    MOVQ (DX), AX
+    MOVQ AX, ret+8(FP)
+    RET
+```
+
+这样就实现了一个简单的获取 struct g 中的 goid 字段的小 library，作为玩具放在这里:
+>https://github.com/cch123/goroutineid
 
 ### SIMD
 
