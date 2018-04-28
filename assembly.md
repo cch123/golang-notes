@@ -676,7 +676,58 @@ func main() {
 
 #### struct
 
-TODO
+struct 在汇编层面实际上就是一段连续内存，在作为参数传给函数时，会将其展开在 caller 的栈上传给对应的 callee:
+
+struct.go
+
+```go
+package main
+
+type address struct {
+    lng int
+    lat int
+}
+
+type person struct {
+    age    int
+    height int
+    addr   address
+}
+
+func readStruct(p person) (int, int, int, int)
+
+func main() {
+    var p = person{
+        age:    99,
+        height: 88,
+        addr: address{
+            lng: 77,
+            lat: 66,
+        },
+    }
+    a, b, c, d := readStruct(p)
+    println(a, b, c, d)
+}
+```
+
+struct.s
+
+```go
+#include "textflag.h"
+
+TEXT ·readStruct(SB), NOSPLIT, $0-64
+    MOVQ arg0+0(FP), AX
+    MOVQ AX, ret0+32(FP)
+    MOVQ arg1+8(FP), AX
+    MOVQ AX, ret1+40(FP)
+    MOVQ arg2+16(FP), AX
+    MOVQ AX, ret2+48(FP)
+    MOVQ arg3+24(FP), AX
+    MOVQ AX, ret3+56(FP)
+    RET
+```
+
+上述的程序会输出 99, 88, 77, 66，这表明即使是内嵌结构体，在内存分布上依然是连续的。
 
 #### map
 
@@ -690,7 +741,7 @@ TODO
 
 Go 的 goroutine 是一个叫 g 的结构体，内部有自己的唯一 id，不过 runtime 没有把这个 id 暴露出来，但不知道为什么有很多人就是想把这个 id 得到。于是就有了各种或其 goroutine id 的库。
 
-在学习了汇编之后，我们可以很容易地想到，结构体本身就是一段连续的内存，我们知道起始地址和字段的偏移量的话，很容易就可以把这段数据搬运出来:
+在 struct 一小节我们已经提到，结构体本身就是一段连续的内存，我们知道起始地址和字段的偏移量的话，很容易就可以把这段数据搬运出来:
 
 go_tls.h:
 
