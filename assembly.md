@@ -215,6 +215,10 @@ GLOBL bio<>(SB), RODATA, $16
 
 当使用这些 flag 的字面量时，需要在汇编文件中 `#include "textflag.h"`。
 
+## .s 和 .go 文件的全局变量互通
+
+TODO
+
 ## 函数声明
 
 我们来看看一个典型的 plan9 的汇编函数的定义：
@@ -735,11 +739,74 @@ TEXT ·readStruct(SB), NOSPLIT, $0-64
 
 #### map
 
-TODO
+通过对下述文件进行汇编(go tool compile -S)，我们可以得到一个 map 在对某个 key 赋值时所需要做的操作:
+
+m.go:
+
+```go
+package main
+
+func main() {
+    var m = map[int]int{}
+    m[43] = 1
+    var n = map[string]int{}
+    n["abc"] = 1
+    println(m, n)
+}
+```
+
+看一看第七行的输出:
+
+```go
+0x0085 00133 (m.go:7)   LEAQ    type.map[int]int(SB), AX
+0x008c 00140 (m.go:7)   MOVQ    AX, (SP)
+0x0090 00144 (m.go:7)   LEAQ    ""..autotmp_2+232(SP), AX
+0x0098 00152 (m.go:7)   MOVQ    AX, 8(SP)
+0x009d 00157 (m.go:7)   MOVQ    $43, 16(SP)
+0x00a6 00166 (m.go:7)   PCDATA  $0, $1
+0x00a6 00166 (m.go:7)   CALL    runtime.mapassign_fast64(SB)
+0x00ab 00171 (m.go:7)   MOVQ    24(SP), AX
+0x00b0 00176 (m.go:7)   MOVQ    $1, (AX)
+```
+
+前面我们已经分析过调用函数的过程，这里前几行都是在准备 runtime.mapassign_fast64(SB) 的参数。去 runtime 里看看这个函数的签名:
+
+```go
+func mapassign_fast64(t *maptype, h *hmap, key uint64) unsafe.Pointer {
+```
+
+不用看函数的实现我们也大概能推测出函数输入参数和输出参数的关系了，把入参和汇编指令对应的话:
+
+```go
+t *maptype
+=>
+LEAQ    type.map[int]int(SB), AX
+MOVQ    AX, (SP)
+
+h *hmap
+=>
+LEAQ    ""..autotmp_2+232(SP), AX
+MOVQ    AX, 8(SP)
+
+key uint64
+=>
+MOVQ    $43, 16(SP)
+```
+
+返回参数就是 key 对应的可以写值的内存地址，拿到该地址后我们把想要写的值写进去就可以了:
+
+```go
+MOVQ    24(SP), AX
+MOVQ    $1, (AX)
+```
+
+整个过程还挺复杂的，我们手抄一遍倒也可以实现。不过还要考虑，不同类型的 map，实际上需要执行的 runtime 中的 assign 函数是不同的，感兴趣的同学可以汇编本节的示例自行尝试。
+
+整体来讲，用汇编来操作 map 并不是一个明智的选择。
 
 #### channel
 
-TODO
+channel 在 runtime 也是比较复杂的数据结构，如果在汇编层面操作，实际上也是调用 runtime 中 chan.go 中的函数，和 map 比较类似，这里就不展开说了。
 
 ### 获取 goroutine id
 
