@@ -217,7 +217,36 @@ GLOBL bio<>(SB), RODATA, $16
 
 ## .s 和 .go 文件的全局变量互通
 
-TODO
+在 `.s` 文件中是可以直接使用 `.go` 中定义的全局变量的，看看下面这个简单的例子:
+
+refer.go:
+
+```go
+package main
+
+var a = 999
+func get() int
+
+func main() {
+    println(get())
+}
+
+```
+
+refer.s:
+
+```go
+#include "textflag.h"
+
+TEXT ·get(SB), NOSPLIT, $0-8
+    MOVQ ·a(SB), AX
+    MOVQ AX, ret+0(FP)
+    RET
+```
+
+·a(SB)，表示该符号需要链接器来帮我们进行重定向(relocation)，如果找不到该符号，会输出 `relocation target not found` 的错误。
+
+例子比较简单，大家可以自行尝试。
 
 ## 函数声明
 
