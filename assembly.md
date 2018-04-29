@@ -447,7 +447,33 @@ argN, ... arg3, arg2, arg1, arg0
 
 ## 地址运算
 
-TODO
+地址运算也是用 lea 指令，英文原意为 `Load Effective Address`，amd64 平台地址都是 8 个字节，所以直接就用 LEAQ 就好:
+
+```go
+LEAQ (BX)(AX*8), CX
+// 上面代码中的 8 代表 scale
+// scale 只能是 0、2、4、8
+// 如果写成其它值:
+// LEAQ (BX)(AX*3), CX
+// ./a.s:6: bad scale: 3
+
+// 用 LEAQ 的话，即使是两个寄存器值直接相加，也必须提供 scale
+// 下面这样是不行的
+// LEAQ (BX)(AX), CX
+// asm: asmidx: bad address 0/2064/2067
+// 正确的写法是
+LEAQ (BX)(AX*1), CX
+
+
+// 在寄存器运算的基础上，可以加上额外的 offset
+LEAQ 16(BX)(AX*1), CX
+
+// 三个寄存器做运算，还是别想了
+// LEAQ DX(BX)(AX*8), CX
+// ./a.s:13: expected end of operand, found (
+```
+
+使用 LEAQ 的好处也比较明显，可以节省指令数。如果用基本算术指令来实现 LEAQ 的功能，需要两~三条以上的计算指令才能实现 LEAQ 的完整功能。
 
 ## 示例
 
