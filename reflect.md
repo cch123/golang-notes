@@ -80,5 +80,6 @@ array :
 
 ## ptr type
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbNjgxMDc2MTQ5LDY4OTgwODQxMF19
+eyJoaXN0b3J5IjpbNjg5ODA4NDEwLDY4MTA3NjE0OSw2ODk4MD
+g0MTBdfQ==
 -->
