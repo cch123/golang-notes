@@ -15,6 +15,29 @@ type slice struct {
 
 slice 的底层结构定义非常直观，指向底层数组的指针，当前长度 len 和当前slice 的 cap。
 
+```
+                                                                   
+       []int{1,3,4,5}                                              
+                                                                   
+       struct {                                                    
+         array unsafe.Pointer --------------+                      
+         len int                            |                      
+         cap int                            |                      
+       }                                    |                      
+                                            |                      
+                                            v                      
+                                                                   
+                               +------|-------|------|------+-----+
+                               |      |  1    |  3   | 4    |  5  |
+                               |      |       |      |      |     |
+                               +------|-------|------|------+-----+
+                                                 [5]int            
+                                                                   
+                                                                   
+                                                                   
+
+```
+
 
 
 > Written with [StackEdit](https://stackedit.io/).
