@@ -941,7 +941,48 @@ TEXT ·getGoID(SB), NOSPLIT, $0-16
 
 ### SIMD
 
-TODO
+[SIMD](https://cch123.gitbooks.io/duplicate/content/part3/performance/simd-instruction-class.html) 是 Single Instruction, Multiple Data 的缩写，在 Intel 平台上的 SIMD 指令集先后为 SSE，AVX，AVX2，AVX512，这些指令集引入了标准以外的指令，和宽度更大的寄存器，例如:
+
+- 128 位的 XMM0~XMM31 寄存器。
+- 256 位的 YMM0~YMM31 寄存器。
+- 512 位的 ZMM0~ZMM31 寄存器。
+
+这些寄存器的关系，类似 RAX，EAX，AX 之间的关系。指令方面可以同时对多组数据进行移动或者计算，例如:
+
+- movups : 把4个不对准的单精度值传送到xmm寄存器或者内存
+- movaps : 把4个对准的单精度值传送到xmm寄存器或者内存
+
+上述指令，当我们将数组作为函数的入参时有很大概率会看到，例如:
+
+arr_par.go:
+
+```go
+package main
+
+import "fmt"
+
+func pr(input [3]int) {
+    fmt.Println(input)
+}
+
+func main() {
+    pr([3]int{1, 2, 3})
+}
+```
+
+go compile -S:
+
+```go
+0x001d 00029 (arr_par.go:10)    MOVQ    "".statictmp_0(SB), AX
+0x0024 00036 (arr_par.go:10)    MOVQ    AX, (SP)
+0x0028 00040 (arr_par.go:10)    MOVUPS  "".statictmp_0+8(SB), X0
+0x002f 00047 (arr_par.go:10)    MOVUPS  X0, 8(SP)
+0x0034 00052 (arr_par.go:10)    CALL    "".pr(SB)
+```
+
+可见，编译器在某些情况下已经考虑到了性能问题，帮助我们使用 SIMD 指令集来对数据搬运进行了优化。
+
+因为 SIMD 这个话题本身比较广，这里就不展开细说了。
 
 ## 特别感谢
 
