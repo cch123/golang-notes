@@ -332,6 +332,10 @@ type schedt struct {
 }
 ```
 
+## 流程
+
+Go 实现了所谓的 M:N 模型，执行用户代码的 goroutine 可以认为都是对等的 goroutine。不考虑 g0 和 gsignal 的话，我们可以简单地认为调度就是将 m 绑定到 p，然后在 m 中不断循环执行调度函数(runtime.schedule)，寻找可用的 g 来执行，如图:
+
 ```
                              ┌────┐  ┌────┐              ┌────────┐
                              │ P  │  │ P  │              │ schedt │
