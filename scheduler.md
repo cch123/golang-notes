@@ -403,7 +403,7 @@ Go 实现了所谓的 M:N 模型，执行用户代码的 goroutine 可以认为�
 
 ```mermaid
 graph TD
-A(runtime.schedinit) -->  B(runtime.procresize)
+runtime.schedinit -->  runtime.procresize
 ```
 
 在 procresize 中会将全局 p 数组初始化，并将这些 p 串成链表放进 sched 全局调度器的 pidle 队列中:
@@ -441,7 +441,200 @@ func pidleput(_p_ *p) {
 }
 ```
 
+所有 p 在程序启动的时候就已经被初始化完毕了，除非手动调用 runtime.GOMAXPROCS。
+
+```go
+func GOMAXPROCS(n int) int {
+    lock(&sched.lock)
+    ret := int(gomaxprocs)
+    unlock(&sched.lock)
+    if n <= 0 || n == ret {
+        return ret
+    }
+
+    stopTheWorld("GOMAXPROCS")
+
+    // newprocs will be processed by startTheWorld
+    newprocs = int32(n)
+
+    startTheWorld()
+    return ret
+}
+```
+
+在 startTheWorld 中会调用 procresize。
+
 ## g 如何创建
+
+在用户代码里一般这么写:
+
+```go
+go func() {
+    // do the stuff
+}()
+```
+
+实际上会被翻译成 `runtime.newproc`，特权语法只是个语法糖。如果你要在其它语言里实现类似的东西，只要实现编译器翻译之后的内容就好了。具体流程:
+
+```mermaid
+graph TD
+runtime.newproc --> runtime.newproc1
+```
+
+newproc 干的事情也比较简单
+
+```go
+func newproc(siz int32, fn *funcval) {
+    // add 是一个指针运算，跳过函数指针
+    // 把栈上的参数起始地址找到
+    argp := add(unsafe.Pointer(&fn), sys.PtrSize)
+    pc := getcallerpc()
+    systemstack(func() {
+        newproc1(fn, (*uint8)(argp), siz, pc)
+    })
+}
+
+// funcval 是一个变长结构，第一个成员是函数指针
+// 所以上面的 add 是跳过这个 fn
+type funcval struct {
+    fn uintptr
+    // variable-size, fn-specific data here
+}
+```
+
+runtime 里比较常见的 getcallerpc 和 getcallersp，代码里的注释写的比较明白了:
+
+```go
+// For example:
+//
+// func f(arg1, arg2, arg3 int) {
+//    pc := getcallerpc()
+//    sp := getcallersp(unsafe.Pointer(&arg1))
+//}
+//
+// These two lines find the PC and SP immediately following
+// the call to f (where f will return).
+//
+```
+
+getcallerpc 返回的是调用函数之后的那条程序指令的地址，即 callee 函数返回时要执行的下一条指令的地址。
+
+systemstack 在 runtime 中用的也比较多，其功能为让 m 切换到 g0 上执行各种调度函数。至于啥是 g0，在讲 m 的时候再说。
+
+newproc1 的工作流程也比较简单:
+
+```mermaid
+graph TD
+newproc1 --> newg
+newg[gfget] --> nil{is nil?}
+nil -->|yes|E[init stack]
+nil -->|no|C[malg]
+C --> D[set g status=> idle->dead]
+D --> allgadd
+E --> G[set g status=> dead-> runnable]
+allgadd --> G
+G --> runqput
+```
+
+删掉了不关心的细节后的代码:
+
+```go
+func newproc1(fn *funcval, argp *uint8, narg int32, callerpc uintptr) {
+    _g_ := getg()
+
+    if fn == nil {
+        _g_.m.throwing = -1 // do not dump full stacks
+        throw("go of nil func value")
+    }
+    _g_.m.locks++ // disable preemption because it can be holding p in a local var
+    siz := narg
+    siz = (siz + 7) &^ 7
+
+
+    _p_ := _g_.m.p.ptr()
+    newg := gfget(_p_)
+    if newg == nil {
+        newg = malg(_StackMin)
+        casgstatus(newg, _Gidle, _Gdead)
+        allgadd(newg) // publishes with a g->status of Gdead so GC scanner doesn't look at uninitialized stack.
+    }
+
+    totalSize := 4*sys.RegSize + uintptr(siz) + sys.MinFrameSize // extra space in case of reads slightly beyond frame
+    totalSize += -totalSize & (sys.SpAlign - 1)                  // align to spAlign
+    sp := newg.stack.hi - totalSize
+    spArg := sp
+
+    // 初始化 g，g 的 gobuf 现场，g 的 m 的 curg
+    // 以及各种寄存器
+    memclrNoHeapPointers(unsafe.Pointer(&newg.sched), unsafe.Sizeof(newg.sched))
+    newg.sched.sp = sp
+    newg.stktopsp = sp
+    newg.sched.pc = funcPC(goexit) + sys.PCQuantum // +PCQuantum so that previous instruction is in same function
+    newg.sched.g = guintptr(unsafe.Pointer(newg))
+    gostartcallfn(&newg.sched, fn)
+    newg.gopc = callerpc
+    newg.startpc = fn.fn
+    if _g_.m.curg != nil {
+        newg.labels = _g_.m.curg.labels
+    }
+
+    casgstatus(newg, _Gdead, _Grunnable)
+
+    newg.goid = int64(_p_.goidcache)
+    _p_.goidcache++
+    runqput(_p_, newg, true)
+
+    if atomic.Load(&sched.npidle) != 0 && atomic.Load(&sched.nmspinning) == 0 && mainStarted {
+        wakep()
+    }
+    _g_.m.locks--
+    if _g_.m.locks == 0 && _g_.preempt { // restore the preemption request in case we've cleared it in newstack
+        _g_.stackguard0 = stackPreempt
+    }
+}
+```
+
+所以 `go func` 执行的结果是调用 runqput 将 g 放进了执行队列。什么时候开始执行并不是用户代码能决定得了的。再看看 runqput 这个函数:
+
+```go
+// runqput tries to put g on the local runnable queue.
+// If next if false, runqput adds g to the tail of the runnable queue.
+// If next is true, runqput puts g in the _p_.runnext slot.
+// If the run queue is full, runnext puts g on the global queue.
+// Executed only by the owner P.
+func runqput(_p_ *p, gp *g, next bool) {
+    if randomizeScheduler && next && fastrand()%2 == 0 {
+        next = false
+    }
+
+    if next {
+    retryNext:
+        oldnext := _p_.runnext
+        if !_p_.runnext.cas(oldnext, guintptr(unsafe.Pointer(gp))) {
+            goto retryNext
+        }
+        if oldnext == 0 {
+            return
+        }
+        // Kick the old runnext out to the regular run queue.
+        gp = oldnext.ptr()
+    }
+
+retry:
+    h := atomic.Load(&_p_.runqhead) // load-acquire, synchronize with consumers
+    t := _p_.runqtail
+    if t-h < uint32(len(_p_.runq)) {
+        _p_.runq[t%uint32(len(_p_.runq))].set(gp)
+        atomic.Store(&_p_.runqtail, t+1) // store-release, makes the item available for consumption
+        return
+    }
+    if runqputslow(_p_, gp, h, t) {
+        return
+    }
+    // the queue is not full, now the put above must succeed
+    goto retry
+}
+```
 
 ## m 工作机制
 
