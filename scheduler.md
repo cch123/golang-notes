@@ -5,9 +5,9 @@
 goroutine 在 runtime 中的数据结构:
 
 ```go
-// Stack describes a Go execution stack.
-// The bounds of the stack are exactly [lo, hi),
-// with no implicit data structures on either side.
+// stack 描述的是 Go 的执行栈，下界和上界分别为 [lo, hi]
+// 如果从传统内存布局的角度来讲，Go 的栈实际上是分配在 C 语言中的堆区的
+// 所以才能比 ulimit -s 的 stack size 还要大(1GB)
 type stack struct {
     lo uintptr
     hi uintptr
@@ -638,9 +638,161 @@ retry:
 
 ## m 工作机制
 
+在 runtime 中有三种线程，一种是主线程，一种是用来跑 sysmon 的线程，一种是普通的用户线程。主线程在 runtime 由对应的全局变量: `runtime.m0` 来表示。用户线程就是普通的线程了，和 p 绑定，执行 g 中的任务。虽然说是有三种，实际上前两种线程整个 runtime 就只有一个实例。用户线程才会有很多实例。
+
 ### 主线程 m0
 
-#### sysmon
+主线程中用来跑 `runtime.main`，流程线性执行，没有跳转:
+
+```mermaid
+graph TD
+runtime.main --> A[init max stack size]
+A --> B[systemstack execute -> newm -> sysmon]
+B --> runtime.lockOsThread
+runtime.lockOsThread --> runtime.init
+runtime.init --> runtime.gcenable
+runtime.gcenable --> main.init
+main.init --> main.main
+```
+
+### sysmon m
+
+sysmon 是在 `runtime.main` 中启动的，不过需要注意的是 sysmon 并不是在 m0 上执行的。因为:
+
+```go
+systemstack(func() {
+    newm(sysmon, nil)
+})
+```
+
+创建了新的 m，但这个 m 又与普通的线程不一样，因为不需要绑定 p 就可以执行。是与整个调度系统脱离的。
+
+sysmon 内部是个死循环，主要负责以下几件事情:
+
+1. 
+2. 
+
+```go
+// Always runs without a P, so write barriers are not allowed.
+//
+//go:nowritebarrierrec
+func sysmon() {
+    lock(&sched.lock)
+    sched.nmsys++
+    checkdead()
+    unlock(&sched.lock)
+
+    // If a heap span goes unused for 5 minutes after a garbage collection,
+    // we hand it back to the operating system.
+    scavengelimit := int64(5 * 60 * 1e9)
+
+    if debug.scavenge > 0 {
+        // Scavenge-a-lot for testing.
+        forcegcperiod = 10 * 1e6
+        scavengelimit = 20 * 1e6
+    }
+
+    lastscavenge := nanotime()
+    nscavenge := 0
+
+    lasttrace := int64(0)
+    idle := 0 // how many cycles in succession we had not wokeup somebody
+    delay := uint32(0)
+    for {
+        if idle == 0 { // start with 20us sleep...
+            delay = 20
+        } else if idle > 50 { // start doubling the sleep after 1ms...
+            delay *= 2
+        }
+        if delay > 10*1000 { // up to 10ms
+            delay = 10 * 1000
+        }
+        usleep(delay)
+        if debug.schedtrace <= 0 && (sched.gcwaiting != 0 || atomic.Load(&sched.npidle) == uint32(gomaxprocs)) {
+            lock(&sched.lock)
+            if atomic.Load(&sched.gcwaiting) != 0 || atomic.Load(&sched.npidle) == uint32(gomaxprocs) {
+                atomic.Store(&sched.sysmonwait, 1)
+                unlock(&sched.lock)
+                // Make wake-up period small enough
+                // for the sampling to be correct.
+                maxsleep := forcegcperiod / 2
+                if scavengelimit < forcegcperiod {
+                    maxsleep = scavengelimit / 2
+                }
+                shouldRelax := true
+                if osRelaxMinNS > 0 {
+                    next := timeSleepUntil()
+                    now := nanotime()
+                    if next-now < osRelaxMinNS {
+                        shouldRelax = false
+                    }
+                }
+                if shouldRelax {
+                    osRelax(true)
+                }
+                notetsleep(&sched.sysmonnote, maxsleep)
+                if shouldRelax {
+                    osRelax(false)
+                }
+                lock(&sched.lock)
+                atomic.Store(&sched.sysmonwait, 0)
+                noteclear(&sched.sysmonnote)
+                idle = 0
+                delay = 20
+            }
+            unlock(&sched.lock)
+        }
+        // trigger libc interceptors if needed
+        if *cgo_yield != nil {
+            asmcgocall(*cgo_yield, nil)
+        }
+        // poll network if not polled for more than 10ms
+        lastpoll := int64(atomic.Load64(&sched.lastpoll))
+        now := nanotime()
+        if netpollinited() && lastpoll != 0 && lastpoll+10*1000*1000 < now {
+            atomic.Cas64(&sched.lastpoll, uint64(lastpoll), uint64(now))
+            gp := netpoll(false) // non-blocking - returns list of goroutines
+            if gp != nil {
+                // Need to decrement number of idle locked M's
+                // (pretending that one more is running) before injectglist.
+                // Otherwise it can lead to the following situation:
+                // injectglist grabs all P's but before it starts M's to run the P's,
+                // another M returns from syscall, finishes running its G,
+                // observes that there is no work to do and no other running M's
+                // and reports deadlock.
+                incidlelocked(-1)
+                injectglist(gp)
+                incidlelocked(1)
+            }
+        }
+        // retake P's blocked in syscalls
+        // and preempt long running G's
+        if retake(now) != 0 {
+            idle = 0
+        } else {
+            idle++
+        }
+        // check if we need to force a GC
+        if t := (gcTrigger{kind: gcTriggerTime, now: now}); t.test() && atomic.Load(&forcegc.idle) != 0 {
+            lock(&forcegc.lock)
+            forcegc.idle = 0
+            forcegc.g.schedlink = 0
+            injectglist(forcegc.g)
+            unlock(&forcegc.lock)
+        }
+        // scavenge heap once in a while
+        if lastscavenge+scavengelimit/2 < now {
+            mheap_.scavenge(int32(nscavenge), uint64(now), uint64(scavengelimit))
+            lastscavenge = now
+            nscavenge++
+        }
+        if debug.schedtrace > 0 && lasttrace+int64(debug.schedtrace)*1000000 <= now {
+            lasttrace = now
+            schedtrace(debug.scheddetail > 0)
+        }
+    }
+}
+```
 
 ### 普通线程(非 m0)
 
