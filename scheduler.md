@@ -655,7 +655,7 @@ runtime.gcenable --> main.init
 main.init --> main.main
 ```
 
-### sysmon m
+### sysmon 线程
 
 sysmon 是在 `runtime.main` 中启动的，不过需要注意的是 sysmon 并不是在 m0 上执行的。因为:
 
@@ -669,8 +669,13 @@ systemstack(func() {
 
 sysmon 内部是个死循环，主要负责以下几件事情:
 
-1. 
-2. 
+1. checkdead，检查是否所有 goroutine 都已经锁死，如果是的话，直接调用 runtime.throw，强制退出
+
+2. 将 netpoll 返回的结果注入到全局 sched 的任务队列
+
+3. 收回因为 syscall 而长时间阻塞的 p，同时抢占那些执行时间过长的 g
+
+4. 如果 span 内存闲置超过 5min，那么释放掉
 
 ```go
 // Always runs without a P, so write barriers are not allowed.
@@ -794,7 +799,86 @@ func sysmon() {
 }
 ```
 
-### 普通线程(非 m0)
+retake:
+
+```go
+// forcePreemptNS is the time slice given to a G before it is
+// preempted.
+const forcePreemptNS = 10 * 1000 * 1000 // 10ms
+
+func retake(now int64) uint32 {
+    n := 0
+    // Prevent allp slice changes. This lock will be completely
+    // uncontended unless we're already stopping the world.
+    lock(&allpLock)
+    // We can't use a range loop over allp because we may
+    // temporarily drop the allpLock. Hence, we need to re-fetch
+    // allp each time around the loop.
+    for i := 0; i < len(allp); i++ {
+        _p_ := allp[i]
+        if _p_ == nil {
+            // This can happen if procresize has grown
+            // allp but not yet created new Ps.
+            continue
+        }
+        pd := &_p_.sysmontick
+        s := _p_.status
+        if s == _Psyscall {
+            // Retake P from syscall if it's there for more than 1 sysmon tick (at least 20us).
+            t := int64(_p_.syscalltick)
+            if int64(pd.syscalltick) != t {
+                pd.syscalltick = uint32(t)
+                pd.syscallwhen = now
+                continue
+            }
+            // On the one hand we don't want to retake Ps if there is no other work to do,
+            // but on the other hand we want to retake them eventually
+            // because they can prevent the sysmon thread from deep sleep.
+            if runqempty(_p_) && atomic.Load(&sched.nmspinning)+atomic.Load(&sched.npidle) > 0 && pd.syscallwhen+10*1000*1000 > now {
+                continue
+            }
+            // Drop allpLock so we can take sched.lock.
+            unlock(&allpLock)
+            // Need to decrement number of idle locked M's
+            // (pretending that one more is running) before the CAS.
+            // Otherwise the M from which we retake can exit the syscall,
+            // increment nmidle and report deadlock.
+            incidlelocked(-1)
+            if atomic.Cas(&_p_.status, s, _Pidle) {
+                if trace.enabled {
+                    traceGoSysBlock(_p_)
+                    traceProcStop(_p_)
+                }
+                n++
+                _p_.syscalltick++
+                handoffp(_p_)
+            }
+            incidlelocked(1)
+            lock(&allpLock)
+        } else if s == _Prunning {
+            // Preempt G if it's running for too long.
+            t := int64(_p_.schedtick)
+            if int64(pd.schedtick) != t {
+                pd.schedtick = uint32(t)
+                pd.schedwhen = now
+                continue
+            }
+            if pd.schedwhen+forcePreemptNS > now {
+                continue
+            }
+            preemptone(_p_)
+        }
+    }
+    unlock(&allpLock)
+    return uint32(n)
+}
+```
+
+### 普通线程
+
+#### 线程创建
+
+#### 工作流程
 
 ## g 的状态迁移
 
