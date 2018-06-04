@@ -964,7 +964,8 @@ gcMarkTermination --> startTheWorldWithSema
 gcStart--> startTheWorldWithSema
 startTheWorldWithSema --> |helpgc|newm
 startTheWorldWithSema --> |run p|newm
-startm --> |if no free m|newm
+startm --> mget
+mget --> |if no free m|newm
 startTemplateThread --> |templateThread|newm
 LockOsThread --> startTemplateThread
 main --> |iscgo|startTemplateThread
@@ -980,6 +981,15 @@ injectglist --> startm
 TODO
 
 工作线程执行的内容核心其实就只有俩: `schedule()` 和 `findrunnable()`。
+
+#### schedule
+
+```mermaid
+schedule --> |if schedtick%61 == 0| globrunqget
+globrunqget --> runqget
+runqget --> |no g found|findrunnable
+runqget --> execute
+```
 
 ```go
 // One round of scheduler: find a runnable goroutine and execute it.
@@ -1060,6 +1070,8 @@ top:
     execute(gp, inheritTime)
 }
 ```
+
+#### findrunnable
 
 ```go
 // Finds a runnable goroutine to execute.
