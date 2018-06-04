@@ -876,7 +876,62 @@ func retake(now int64) uint32 {
 
 ### 普通线程
 
+普通线程就是我们 G/P/M 模型里的 M 了，M 对应的就是操作系统的线程。
+
 #### 线程创建
+
+上面在创建 sysmon 线程的时候也看到了，创建线程的函数是 newm。
+
+```mermaid
+graph TD
+newm --> newm1
+newm1 --> newosproc
+newosproc --> clone
+```
+
+最终会走到 linux 创建线程的系统调用 `clone`，代码里大段和 cgo 相关的内容我们就不关心了，撞掉 cgo 相关的逻辑后的代码如下:
+
+```go
+// Create a new m. It will start off with a call to fn, or else the scheduler.
+// fn needs to be static and not a heap allocated closure.
+// May run with m.p==nil, so write barriers are not allowed.
+//go:nowritebarrierrec
+func newm(fn func(), _p_ *p) {
+    mp := allocm(_p_, fn)
+    mp.nextp.set(_p_)
+    mp.sigmask = initSigmask
+    newm1(mp)
+}
+```
+
+传入的 p 会被赋值给 m 的 nextp 成员，在 m 执行 schedule 时，会将 nextp 拿出来，进行之后真正的绑定操作。
+
+```go
+func newm1(mp *m) {
+    execLock.rlock() // Prevent process clone.
+    newosproc(mp, unsafe.Pointer(mp.g0.stack.hi))
+    execLock.runlock()
+}
+```
+
+```go
+func newosproc(mp *m, stk unsafe.Pointer) {
+    // Disable signals during clone, so that the new thread starts
+    // with signals disabled. It will enable them in minit.
+    var oset sigset
+    sigprocmask(_SIG_SETMASK, &sigset_all, &oset)
+    ret := clone(cloneFlags, stk, unsafe.Pointer(mp), unsafe.Pointer(mp.g0), unsafe.Pointer(funcPC(mstart)))
+    sigprocmask(_SIG_SETMASK, &oset, nil)
+
+    if ret < 0 {
+        print("runtime: failed to create new OS thread (have ", mcount(), " already; errno=", -ret, ")\n")
+        if ret == -_EAGAIN {
+            println("runtime: may need to increase max user processes (ulimit -u)")
+        }
+        throw("newosproc")
+    }
+}
+```
 
 #### 工作流程
 
