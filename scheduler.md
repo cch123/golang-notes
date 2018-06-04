@@ -889,7 +889,7 @@ newm1 --> newosproc
 newosproc --> clone
 ```
 
-最终会走到 linux 创建线程的系统调用 `clone`，代码里大段和 cgo 相关的内容我们就不关心了，撞掉 cgo 相关的逻辑后的代码如下:
+最终会走到 linux 创建线程的系统调用 `clone`，代码里大段和 cgo 相关的内容我们就不关心了，摘掉 cgo 相关的逻辑后的代码如下:
 
 ```go
 // Create a new m. It will start off with a call to fn, or else the scheduler.
@@ -904,7 +904,7 @@ func newm(fn func(), _p_ *p) {
 }
 ```
 
-传入的 p 会被赋值给 m 的 nextp 成员，在 m 执行 schedule 时，会将 nextp 拿出来，进行之后真正的绑定操作。
+传入的 p 会被赋值给 m 的 nextp 成员，在 m 执行 schedule 时，会将 nextp 拿出来，进行之后真正的绑定操作(其实就是把 nextp 赋值为 nil，并把这个 nextp 赋值给 m.p，把 m 赋值给 p.m)。
 
 ```go
 func newm1(mp *m) {
