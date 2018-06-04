@@ -956,11 +956,24 @@ func mget() *m {
 
 什么时候会创建线程呢，可以追踪一下 newm 的调用方:
 
-TODO:
-
 ```mermaid
 graph TD
+main --> |sysmon|newm
+startTheWorld --> startTheWorldWithSema
+gcMarkTermination --> startTheWorldWithSema
+gcStart--> startTheWorldWithSema
+startTheWorldWithSema --> |helpgc|newm
+startTheWorldWithSema --> |run p|newm
+startm --> |if no free m|newm
+startTemplateThread --> |templateThread|newm
+LockOsThread --> startTemplateThread
+main --> |iscgo|startTemplateThread
+handoffp --> startm
+wakep --> startm
+injectglist --> startm
 ```
+
+TODO，依次说明
 
 创建好的线程需要绑定到 p 之后才会开始执行，如果运行 syscall 时间过长，会被剥夺掉 p，但这时候实际上 m 还是在运行中的(TODO，看看这个描述是否精确)。
 
