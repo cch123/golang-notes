@@ -669,13 +669,30 @@ systemstack(func() {
 
 sysmon 内部是个死循环，主要负责以下几件事情:
 
-1. checkdead，检查是否所有 goroutine 都已经锁死，如果是的话，直接调用 runtime.throw，强制退出
+1. checkdead，检查是否所有 goroutine 都已经锁死，如果是的话，直接调用 runtime.throw，强制退出。这个操作只在启动的时候做一次
 
 2. 将 netpoll 返回的结果注入到全局 sched 的任务队列
 
 3. 收回因为 syscall 而长时间阻塞的 p，同时抢占那些执行时间过长的 g
 
 4. 如果 span 内存闲置超过 5min，那么释放掉
+
+流程图:
+
+```mermaid
+graph TD
+sysmon --> usleep
+usleep --> checkdead
+checkdead --> C[every 10ms if netpollinited && lastpoll != 0]
+C --> |yes|netpoll
+netpoll --> injectglist
+injectglist --> retake
+C --> |no|retake
+retake --> A[check forcegc needed]
+A --> B[scavenge heap once in a while]
+B --> usleep
+
+```
 
 ```go
 // Always runs without a P, so write barriers are not allowed.
@@ -796,6 +813,86 @@ func sysmon() {
             schedtrace(debug.scheddetail > 0)
         }
     }
+}
+```
+
+checkdead:
+
+```go
+// Check for deadlock situation.
+// The check is based on number of running M's, if 0 -> deadlock.
+// sched.lock must be held.
+func checkdead() {
+    // For -buildmode=c-shared or -buildmode=c-archive it's OK if
+    // there are no running goroutines. The calling program is
+    // assumed to be running.
+    if islibrary || isarchive {
+        return
+    }
+
+    // If we are dying because of a signal caught on an already idle thread,
+    // freezetheworld will cause all running threads to block.
+    // And runtime will essentially enter into deadlock state,
+    // except that there is a thread that will call exit soon.
+    if panicking > 0 {
+        return
+    }
+
+    run := mcount() - sched.nmidle - sched.nmidlelocked - sched.nmsys
+    if run > 0 {
+        return
+    }
+    if run < 0 {
+        print("runtime: checkdead: nmidle=", sched.nmidle, " nmidlelocked=", sched.nmidlelocked, " mcount=", mcount(), " nmsys=", sched.nmsys, "\n")
+        throw("checkdead: inconsistent counts")
+    }
+
+    grunning := 0
+    lock(&allglock)
+    for i := 0; i < len(allgs); i++ {
+        gp := allgs[i]
+        if isSystemGoroutine(gp) {
+            continue
+        }
+        s := readgstatus(gp)
+        switch s &^ _Gscan {
+        case _Gwaiting:
+            grunning++
+        case _Grunnable,
+            _Grunning,
+            _Gsyscall:
+            unlock(&allglock)
+            print("runtime: checkdead: find g ", gp.goid, " in status ", s, "\n")
+            throw("checkdead: runnable g")
+        }
+    }
+    unlock(&allglock)
+    if grunning == 0 { // possible if main goroutine calls runtime·Goexit()
+        throw("no goroutines (main called runtime.Goexit) - deadlock!")
+    }
+
+    // Maybe jump time forward for playground.
+    gp := timejump()
+    if gp != nil {
+        casgstatus(gp, _Gwaiting, _Grunnable)
+        globrunqput(gp)
+        _p_ := pidleget()
+        if _p_ == nil {
+            throw("checkdead: no p for timer")
+        }
+        mp := mget()
+        if mp == nil {
+            // There should always be a free M since
+            // nothing is running.
+            throw("checkdead: no m for timer")
+        }
+        mp.nextp.set(_p_)
+        notewakeup(&mp.park)
+        return
+    }
+
+    getg().m.throwing = -1 // do not dump full stacks
+    throw("all goroutines are asleep - deadlock!")
 }
 ```
 
@@ -1297,15 +1394,3 @@ stop:
 ## g 的状态迁移
 
 ## p 的状态迁移
-
-
-> Written with [StackEdit](https://stackedit.io/).
-<!--stackedit_data:
-eyJoaXN0b3J5IjpbLTE5MzYwMjIwODBdfQ==
--->
-
-
-> Written with [StackEdit](https://stackedit.io/).
-<!--stackedit_data:
-eyJoaXN0b3J5IjpbLTQ4NzM1ODY2MF19
--->
