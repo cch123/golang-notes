@@ -1175,6 +1175,17 @@ top:
 }
 ```
 
+m 中所谓的调度循环实际上就是一直在执行下图中的 loop:
+
+```mermaid
+graph TD
+schedule --> execute
+execute --> gogo
+gogo --> exit1
+exit1 --> exit0
+exit0 --> schedule
+```
+
 #### findrunnable
 
 findrunnable 比较复杂，流程图先把 gc 相关的省略掉了:
