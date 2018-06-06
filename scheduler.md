@@ -1181,8 +1181,8 @@ m 中所谓的调度循环实际上就是一直在执行下图中的 loop:
 graph TD
 schedule --> execute
 execute --> gogo
-gogo --> exit1
-exit1 --> exit0
+gogo --> goexit1
+exit1 --> goexit0
 exit0 --> schedule
 ```
 
@@ -1199,7 +1199,9 @@ globrunqget --> B[gp == nil]
 B --> |no| return
 B --> |yes| C[netpollinited && lastpoll != 0]
 C --> |yes|netpoll
-netpoll --> return
+netpoll --> K[gp == nil]
+K --> |no|return
+K --> |yes|runqsteal
 C --> |no|runqsteal
 runqsteal --> D[gp == nil]
 D --> |no|return
