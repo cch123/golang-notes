@@ -683,7 +683,7 @@ sysmon 内部是个死循环，主要负责以下几件事情:
 graph TD
 sysmon --> usleep
 usleep --> checkdead
-checkdead --> C[every 10ms if netpollinited && lastpoll != 0]
+checkdead --> |every 10ms|C[netpollinited && lastpoll != 0]
 C --> |yes|netpoll
 netpoll --> injectglist
 injectglist --> retake
@@ -1082,10 +1082,17 @@ TODO
 #### schedule
 
 ```mermaid
-schedule --> |if schedtick%61 == 0| globrunqget
-globrunqget --> runqget
-runqget --> |no g found|findrunnable
-runqget --> execute
+graph TD
+schedule --> A[schedtick%61 == 0]
+A --> |yes|globrunqget
+A --> |no|runqget
+globrunqget --> C[gp == nil]
+C --> |no|execute
+C --> |yes|runqget
+runqget --> B[gp == nil]
+B --> |no|execute
+B --> |yes|findrunnable
+findrunnable --> execute
 ```
 
 ```go
@@ -1169,6 +1176,34 @@ top:
 ```
 
 #### findrunnable
+
+findrunnable 比较复杂，流程图先把 gc 相关的省略掉了:
+
+```mermaid
+graph TD
+runqget --> A[gp == nil]
+A --> |no|return
+A --> |yes|globrunqget
+globrunqget --> B[gp == nil]
+B --> |no| return
+B --> |yes| C[netpollinited && lastpoll != 0]
+C --> |yes|netpoll
+netpoll --> return
+C --> |no|runqsteal
+runqsteal --> D[gp == nil]
+D --> |no|return
+D --> |yes|E[globrunqget]
+E --> F[gp == nil]
+F --> |no| return
+F --> |yes| G[check all p's runq]
+G --> H[runq is empty]
+H --> |no|runqget
+H --> |yes|I[netpoll]
+I --> J[gp == nil]
+J --> |no| return
+J --> |yes| stopm
+stopm --> runqget
+```
 
 ```go
 // Finds a runnable goroutine to execute.
@@ -1389,7 +1424,6 @@ stop:
     goto top
 }
 ```
-
 
 ## g 的状态迁移
 
