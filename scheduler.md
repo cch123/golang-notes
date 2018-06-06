@@ -1182,7 +1182,7 @@ graph TD
 schedule --> execute
 execute --> gogo
 gogo --> goexit1
-exit1 --> goexit0
+goexit1 --> goexit0
 exit0 --> schedule
 ```
 
