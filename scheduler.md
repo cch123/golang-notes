@@ -1183,7 +1183,7 @@ schedule --> execute
 execute --> gogo
 gogo --> goexit1
 goexit1 --> goexit0
-exit0 --> schedule
+goexit0 --> schedule
 ```
 
 #### findrunnable
