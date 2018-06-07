@@ -625,6 +625,7 @@ func runqput(_p_ *p, gp *g, next bool) {
             return
         }
         // Kick the old runnext out to the regular run queue.
+        // 把之前的 runnext 踢到正常的 runq 中
         gp = oldnext.ptr()
     }
 
@@ -639,7 +640,7 @@ retry:
     if runqputslow(_p_, gp, h, t) {
         return
     }
-    // the queue is not full, now the put above must succeed
+    // 队列没有满的话，上面的 put 操作会成功
     goto retry
 }
 ```
@@ -703,7 +704,7 @@ B --> usleep
 ```
 
 ```go
-// Always runs without a P, so write barriers are not allowed.
+// sysmon 不需要绑定 P 就可以运行，所以不允许 write barriers
 //
 //go:nowritebarrierrec
 func sysmon() {
@@ -712,8 +713,8 @@ func sysmon() {
     checkdead()
     unlock(&sched.lock)
 
-    // If a heap span goes unused for 5 minutes after a garbage collection,
-    // we hand it back to the operating system.
+    // 如果一个 heap span 在一次GC 之后 5min 都没有被使用过
+    // 那么把它交还给操作系统
     scavengelimit := int64(5 * 60 * 1e9)
 
     if debug.scavenge > 0 {
@@ -729,12 +730,12 @@ func sysmon() {
     idle := 0 // how many cycles in succession we had not wokeup somebody
     delay := uint32(0)
     for {
-        if idle == 0 { // start with 20us sleep...
+        if idle == 0 { // 初始化时 20us sleep
             delay = 20
         } else if idle > 50 { // start doubling the sleep after 1ms...
             delay *= 2
         }
-        if delay > 10*1000 { // up to 10ms
+        if delay > 10*1000 { // 最多到 10ms
             delay = 10 * 1000
         }
         usleep(delay)
@@ -776,12 +777,12 @@ func sysmon() {
         if *cgo_yield != nil {
             asmcgocall(*cgo_yield, nil)
         }
-        // poll network if not polled for more than 10ms
+        // 如果 10ms 没有 poll 过 network，那么就 netpoll 一次
         lastpoll := int64(atomic.Load64(&sched.lastpoll))
         now := nanotime()
         if netpollinited() && lastpoll != 0 && lastpoll+10*1000*1000 < now {
             atomic.Cas64(&sched.lastpoll, uint64(lastpoll), uint64(now))
-            gp := netpoll(false) // non-blocking - returns list of goroutines
+            gp := netpoll(false) // 非阻塞 -- 返回一个 goroutine 的列表
             if gp != nil {
                 // Need to decrement number of idle locked M's
                 // (pretending that one more is running) before injectglist.
@@ -795,14 +796,14 @@ func sysmon() {
                 incidlelocked(1)
             }
         }
-        // retake P's blocked in syscalls
-        // and preempt long running G's
+        // 接收在 syscall 状态阻塞的 P
+        // 抢占长时间运行的 G
         if retake(now) != 0 {
             idle = 0
         } else {
             idle++
         }
-        // check if we need to force a GC
+        // 检查是否需要 force GC(两分钟一次的)
         if t := (gcTrigger{kind: gcTriggerTime, now: now}); t.test() && atomic.Load(&forcegc.idle) != 0 {
             lock(&forcegc.lock)
             forcegc.idle = 0
@@ -810,7 +811,7 @@ func sysmon() {
             injectglist(forcegc.g)
             unlock(&forcegc.lock)
         }
-        // scavenge heap once in a while
+        // 每过一段时间扫描一次堆
         if lastscavenge+scavengelimit/2 < now {
             mheap_.scavenge(int32(nscavenge), uint64(now), uint64(scavengelimit))
             lastscavenge = now
@@ -827,9 +828,9 @@ func sysmon() {
 checkdead:
 
 ```go
-// Check for deadlock situation.
-// The check is based on number of running M's, if 0 -> deadlock.
-// sched.lock must be held.
+// 检查死锁的场景
+// 该检查基于当前正在运行的 M 的数量，如果 0，那么就是 deadlock 了
+// 检查的时候必须持有 sched.lock 锁
 func checkdead() {
     // For -buildmode=c-shared or -buildmode=c-archive it's OK if
     // there are no running goroutines. The calling program is
@@ -961,7 +962,7 @@ func retake(now int64) uint32 {
             incidlelocked(1)
             lock(&allpLock)
         } else if s == _Prunning {
-            // Preempt G if it's running for too long.
+            // 如果 G 运行时间太长，那么抢占它
             t := int64(_p_.schedtick)
             if int64(pd.schedtick) != t {
                 pd.schedtick = uint32(t)
@@ -997,9 +998,9 @@ newosproc --> clone
 最终会走到 linux 创建线程的系统调用 `clone`，代码里大段和 cgo 相关的内容我们就不关心了，摘掉 cgo 相关的逻辑后的代码如下:
 
 ```go
-// Create a new m. It will start off with a call to fn, or else the scheduler.
-// fn needs to be static and not a heap allocated closure.
-// May run with m.p==nil, so write barriers are not allowed.
+// 创建一个新的 m。该 m 会在启动时调用函数 fn，或者 schedule 函数
+// fn 需要是 static 类型，且不能是在堆上分配的闭包。
+// 运行 m 时，m.p 是有可能为 nil 的，所以不允许 write barriers
 //go:nowritebarrierrec
 func newm(fn func(), _p_ *p) {
     mp := allocm(_p_, fn)
@@ -1043,10 +1044,10 @@ func newosproc(mp *m, stk unsafe.Pointer) {
 首先空闲的 m 会被丢进全局调度器的 midle 队列中，在需要 m 的时候，会先从这里取:
 
 ```go
-// Try to get an m from midle list.
-// Sched must be locked.
-// May run during STW, so write barriers are not allowed.
 //go:nowritebarrierrec
+// 常识从 midle 列表中获取一个 m
+// 必须锁全局的 sched
+// 可能在 STW 期间执行，所以不允许 write barriers
 func mget() *m {
     mp := sched.midle.ptr()
     if mp != nil {
@@ -1104,8 +1105,8 @@ findrunnable --> execute
 ```
 
 ```go
-// One round of scheduler: find a runnable goroutine and execute it.
-// Never returns.
+// 调度器调度一轮要执行的函数: 寻找一个 runnable 状态的 goroutine，并 execute 它
+// 调度函数是循环，永远都不会返回
 func schedule() {
     _g_ := getg()
 
@@ -1118,8 +1119,8 @@ func schedule() {
         execute(_g_.m.lockedg.ptr(), false) // Never returns.
     }
 
-    // We should not schedule away from a g that is executing a cgo call,
-    // since the cgo call is using the m's g0 stack.
+    // 执行 cgo 调用的 g 不能被 schedule 走
+    // 因为 cgo 调用使用 m 的 g0 栈
     if _g_.m.incgo {
         throw("schedule: in cgo")
     }
@@ -1146,9 +1147,9 @@ top:
         gp = gcController.findRunnableGCWorker(_g_.m.p.ptr())
     }
     if gp == nil {
-        // Check the global runnable queue once in a while to ensure fairness.
-        // Otherwise two goroutines can completely occupy the local runqueue
-        // by constantly respawning each other.
+        // 每调度几次就检查一下全局的 runq 来确保公平
+        // 否则两个 goroutine 就可以通过互相调用
+        // 完全占用本地的 runq 了
         if _g_.m.p.ptr().schedtick%61 == 0 && sched.runqsize > 0 {
             lock(&sched.lock)
             gp = globrunqget(_g_.m.p.ptr(), 1)
@@ -1162,12 +1163,12 @@ top:
         }
     }
     if gp == nil {
-        gp, inheritTime = findrunnable() // blocks until work is available
+        gp, inheritTime = findrunnable() // 在找到 goroutine 之前会一直阻塞下去
     }
 
-    // This thread is going to run a goroutine and is not spinning anymore,
-    // so if it was marked as spinning we need to reset it now and potentially
-    // start a new spinning M.
+    // 当前线程将要执行 goroutine，并且不会再进入 spinning 状态
+    // 所以如果它被标记为 spinning，我们需要 reset 这个状态
+    // 可能会重启一个新的 spinning 状态的 M
     if _g_.m.spinning {
         resetspinning()
     }
@@ -1227,8 +1228,8 @@ stopm --> runqget
 ```
 
 ```go
-// Finds a runnable goroutine to execute.
-// Tries to steal from other P's, get g from global queue, poll network.
+// 找到一个可执行的 goroutine 来 execute
+// 会尝试从其它的 P 那里偷 g，从全局队列中拿，或者 network 中 poll
 func findrunnable() (gp *g, inheritTime bool) {
     _g_ := getg()
 
@@ -1254,12 +1255,12 @@ top:
         asmcgocall(*cgo_yield, nil)
     }
 
-    // local runq
+    // 本地 runq
     if gp, inheritTime := runqget(_p_); gp != nil {
         return gp, inheritTime
     }
 
-    // global runq
+    // 全局 runq
     if sched.runqsize != 0 {
         lock(&sched.lock)
         gp := globrunqget(_p_, 0)
@@ -1288,7 +1289,7 @@ top:
         }
     }
 
-    // Steal work from other P's.
+    // 从其它 p 那里偷 g
     procs := uint32(gomaxprocs)
     if atomic.Load(&sched.npidle) == procs-1 {
         // Either GOMAXPROCS=1 or everybody, except for us, is idle already.
@@ -1377,7 +1378,7 @@ stop:
         }
     }
 
-    // check all runqueues once again
+    // 再检查一下所有的 runq
     for _, _p_ := range allpSnapshot {
         if !runqempty(_p_) {
             lock(&sched.lock)
@@ -1395,7 +1396,7 @@ stop:
         }
     }
 
-    // Check for idle-priority GC work again.
+    // 再检查 gc 空闲 g
     if gcBlackenEnabled != 0 && gcMarkWorkAvailable(nil) {
         lock(&sched.lock)
         _p_ = pidleget()
