@@ -13,22 +13,36 @@ type stack struct {
     hi uintptr
 }
 
-type g struct {
-    // Stack parameters.
-    // stack describes the actual stack memory: [stack.lo, stack.hi).
-    // stackguard0 is the stack pointer compared in the Go stack growth prologue.
-    // It is stack.lo+StackGuard normally, but can be StackPreempt to trigger a preemption.
-    // stackguard1 is the stack pointer compared in the C stack growth prologue.
-    // It is stack.lo+StackGuard on g0 and gsignal stacks.
-    // It is ~0 on other goroutine stacks, to trigger a call to morestackc (and crash).
-    stack       stack   // offset known to runtime/cgo
-    stackguard0 uintptr // offset known to liblink
-    stackguard1 uintptr // offset known to liblink
+// g 的运行现场
+type gobuf struct {
+    sp   uintptr    // sp 寄存器
+    pc   uintptr    // pc 寄存器
+    g    guintptr   // g 指针
+    ctxt unsafe.Pointer // 这个似乎是用来辅助 gc 的
+    ret  sys.Uintreg
+    lr   uintptr    // 这是在 arm 上用的寄存器，不用关心
+    bp   uintptr    // 开启 GOEXPERIMENT=framepointer，才会有这个
+}
 
-    _panic         *_panic // innermost panic - offset known to liblink
-    _defer         *_defer // innermost defer
-    m              *m      // current m; offset known to arm liblink
-    sched          gobuf
+
+type g struct {
+    // 简单数据结构，lo 和 hi 成员描述了栈的下界和上界内存地址
+    stack       stack
+    // 在函数的栈增长 prologue 中用 sp 寄存器和 stackguard0 来做比较
+    // 如果 sp 比 stackguard0 小(因为栈向低地址方向增长)，那么就触发栈拷贝和调度
+    // 正常情况下 stackguard0 = stack.lo + StackGuard
+    // 不过 stackguard0 在需要进行调度时，会被修改为 StackPreempt
+    // 以触发抢占s
+    stackguard0 uintptr
+    // stackguard1 是在 C 栈增长 prologue 作对比的对象
+    // 在 g0 和 gsignal 栈上，其值为 stack.lo+StackGuard
+    // 在其它的栈上这个值是 ~0(按 0 取反)以触发 morestack 调用(并 crash)
+    stackguard1 uintptr
+
+    _panic         *_panic
+    _defer         *_defer
+    m              *m             // 当前与 g 绑定的 m
+    sched          gobuf          // goroutine 的现场
     syscallsp      uintptr        // if status==Gsyscall, syscallsp = sched.sp to use during gc
     syscallpc      uintptr        // if status==Gsyscall, syscallpc = sched.pc to use during gc
     stktopsp       uintptr        // expected sp at top of stack, to check in traceback
@@ -39,21 +53,21 @@ type g struct {
     waitsince      int64  // approx time when the g become blocked
     waitreason     string // if status==Gwaiting
     schedlink      guintptr
-    preempt        bool     // preemption signal, duplicates stackguard0 = stackpreempt
+    preempt        bool     // 抢占标记，这个为 true 时，stackguard0 是等于 stackpreempt 的
     throwsplit     bool     // must not split stack
     raceignore     int8     // ignore race detection events
     sysblocktraced bool     // StartTrace has emitted EvGoInSyscall about this goroutine
     sysexitticks   int64    // cputicks when syscall has returned (for tracing)
     traceseq       uint64   // trace event sequencer
     tracelastp     puintptr // last P emitted an event for this goroutine
-    lockedm        muintptr
+    lockedm        muintptr // 如果调用了 LockOsThread，那么这个 g 会绑定到某个 m 上
     sig            uint32
     writebuf       []byte
     sigcode0       uintptr
     sigcode1       uintptr
     sigpc          uintptr
-    gopc           uintptr // pc of go statement that created this goroutine
-    startpc        uintptr // pc of goroutine function
+    gopc           uintptr // 创建该 goroutine 的语句的指令地址
+    startpc        uintptr // goroutine 函数的指令地址
     racectx        uintptr
     waiting        *sudog         // sudog structures this g is waiting on (that have a valid elem ptr); in lock order
     cgoCtxt        []uintptr      // cgo traceback context
