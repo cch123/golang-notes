@@ -1271,15 +1271,13 @@ top:
     }
 
     // Poll network.
-    // This netpoll is only an optimization before we resort to stealing.
-    // We can safely skip it if there are no waiters or a thread is blocked
-    // in netpoll already. If there is any kind of logical race with that
-    // blocked thread (e.g. it has already returned from netpoll, but does
-    // not set lastpoll yet), this thread will do blocking netpoll below
-    // anyway.
+    // netpoll 是我们执行 work-stealing 之前的一个优化
+    // 如果没有任何的 netpoll 等待者，或者线程被阻塞在 netpoll 中，我们可以安全地跳过这段逻辑
+    // 如果在阻塞的线程中存在任何逻辑上的竞争(e.g. 已经从 netpoll 中返回，但还没有设置 lastpoll)
+    // 该线程还是会将下面的 netpoll 阻塞住
     if netpollinited() && atomic.Load(&netpollWaiters) > 0 && atomic.Load64(&sched.lastpoll) != 0 {
-        if gp := netpoll(false); gp != nil { // non-blocking
-            // netpoll returns list of goroutines linked by schedlink.
+        if gp := netpoll(false); gp != nil { // 非阻塞
+            // netpoll 返回 goroutine 链表，用 schedlink 连接
             injectglist(gp.schedlink.ptr())
             casgstatus(gp, _Gwaiting, _Grunnable)
             if trace.enabled {
@@ -1292,14 +1290,15 @@ top:
     // 从其它 p 那里偷 g
     procs := uint32(gomaxprocs)
     if atomic.Load(&sched.npidle) == procs-1 {
-        // Either GOMAXPROCS=1 or everybody, except for us, is idle already.
-        // New work can appear from returning syscall/cgocall, network or timers.
-        // Neither of that submits to local run queues, so no point in stealing.
+        // GOMAXPROCS=1 或者除了我们其它的 p 都是 idle
+        // 新的工作可能从 syscall/cgocall，网络或者定时器中来。
+        // 上面这些任务都不会被放到本地的 runq，所有没有可以 stealing 的点
         goto stop
     }
-    // If number of spinning M's >= number of busy P's, block.
-    // This is necessary to prevent excessive CPU consumption
-    // when GOMAXPROCS>>1 but the program parallelism is low.
+    // 如果正在自旋的 M 的数量 >= 忙着的 P，那么阻塞
+    // 这是为了
+    // 当 GOMAXPROCS 远大于 1，但程序的并行度又很低的时候
+    // 防止过量的 CPU 消耗
     if !_g_.m.spinning && 2*atomic.Load(&sched.nmspinning) >= procs-atomic.Load(&sched.npidle) {
         goto stop
     }
@@ -1321,9 +1320,8 @@ top:
 
 stop:
 
-    // We have nothing to do. If we're in the GC mark phase, can
-    // safely scan and blacken objects, and have work to do, run
-    // idle-time marking rather than give up the P.
+    // 没有可以干的事情。如果我们正在 GC 的标记阶段，可以安全地扫描和加深对象的颜色，
+    // 这样可以进行空闲时间的标记，而不是直接放弃 P
     if gcBlackenEnabled != 0 && _p_.gcBgMarkWorker != 0 && gcMarkWorkAvailable(_p_) {
         _p_.gcMarkWorkerMode = gcMarkWorkerIdleMode
         gp := _p_.gcBgMarkWorker.ptr()
@@ -1340,7 +1338,7 @@ stop:
     // everything up to cap(allp) is immutable.
     allpSnapshot := allp
 
-    // return P and block
+    // 返回 P 并阻塞
     lock(&sched.lock)
     if sched.gcwaiting != 0 || _p_.runSafePointFn != 0 {
         unlock(&sched.lock)
@@ -1424,7 +1422,7 @@ stop:
         if _g_.m.spinning {
             throw("findrunnable: netpoll with spinning")
         }
-        gp := netpoll(true) // block until new work is available
+        gp := netpoll(true) // 阻塞到返回为止
         atomic.Store64(&sched.lastpoll, uint64(nanotime()))
         if gp != nil {
             lock(&sched.lock)
