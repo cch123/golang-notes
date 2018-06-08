@@ -605,7 +605,8 @@ func newproc1(fn *funcval, argp *uint8, narg int32, callerpc uintptr) {
 所以 `go func` 执行的结果是调用 runqput 将 g 放进了执行队列。什么时候开始执行并不是用户代码能决定得了的。再看看 runqput 这个函数:
 
 ```go
-// runqput tries to put g on the local runnable queue.
+// runqput 常识把 g 放到本地执行队列中
+// next 参数如果是 false 的话，runqput 会将 g 放到运行队列的尾部
 // If next if false, runqput adds g to the tail of the runnable queue.
 // If next is true, runqput puts g in the _p_.runnext slot.
 // If the run queue is full, runnext puts g on the global queue.
@@ -624,7 +625,6 @@ func runqput(_p_ *p, gp *g, next bool) {
         if oldnext == 0 {
             return
         }
-        // Kick the old runnext out to the regular run queue.
         // 把之前的 runnext 踢到正常的 runq 中
         gp = oldnext.ptr()
     }
@@ -832,9 +832,8 @@ checkdead:
 // 该检查基于当前正在运行的 M 的数量，如果 0，那么就是 deadlock 了
 // 检查的时候必须持有 sched.lock 锁
 func checkdead() {
-    // For -buildmode=c-shared or -buildmode=c-archive it's OK if
-    // there are no running goroutines. The calling program is
-    // assumed to be running.
+    // 对于 -buildmode=c-shared 或者 -buildmode=c-archive 来说
+    // 没有 goroutine 正在运行也是 OK 的。因为调用这个库的程序应该是在运行的
     if islibrary || isarchive {
         return
     }
@@ -923,27 +922,26 @@ func retake(now int64) uint32 {
     for i := 0; i < len(allp); i++ {
         _p_ := allp[i]
         if _p_ == nil {
-            // This can happen if procresize has grown
-            // allp but not yet created new Ps.
+            // 在 procresize 修改了 allp 但还没有创建新的 p 的时候
+            // 会有这种情况
             continue
         }
         pd := &_p_.sysmontick
         s := _p_.status
         if s == _Psyscall {
-            // Retake P from syscall if it's there for more than 1 sysmon tick (at least 20us).
+            // 从 syscall 接管 P，如果它进行 syscall 已经经过了一个 sysmon 的 tick(至少 20us)
             t := int64(_p_.syscalltick)
             if int64(pd.syscalltick) != t {
                 pd.syscalltick = uint32(t)
                 pd.syscallwhen = now
                 continue
             }
-            // On the one hand we don't want to retake Ps if there is no other work to do,
-            // but on the other hand we want to retake them eventually
-            // because they can prevent the sysmon thread from deep sleep.
+            // 一方面如果没有其它工作可做的话，我们不想接管 p
+            // 但另一方面为了避免 sysmon 线程陷入沉睡，我们最终还是会接管这些 p
             if runqempty(_p_) && atomic.Load(&sched.nmspinning)+atomic.Load(&sched.npidle) > 0 && pd.syscallwhen+10*1000*1000 > now {
                 continue
             }
-            // Drop allpLock so we can take sched.lock.
+            // 解开 allplock 的锁，然后就可以持有 sched.lock 锁了
             unlock(&allpLock)
             // Need to decrement number of idle locked M's
             // (pretending that one more is running) before the CAS.
