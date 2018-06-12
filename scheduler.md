@@ -1445,6 +1445,27 @@ stop:
 
 ## m 和 p 解绑定
 
+handoffp:
+
+```mermaid
+graph TD
+
+mexit --> A[is m0?]
+A --> |yes|B[handoffp]
+A --> |no| C[iterate allm]
+C --> |m found|handoffp
+C --> |m not found| throw
+
+forEachP --> |p status == syscall| handoffp
+
+stoplockedm --> handoffp
+
+entersyscallblock --> entersyscallblock_handoff
+entersyscallblock_handoff --> handoffp
+
+retake --> |p status == syscall| handoffp
+```
+
 ## g 的状态迁移
 
 ## p 的状态迁移
