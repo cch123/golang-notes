@@ -1468,4 +1468,53 @@ retake --> |p status == syscall| handoffp
 
 ## g 的状态迁移
 
+```mermaid
+graph TD
+start{newg} --> Gidle
+Gidle --> |oneNewExtraM|Gdead
+Gidle --> |newproc1|Gdead
+
+Gdead --> |newproc1|Grunnable
+Gdead --> |needm|Gsyscall
+
+Gscanrunning --> |scang|Grunning
+
+Grunnable --> |execute|Grunning
+
+Gany --> |casgcopystack|Gcopystack
+
+Gcopystack --> |todotodo|Grunning
+
+Gsyscall --> |dropm|Gdead
+Gsyscall --> |exitsyscall0|Grunnable
+Gsyscall --> |exitsyscall|Grunning
+
+Grunning --> |goschedImpl|Grunnable
+Grunning --> |goexit0|Gdead
+Grunning --> |newstack|Gcopystack
+Grunning --> |reentersyscall|Gsyscall
+Grunning --> |entersyscallblock|Gsyscall
+Grunning --> |markroot|Gwaiting
+Grunning --> |gcAssistAlloc1|Gwaiting
+Grunning --> |park_m|Gwaiting
+Grunning --> |gcMarkTermination|Gwaiting
+Grunning --> |gcBgMarkWorker|Gwaiting
+Grunning --> |newstack|Gwaiting
+
+Gwaiting --> |gcMarkTermination|Grunning
+Gwaiting --> |gcBgMarkWorker|Grunning
+Gwaiting --> |markroot|Grunning
+Gwaiting --> |gcAssistAlloc1|Grunning
+Gwaiting --> |newstack|Grunning
+Gwaiting --> |findRunnableGCWorker|Grunnable
+Gwaiting --> |ready|Grunnable
+Gwaiting --> |findrunnable|Grunnable
+Gwaiting --> |injectglist|Grunnable
+Gwaiting --> |schedule|Grunnable
+Gwaiting --> |park_m|Grunnable
+Gwaiting --> |procresize|Grunnable
+Gwaiting --> |checkdead|Grunnable
+
+```
+
 ## p 的状态迁移
