@@ -1512,7 +1512,8 @@ Gwaiting --> |schedule|Grunnable
 Gwaiting --> |park_m|Grunnable
 Gwaiting --> |procresize|Grunnable
 Gwaiting --> |checkdead|Grunnable
-
 ```
+
+图上的 Gany 代表任意状态。
 
 ## p 的状态迁移
