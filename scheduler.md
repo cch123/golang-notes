@@ -1469,7 +1469,7 @@ retake --> |p status == syscall| handoffp
 ## g 的状态迁移
 
 ```mermaid
-graph TD
+graph LR
 start{newg} --> Gidle
 Gidle --> |oneNewExtraM|Gdead
 Gidle --> |newproc1|Gdead
