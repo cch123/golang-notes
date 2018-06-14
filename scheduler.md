@@ -1193,7 +1193,38 @@ goexit0 --> schedule
 
 #### gogo
 
-TODO
+runtime.gogo 是汇编完成的，功能就是执行 `go func()` 的这个 `func()`，可以看到功能主要是把 g 对象的 gobuf 里的内容搬到寄存器里。然后从 `gobuf.pc` 寄存器存储的指令位置开始继续向后执行。
+
+```go
+// void gogo(Gobuf*)
+// restore state from Gobuf; longjmp
+TEXT runtime·gogo(SB), NOSPLIT, $16-8
+    MOVQ	buf+0(FP), BX		// gobuf
+    MOVQ	gobuf_g(BX), DX
+    MOVQ	0(DX), CX		// make sure g != nil
+    get_tls(CX)
+    MOVQ	DX, g(CX)
+    MOVQ	gobuf_sp(BX), SP	// restore SP
+    MOVQ	gobuf_ret(BX), AX
+    MOVQ	gobuf_ctxt(BX), DX
+    MOVQ	gobuf_bp(BX), BP
+    MOVQ	$0, gobuf_sp(BX)	// clear to help garbage collector
+    MOVQ	$0, gobuf_ret(BX)
+    MOVQ	$0, gobuf_ctxt(BX)
+    MOVQ	$0, gobuf_bp(BX)
+    MOVQ	gobuf_pc(BX), BX
+    JMP	BX
+```
+
+当然，这里还是有一些和手写汇编不太一样的，看着比较奇怪的地方，`gobuf_sp(BX)` 这种写法按说标准 plan9 汇编中 `gobuf_sp` 只是个 `symbol`，没有任何偏移量的意思，但这里却用名字来代替了其偏移量，这是怎么回事呢？
+
+实际上这是 runtime 的特权，是需要链接器配合完成的，再来看看 gobuf 在 runtime 中的 struct 定义开头部分的注释:
+
+```go
+// The offsets of sp, pc, and g are known to (hard-coded in) libmach.
+```
+
+这下知道怎么回事了吧，链接器会补助我们把这个换成偏移量。。
 
 #### execute
 
