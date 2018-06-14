@@ -1531,7 +1531,7 @@ Pany --> |gcstopm|Pgcstop
 Pany --> |forEachP|Pidle
 Pany --> |releasep|Pidle
 Pany --> |handoffp|Pgcstop
-Pany --> |procresize|Pidle
+Pany --> |procresize release current p use allp 0|Pidle
 Pany --> |procresize when init|Pgcstop
 Pany --> |procresize when free old p| Pdead
 Pany --> |procresize after resize use current p|Prunning
