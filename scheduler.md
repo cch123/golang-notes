@@ -1522,24 +1522,20 @@ Gwaiting --> |checkdead|Grunnable
 graph LR
 
 Pidle --> |acquirep1|Prunning
- #todo
 
 Psyscall --> |retake|Pidle
-Psyscall --> |exitsyscallfast|Prunning
-
 Psyscall --> |entersyscall_gcwait|Pgcstop
 Psyscall --> |exitsyscallfast|Prunning
-Psyscall --> |exitsyscallfast|Prunning
 
-Pany --> |forEachP|Pidle
-Pany --> |procresize|Pidle
-Pany --> |releasep|Pidle
-Pany --> |stopTheWorldWithSema|Pgcstop
-Pany --> |handoffp|Pgcstop
 Pany --> |gcstopm|Pgcstop
+Pany --> |forEachP|Pidle
+Pany --> |releasep|Pidle
+Pany --> |handoffp|Pgcstop
+Pany --> |procresize|Pidle
 Pany --> |procresize when init|Pgcstop
 Pany --> |procresize when free old p| Pdead
-Pany --> |procresize|Prunning
+Pany --> |procresize after resize use current p|Prunning
 Pany --> |reentersyscall|Psyscall
+Pany --> |stopTheWorldWithSema|Pgcstop
 
 ```
