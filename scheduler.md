@@ -1514,6 +1514,32 @@ Gwaiting --> |procresize|Grunnable
 Gwaiting --> |checkdead|Grunnable
 ```
 
-图上的 Gany 代表任意状态。
+图上的 Gany 代表任意状态，GC 时的状态切换比较多，如果只关注正常情况下的状态转换，可以把 markroot、gcMark 之类的先忽略掉。
 
 ## p 的状态迁移
+
+```mermaid
+graph LR
+
+Pidle --> |acquirep1|Prunning
+ #todo
+
+Psyscall --> |retake|Pidle
+Psyscall --> |exitsyscallfast|Prunning
+
+Psyscall --> |entersyscall_gcwait|Pgcstop
+Psyscall --> |exitsyscallfast|Prunning
+Psyscall --> |exitsyscallfast|Prunning
+
+Pany --> |forEachP|Pidle
+Pany --> |procresize|Pidle
+Pany --> |releasep|Pidle
+Pany --> |stopTheWorldWithSema|Pgcstop
+Pany --> |handoffp|Pgcstop
+Pany --> |gcstopm|Pgcstop
+Pany --> |procresize when init|Pgcstop
+Pany --> |procresize when free old p| Pdead
+Pany --> |procresize|Prunning
+Pany --> |reentersyscall|Psyscall
+
+```
