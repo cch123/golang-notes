@@ -825,7 +825,7 @@ func sysmon() {
 }
 ```
 
-checkdead:
+#### checkdead
 
 ```go
 // 检查死锁的场景
@@ -904,7 +904,7 @@ func checkdead() {
 }
 ```
 
-retake:
+#### retake
 
 ```go
 // forcePreemptNS is the time slice given to a G before it is
@@ -1191,6 +1191,14 @@ goexit1 --> goexit0
 goexit0 --> schedule
 ```
 
+#### gogo
+
+TODO
+
+#### execute
+
+TODO
+
 #### findrunnable
 
 findrunnable 比较复杂，流程图先把 gc 相关的省略掉了:
@@ -1443,7 +1451,7 @@ stop:
 
 ## m 和 p 解绑定
 
-handoffp:
+### handoffp
 
 ```mermaid
 graph TD
@@ -1463,6 +1471,8 @@ entersyscallblock_handoff --> handoffp
 
 retake --> |p status == syscall| handoffp
 ```
+
+TODO 代码说明
 
 ## g 的状态迁移
 
