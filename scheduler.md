@@ -1224,7 +1224,7 @@ TEXT runtime·gogo(SB), NOSPLIT, $16-8
 // The offsets of sp, pc, and g are known to (hard-coded in) libmach.
 ```
 
-这下知道怎么回事了吧，链接器会补助我们把这个换成偏移量。。
+这下知道怎么回事了吧，链接器会帮助我们把这个换成偏移量。。
 
 #### execute
 
