@@ -1191,6 +1191,51 @@ goexit1 --> goexit0
 goexit0 --> schedule
 ```
 
+
+#### execute
+
+```go
+// Schedules gp to run on the current M.
+// If inheritTime is true, gp inherits the remaining time in the
+// current time slice. Otherwise, it starts a new time slice.
+// Never returns.
+//
+// Write barriers are allowed because this is called immediately after
+// acquiring a P in several places.
+//
+//go:yeswritebarrierrec
+func execute(gp *g, inheritTime bool) {
+    _g_ := getg()
+
+    casgstatus(gp, _Grunnable, _Grunning)
+    gp.waitsince = 0
+    gp.preempt = false
+    gp.stackguard0 = gp.stack.lo + _StackGuard
+    if !inheritTime {
+        _g_.m.p.ptr().schedtick++
+    }
+    _g_.m.curg = gp
+    gp.m = _g_.m
+
+    // Check whether the profiler needs to be turned on or off.
+    hz := sched.profilehz
+    if _g_.m.profilehz != hz {
+        setThreadCPUProfiler(hz)
+    }
+
+    if trace.enabled {
+        // GoSysExit has to happen when we have a P, but before GoStart.
+        // So we emit it here.
+        if gp.syscallsp != 0 && gp.sysblocktraced {
+            traceGoSysExit(gp.sysexitticks)
+        }
+        traceGoStart()
+    }
+
+    gogo(&gp.sched)
+}
+```
+
 #### gogo
 
 runtime.gogo 是汇编完成的，功能就是执行 `go func()` 的这个 `func()`，可以看到功能主要是把 g 对象的 gobuf 里的内容搬到寄存器里。然后从 `gobuf.pc` 寄存器存储的指令位置开始继续向后执行。
@@ -1226,19 +1271,168 @@ TEXT runtime·gogo(SB), NOSPLIT, $16-8
 
 这下知道怎么回事了吧，链接器会帮助我们把这个换成偏移量。。
 
-#### execute
+#### Goexit
 
-TODO
+Goexit :
 
-#### mcall
+```go
+// Goexit terminates the goroutine that calls it. No other goroutine is affected.
+// Goexit runs all deferred calls before terminating the goroutine. Because Goexit
+// is not a panic, any recover calls in those deferred functions will return nil.
+//
+// Calling Goexit from the main goroutine terminates that goroutine
+// without func main returning. Since func main has not returned,
+// the program continues execution of other goroutines.
+// If all other goroutines exit, the program crashes.
+func Goexit() {
+    // Run all deferred functions for the current goroutine.
+    // This code is similar to gopanic, see that implementation
+    // for detailed comments.
+    gp := getg()
+    for {
+        d := gp._defer
+        if d == nil {
+            break
+        }
+        if d.started {
+            if d._panic != nil {
+                d._panic.aborted = true
+                d._panic = nil
+            }
+            d.fn = nil
+            gp._defer = d.link
+            freedefer(d)
+            continue
+        }
+        d.started = true
+        reflectcall(nil, unsafe.Pointer(d.fn), deferArgs(d), uint32(d.siz), uint32(d.siz))
+        if gp._defer != d {
+            throw("bad defer entry in Goexit")
+        }
+        d._panic = nil
+        d.fn = nil
+        gp._defer = d.link
+        freedefer(d)
+        // Note: we ignore recovers here because Goexit isn't a panic
+    }
+    goexit1()
+}
 
-TODO
+// Finishes execution of the current goroutine.
+func goexit1() {
+    if raceenabled {
+        racegoend()
+    }
+    if trace.enabled {
+        traceGoEnd()
+    }
+    mcall(goexit0)
+}
+```
+
+mcall :
+
+```go
+// func mcall(fn func(*g))
+// Switch to m->g0's stack, call fn(g).
+// Fn must never return. It should gogo(&g->sched)
+// to keep running g.
+TEXT runtime·mcall(SB), NOSPLIT, $0-8
+    MOVQ	fn+0(FP), DI
+
+    get_tls(CX)
+    MOVQ	g(CX), AX	// save state in g->sched
+    MOVQ	0(SP), BX	// caller's PC
+    MOVQ	BX, (g_sched+gobuf_pc)(AX)
+    LEAQ	fn+0(FP), BX	// caller's SP
+    MOVQ	BX, (g_sched+gobuf_sp)(AX)
+    MOVQ	AX, (g_sched+gobuf_g)(AX)
+    MOVQ	BP, (g_sched+gobuf_bp)(AX)
+
+    // switch to m->g0 & its stack, call fn
+    MOVQ	g(CX), BX
+    MOVQ	g_m(BX), BX
+    MOVQ	m_g0(BX), SI
+    CMPQ	SI, AX	// if g == m->g0 call badmcall
+    JNE	3(PC)
+    MOVQ	$runtime·badmcall(SB), AX
+    JMP	AX
+    MOVQ	SI, g(CX)	// g = m->g0
+    MOVQ	(g_sched+gobuf_sp)(SI), SP	// sp = m->g0->sched.sp
+    PUSHQ	AX
+    MOVQ	DI, DX
+    MOVQ	0(DI), DI
+    CALL	DI
+    POPQ	AX
+    MOVQ	$runtime·badmcall2(SB), AX
+    JMP	AX
+    RET
+
+```
 
 #### wakep
 
-TODO
+```go
+// Tries to add one more P to execute G's.
+// Called when a G is made runnable (newproc, ready).
+func wakep() {
+    // be conservative about spinning threads
+    if !atomic.Cas(&sched.nmspinning, 0, 1) {
+        return
+    }
+    startm(nil, true)
+}
 
-#### notesleep
+// Schedules some M to run the p (creates an M if necessary).
+// If p==nil, tries to get an idle P, if no idle P's does nothing.
+// May run with m.p==nil, so write barriers are not allowed.
+// If spinning is set, the caller has incremented nmspinning and startm will
+// either decrement nmspinning or set m.spinning in the newly started M.
+//go:nowritebarrierrec
+func startm(_p_ *p, spinning bool) {
+    lock(&sched.lock)
+    if _p_ == nil {
+        _p_ = pidleget()
+        if _p_ == nil {
+             unlock(&sched.lock)
+             if spinning {
+                 // The caller incremented nmspinning, but there are no idle Ps,
+                 // so it's okay to just undo the increment and give up.
+                 if int32(atomic.Xadd(&sched.nmspinning, -1)) < 0 {
+                     throw("startm: negative nmspinning")
+                 }
+             }
+             return
+        }
+    }
+    mp := mget()
+    unlock(&sched.lock)
+    if mp == nil {
+        var fn func()
+        if spinning {
+            // The caller incremented nmspinning, so set m.spinning in the new M.
+            fn = mspinning
+        }
+        newm(fn, _p_)
+        return
+    }
+    if mp.spinning {
+        throw("startm: m is spinning")
+    }
+    if mp.nextp != 0 {
+        throw("startm: m has p")
+    }
+    if spinning && !runqempty(_p_) {
+        throw("startm: p has runnable gs")
+    }
+    // The caller incremented nmspinning, so set m.spinning in the new M.
+    mp.spinning = spinning
+    mp.nextp.set(_p_)
+    notewakeup(&mp.park)
+}
+```
+
+#### notesleep/notewakeup/noteclear
 
 TODO
 
