@@ -605,7 +605,7 @@ func newproc1(fn *funcval, argp *uint8, narg int32, callerpc uintptr) {
 所以 `go func` 执行的结果是调用 runqput 将 g 放进了执行队列。什么时候开始执行并不是用户代码能决定得了的。再看看 runqput 这个函数:
 
 ```go
-// runqput 常识把 g 放到本地执行队列中
+// runqput 尝试把 g 放到本地执行队列中
 // next 参数如果是 false 的话，runqput 会将 g 放到运行队列的尾部
 // If next if false, runqput adds g to the tail of the runnable queue.
 // If next is true, runqput puts g in the _p_.runnext slot.
