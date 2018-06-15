@@ -1205,7 +1205,7 @@ goexit0 --> schedule
 //
 //go:yeswritebarrierrec
 func execute(gp *g, inheritTime bool) {
-    _g_ := getg()
+    _g_ := getg() // 这个可能是 m 的 g0
 
     casgstatus(gp, _Grunnable, _Grunning)
     gp.waitsince = 0
@@ -1214,27 +1214,14 @@ func execute(gp *g, inheritTime bool) {
     if !inheritTime {
         _g_.m.p.ptr().schedtick++
     }
-    _g_.m.curg = gp
-    gp.m = _g_.m
-
-    // Check whether the profiler needs to be turned on or off.
-    hz := sched.profilehz
-    if _g_.m.profilehz != hz {
-        setThreadCPUProfiler(hz)
-    }
-
-    if trace.enabled {
-        // GoSysExit has to happen when we have a P, but before GoStart.
-        // So we emit it here.
-        if gp.syscallsp != 0 && gp.sysblocktraced {
-            traceGoSysExit(gp.sysexitticks)
-        }
-        traceGoStart()
-    }
+    _g_.m.curg = gp // 把当前 g 的位置让给 m
+    gp.m = _g_.m // 把 gp 指向 m，建立双向关系
 
     gogo(&gp.sched)
 }
 ```
+
+比较简单，绑定 g 和 m，然后 gogo 执行绑定的 g 中的函数。
 
 #### gogo
 
