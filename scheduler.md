@@ -602,7 +602,50 @@ func newproc1(fn *funcval, argp *uint8, narg int32, callerpc uintptr) {
 }
 ```
 
-所以 `go func` 执行的结果是调用 runqput 将 g 放进了执行队列。什么时候开始执行并不是用户代码能决定得了的。再看看 runqput 这个函数:
+所以 `go func` 执行的结果是调用 runqput 将 g 放进了执行队列。但在放队列之前还做了点小动作:
+
+```go
+newg.sched.pc = funcPC(goexit) + sys.PCQuantum // +PCQuantum so that previous instruction is in same function
+```
+
+### gostartcallfn
+
+```go
+// adjust Gobuf as if it executed a call to fn
+// and then did an immediate gosave.
+func gostartcallfn(gobuf *gobuf, fv *funcval) {
+    var fn unsafe.Pointer
+    if fv != nil {
+        fn = unsafe.Pointer(fv.fn)
+    } else {
+        fn = unsafe.Pointer(funcPC(nilfunc))
+    }
+    gostartcall(gobuf, fn, unsafe.Pointer(fv))
+}
+
+// adjust Gobuf as if it executed a call to fn with context ctxt
+// and then did an immediate gosave.
+func gostartcall(buf *gobuf, fn, ctxt unsafe.Pointer) {
+    sp := buf.sp
+    if sys.RegSize > sys.PtrSize {
+        sp -= sys.PtrSize
+        *(*uintptr)(unsafe.Pointer(sp)) = 0
+    }
+    sp -= sys.PtrSize
+    *(*uintptr)(unsafe.Pointer(sp)) = buf.pc // 注意这里，这个，这里的 buf.pc 实际上是 goexit 的 pc
+    buf.sp = sp
+    buf.pc = uintptr(fn)
+    buf.ctxt = ctxt
+}
+```
+
+在 gostartcall 中把 newproc1 时设置到 buf.pc 中的 goexit 的函数地址放到了 goroutine 的栈顶，然后重新设置 buf.pc 为 goroutine 函数的位置。这样做的目的是为了在执行完任何 goroutine 的函数时，通过 RET 指令，都能从栈顶把 sp 保存的 goexit 的指令 pop 到 pc 寄存器，效果相当于任何 goroutine 执行函数执行完之后，都会去执行 runtime.goexit，完成一些清理工作后再进入 schedule。
+
+在之后的 m 的 schedule 讲解中会看到更详细的调度循环过程。
+
+### runqput
+
+因为是放 runq 而不是直接执行，因而什么时候开始执行并不是用户代码能决定得了的。再看看 runqput 这个函数:
 
 ```go
 // runqput 尝试把 g 放到本地执行队列中
@@ -644,6 +687,10 @@ retry:
     goto retry
 }
 ```
+
+### runqputslow
+
+TODO
 
 ## m 工作机制
 
@@ -1186,7 +1233,8 @@ m 中所谓的调度循环实际上就是一直在执行下图中的 loop:
 graph TD
 schedule --> execute
 execute --> gogo
-gogo --> goexit1
+gogo --> goexit
+goexit --> goexit1
 goexit1 --> goexit0
 goexit0 --> schedule
 ```
@@ -1315,6 +1363,16 @@ func goexit1() {
     }
     mcall(goexit0)
 }
+```
+
+```go
+// The top-most function running on a goroutine
+// returns to goexit+PCQuantum.
+TEXT runtime·goexit(SB),NOSPLIT,$0-0
+    BYTE	$0x90	// NOP
+    CALL	runtime·goexit1(SB)	// does not return
+    // traceback from goexit1 must hit code range of goexit
+    BYTE	$0x90	// NOP
 ```
 
 mcall :
