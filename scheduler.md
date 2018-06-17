@@ -2149,3 +2149,15 @@ func newstack() {
     gogo(&gp.sched)
 }
 ```
+
+总结一下流程:
+
+```mermaid
+graph TD
+start[entering func] --> cmp[sp < stackguard0]
+cmp --> |yes|morestack_noctxt
+cmp --> |no|end[execute func]
+morestack_noctxt --> morestack
+morestack --> newstack
+newstack --> preempt
+```
