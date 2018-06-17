@@ -1130,7 +1130,7 @@ func newosproc(mp *m, stk unsafe.Pointer) {
 
 ```go
 //go:nowritebarrierrec
-// 常识从 midle 列表中获取一个 m
+// 尝试从 midle 列表中获取一个 m
 // 必须锁全局的 sched
 // 可能在 STW 期间执行，所以不允许 write barriers
 func mget() *m {
