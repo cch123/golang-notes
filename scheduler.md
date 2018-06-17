@@ -690,7 +690,47 @@ retry:
 
 ### runqputslow
 
-TODO
+```go
+// 因为 slow，所以会一次性把本地队列里的多个 g (包含当前的这个) 放到全局队列
+// 只会被 g 的 owner P 执行
+func runqputslow(_p_ *p, gp *g, h, t uint32) bool {
+    var batch [len(_p_.runq)/2 + 1]*g
+
+    // 先从本地队列抓一批 g
+    n := t - h
+    n = n / 2
+    if n != uint32(len(_p_.runq)/2) {
+        throw("runqputslow: queue is not full")
+    }
+    for i := uint32(0); i < n; i++ {
+        batch[i] = _p_.runq[(h+i)%uint32(len(_p_.runq))].ptr()
+    }
+    if !atomic.Cas(&_p_.runqhead, h, h+n) { // cas-release, commits consume
+        return false
+    }
+    batch[n] = gp
+
+    if randomizeScheduler {
+        for i := uint32(1); i <= n; i++ {
+            j := fastrandn(i + 1)
+            batch[i], batch[j] = batch[j], batch[i]
+        }
+    }
+
+    // 把这些 goroutine 构造成链表
+    for i := uint32(0); i < n; i++ {
+        batch[i].schedlink.set(batch[i+1])
+    }
+
+    // 将链表放到全局队列中
+    lock(&sched.lock)
+    globrunqputbatch(batch[0], batch[n], int32(n+1))
+    unlock(&sched.lock)
+    return true
+}
+```
+
+操作全局 sched 时，需要获取全局 sched.lock 锁，全局锁争抢的开销较大，所以才称之为 slow。p 和 g 在 m 中交互时，因为现场永远是单线程，所以很多时候不用加锁。
 
 ## m 工作机制
 
@@ -1279,21 +1319,21 @@ runtime.gogo 是汇编完成的，功能就是执行 `go func()` 的这个 `func
 // void gogo(Gobuf*)
 // restore state from Gobuf; longjmp
 TEXT runtime·gogo(SB), NOSPLIT, $16-8
-    MOVQ	buf+0(FP), BX		// gobuf
-    MOVQ	gobuf_g(BX), DX
-    MOVQ	0(DX), CX		// make sure g != nil
+    MOVQ    buf+0(FP), BX        // gobuf
+    MOVQ    gobuf_g(BX), DX
+    MOVQ    0(DX), CX        // make sure g != nil
     get_tls(CX)
-    MOVQ	DX, g(CX)
-    MOVQ	gobuf_sp(BX), SP	// restore SP
-    MOVQ	gobuf_ret(BX), AX
-    MOVQ	gobuf_ctxt(BX), DX
-    MOVQ	gobuf_bp(BX), BP
-    MOVQ	$0, gobuf_sp(BX)	// clear to help garbage collector
-    MOVQ	$0, gobuf_ret(BX)
-    MOVQ	$0, gobuf_ctxt(BX)
-    MOVQ	$0, gobuf_bp(BX)
-    MOVQ	gobuf_pc(BX), BX
-    JMP	BX
+    MOVQ    DX, g(CX)
+    MOVQ    gobuf_sp(BX), SP    // restore SP
+    MOVQ    gobuf_ret(BX), AX
+    MOVQ    gobuf_ctxt(BX), DX
+    MOVQ    gobuf_bp(BX), BP
+    MOVQ    $0, gobuf_sp(BX)    // clear to help garbage collector
+    MOVQ    $0, gobuf_ret(BX)
+    MOVQ    $0, gobuf_ctxt(BX)
+    MOVQ    $0, gobuf_bp(BX)
+    MOVQ    gobuf_pc(BX), BX
+    JMP    BX
 ```
 
 当然，这里还是有一些和手写汇编不太一样的，看着比较奇怪的地方，`gobuf_sp(BX)` 这种写法按说标准 plan9 汇编中 `gobuf_sp` 只是个 `symbol`，没有任何偏移量的意思，但这里却用名字来代替了其偏移量，这是怎么回事呢？
@@ -1369,10 +1409,10 @@ func goexit1() {
 // The top-most function running on a goroutine
 // returns to goexit+PCQuantum.
 TEXT runtime·goexit(SB),NOSPLIT,$0-0
-    BYTE	$0x90	// NOP
-    CALL	runtime·goexit1(SB)	// does not return
+    BYTE    $0x90    // NOP
+    CALL    runtime·goexit1(SB)    // does not return
     // traceback from goexit1 must hit code range of goexit
-    BYTE	$0x90	// NOP
+    BYTE    $0x90    // NOP
 ```
 
 mcall :
@@ -1383,34 +1423,34 @@ mcall :
 // Fn must never return. It should gogo(&g->sched)
 // to keep running g.
 TEXT runtime·mcall(SB), NOSPLIT, $0-8
-    MOVQ	fn+0(FP), DI
+    MOVQ    fn+0(FP), DI
 
     get_tls(CX)
-    MOVQ	g(CX), AX	// save state in g->sched
-    MOVQ	0(SP), BX	// caller's PC
-    MOVQ	BX, (g_sched+gobuf_pc)(AX)
-    LEAQ	fn+0(FP), BX	// caller's SP
-    MOVQ	BX, (g_sched+gobuf_sp)(AX)
-    MOVQ	AX, (g_sched+gobuf_g)(AX)
-    MOVQ	BP, (g_sched+gobuf_bp)(AX)
+    MOVQ    g(CX), AX    // save state in g->sched
+    MOVQ    0(SP), BX    // caller's PC
+    MOVQ    BX, (g_sched+gobuf_pc)(AX)
+    LEAQ    fn+0(FP), BX    // caller's SP
+    MOVQ    BX, (g_sched+gobuf_sp)(AX)
+    MOVQ    AX, (g_sched+gobuf_g)(AX)
+    MOVQ    BP, (g_sched+gobuf_bp)(AX)
 
     // switch to m->g0 & its stack, call fn
-    MOVQ	g(CX), BX
-    MOVQ	g_m(BX), BX
-    MOVQ	m_g0(BX), SI
-    CMPQ	SI, AX	// if g == m->g0 call badmcall
-    JNE	3(PC)
-    MOVQ	$runtime·badmcall(SB), AX
-    JMP	AX
-    MOVQ	SI, g(CX)	// g = m->g0
-    MOVQ	(g_sched+gobuf_sp)(SI), SP	// sp = m->g0->sched.sp
-    PUSHQ	AX
-    MOVQ	DI, DX
-    MOVQ	0(DI), DI
-    CALL	DI
-    POPQ	AX
-    MOVQ	$runtime·badmcall2(SB), AX
-    JMP	AX
+    MOVQ    g(CX), BX
+    MOVQ    g_m(BX), BX
+    MOVQ    m_g0(BX), SI
+    CMPQ    SI, AX    // if g == m->g0 call badmcall
+    JNE    3(PC)
+    MOVQ    $runtime·badmcall(SB), AX
+    JMP    AX
+    MOVQ    SI, g(CX)    // g = m->g0
+    MOVQ    (g_sched+gobuf_sp)(SI), SP    // sp = m->g0->sched.sp
+    PUSHQ    AX
+    MOVQ    DI, DX
+    MOVQ    0(DI), DI
+    CALL    DI
+    POPQ    AX
+    MOVQ    $runtime·badmcall2(SB), AX
+    JMP    AX
     RET
 
 ```
@@ -1834,4 +1874,278 @@ Pany --> |stopTheWorldWithSema|Pgcstop
 
 ## 抢占流程
 
-TODO
+函数执行是在 goroutine 的栈上，这个栈在函数执行期间是有可能溢出的，我们前面也看到了，如果一个函数用到了栈，会将 stackguard0 和 sp 寄存器进行比较，如果 sp > stackguard0，说明栈已经增长到溢出，因为栈是从内存高地址向低地址方向增长的。
+
+那么这个比较过程是在哪里完成的呢？这一步是由编译器完成的，我们看看一个函数编译后的结果，这段代码来自 go-internals:
+
+```go
+0x0000 TEXT    "".main(SB), $24-0
+  ;; stack-split prologue
+  0x0000 MOVQ    (TLS), CX
+  0x0009 CMPQ    SP, 16(CX)
+  0x000d JLS    58
+
+  0x000f SUBQ    $24, SP
+  0x0013 MOVQ    BP, 16(SP)
+  0x0018 LEAQ    16(SP), BP
+  ;; ...omitted FUNCDATA stuff...
+  0x001d MOVQ    $137438953482, AX
+  0x0027 MOVQ    AX, (SP)
+  ;; ...omitted PCDATA stuff...
+  0x002b CALL    "".add(SB)
+  0x0030 MOVQ    16(SP), BP
+  0x0035 ADDQ    $24, SP
+  0x0039 RET
+
+  ;; stack-split epilogue
+  0x003a NOP
+  ;; ...omitted PCDATA stuff...
+  0x003a CALL    runtime.morestack_noctxt(SB)
+  0x003f JMP    0
+```
+
+函数开头被插的这段指令，即是将 g struct 中的 stackguard 与 SP 寄存器进行对比，JLS 表示 SP < 16(CX) 的话即跳转。
+
+```go
+  ;; stack-split prologue
+  0x0000 MOVQ    (TLS), CX
+  0x0009 CMPQ    SP, 16(CX)
+  0x000d JLS    58
+```
+
+这里因为 CX 寄存器存储的是 g 的起始地址，而 16(CX) 指的是 g 结构体偏移 16 个字节的位置，可以回顾一下 g 结构体定义，16 个字节恰好是跳过了第一个成员 stack(16字节) 之后的 stackguard0 的位置。
+
+58 转为 16 进制即是 0x3a。
+
+```go
+  ;; stack-split epilogue
+  0x003a NOP
+  ;; ...omitted PCDATA stuff...
+  0x003a CALL    runtime.morestack_noctxt(SB)
+  0x003f JMP    0
+```
+
+morestack_noctxt:
+
+```go
+// morestack but not preserving ctxt.
+TEXT runtime·morestack_noctxt(SB),NOSPLIT,$0
+    MOVL    $0, DX
+    JMP    runtime·morestack(SB)
+```
+
+morestack:
+
+```go
+TEXT runtime·morestack(SB),NOSPLIT,$0-0
+    // Cannot grow scheduler stack (m->g0).
+    get_tls(CX)
+    MOVQ    g(CX), BX
+    MOVQ    g_m(BX), BX
+    MOVQ    m_g0(BX), SI
+    CMPQ    g(CX), SI
+    JNE    3(PC)
+    CALL    runtime·badmorestackg0(SB)
+    INT    $3
+
+    // Cannot grow signal stack (m->gsignal).
+    MOVQ    m_gsignal(BX), SI
+    CMPQ    g(CX), SI
+    JNE    3(PC)
+    CALL    runtime·badmorestackgsignal(SB)
+    INT    $3
+
+    // Called from f.
+    // Set m->morebuf to f's caller.
+    MOVQ    8(SP), AX    // f's caller's PC
+    MOVQ    AX, (m_morebuf+gobuf_pc)(BX)
+    LEAQ    16(SP), AX    // f's caller's SP
+    MOVQ    AX, (m_morebuf+gobuf_sp)(BX)
+    get_tls(CX)
+    MOVQ    g(CX), SI
+    MOVQ    SI, (m_morebuf+gobuf_g)(BX)
+
+    // Set g->sched to context in f.
+    MOVQ    0(SP), AX // f's PC
+    MOVQ    AX, (g_sched+gobuf_pc)(SI)
+    MOVQ    SI, (g_sched+gobuf_g)(SI)
+    LEAQ    8(SP), AX // f's SP
+    MOVQ    AX, (g_sched+gobuf_sp)(SI)
+    MOVQ    BP, (g_sched+gobuf_bp)(SI)
+    MOVQ    DX, (g_sched+gobuf_ctxt)(SI)
+
+    // Call newstack on m->g0's stack.
+    MOVQ    m_g0(BX), BX
+    MOVQ    BX, g(CX)
+    MOVQ    (g_sched+gobuf_sp)(BX), SP
+    CALL    runtime·newstack(SB)
+    MOVQ    $0, 0x1003    // crash if newstack returns
+    RET
+
+```
+
+newstack:
+
+```go
+// Called from runtime·morestack when more stack is needed.
+// Allocate larger stack and relocate to new stack.
+// Stack growth is multiplicative, for constant amortized cost.
+//
+// g->atomicstatus will be Grunning or Gscanrunning upon entry.
+// If the GC is trying to stop this g then it will set preemptscan to true.
+//
+// This must be nowritebarrierrec because it can be called as part of
+// stack growth from other nowritebarrierrec functions, but the
+// compiler doesn't check this.
+//
+//go:nowritebarrierrec
+func newstack() {
+    thisg := getg()
+    // TODO: double check all gp. shouldn't be getg().
+    if thisg.m.morebuf.g.ptr().stackguard0 == stackFork {
+        throw("stack growth after fork")
+    }
+    if thisg.m.morebuf.g.ptr() != thisg.m.curg {
+        print("runtime: newstack called from g=", hex(thisg.m.morebuf.g), "\n"+"\tm=", thisg.m, " m->curg=", thisg.m.curg, " m->g0=", thisg.m.g0, " m->gsignal=", thisg.m.gsignal, "\n")
+        morebuf := thisg.m.morebuf
+        traceback(morebuf.pc, morebuf.sp, morebuf.lr, morebuf.g.ptr())
+        throw("runtime: wrong goroutine in newstack")
+    }
+
+    gp := thisg.m.curg
+
+    if thisg.m.curg.throwsplit {
+        // Update syscallsp, syscallpc in case traceback uses them.
+        morebuf := thisg.m.morebuf
+        gp.syscallsp = morebuf.sp
+        gp.syscallpc = morebuf.pc
+        pcname, pcoff := "(unknown)", uintptr(0)
+        f := findfunc(gp.sched.pc)
+        if f.valid() {
+            pcname = funcname(f)
+            pcoff = gp.sched.pc - f.entry
+        }
+        print("runtime: newstack at ", pcname, "+", hex(pcoff),
+            " sp=", hex(gp.sched.sp), " stack=[", hex(gp.stack.lo), ", ", hex(gp.stack.hi), "]\n",
+            "\tmorebuf={pc:", hex(morebuf.pc), " sp:", hex(morebuf.sp), " lr:", hex(morebuf.lr), "}\n",
+            "\tsched={pc:", hex(gp.sched.pc), " sp:", hex(gp.sched.sp), " lr:", hex(gp.sched.lr), " ctxt:", gp.sched.ctxt, "}\n")
+
+        thisg.m.traceback = 2 // Include runtime frames
+        traceback(morebuf.pc, morebuf.sp, morebuf.lr, gp)
+        throw("runtime: stack split at bad time")
+    }
+
+    morebuf := thisg.m.morebuf
+    thisg.m.morebuf.pc = 0
+    thisg.m.morebuf.lr = 0
+    thisg.m.morebuf.sp = 0
+    thisg.m.morebuf.g = 0
+
+    // NOTE: stackguard0 may change underfoot, if another thread
+    // is about to try to preempt gp. Read it just once and use that same
+    // value now and below.
+    preempt := atomic.Loaduintptr(&gp.stackguard0) == stackPreempt
+
+    // Be conservative about where we preempt.
+    // We are interested in preempting user Go code, not runtime code.
+    // If we're holding locks, mallocing, or preemption is disabled, don't
+    // preempt.
+    // This check is very early in newstack so that even the status change
+    // from Grunning to Gwaiting and back doesn't happen in this case.
+    // That status change by itself can be viewed as a small preemption,
+    // because the GC might change Gwaiting to Gscanwaiting, and then
+    // this goroutine has to wait for the GC to finish before continuing.
+    // If the GC is in some way dependent on this goroutine (for example,
+    // it needs a lock held by the goroutine), that small preemption turns
+    // into a real deadlock.
+    if preempt {
+        if thisg.m.locks != 0 || thisg.m.mallocing != 0 || thisg.m.preemptoff != "" || thisg.m.p.ptr().status != _Prunning {
+            // Let the goroutine keep running for now.
+            // gp->preempt is set, so it will be preempted next time.
+            gp.stackguard0 = gp.stack.lo + _StackGuard
+            gogo(&gp.sched) // never return
+        }
+    }
+
+    if gp.stack.lo == 0 {
+        throw("missing stack in newstack")
+    }
+    sp := gp.sched.sp
+    if sys.ArchFamily == sys.AMD64 || sys.ArchFamily == sys.I386 {
+        // The call to morestack cost a word.
+        sp -= sys.PtrSize
+    }
+    if stackDebug >= 1 || sp < gp.stack.lo {
+        print("runtime: newstack sp=", hex(sp), " stack=[", hex(gp.stack.lo), ", ", hex(gp.stack.hi), "]\n",
+            "\tmorebuf={pc:", hex(morebuf.pc), " sp:", hex(morebuf.sp), " lr:", hex(morebuf.lr), "}\n",
+            "\tsched={pc:", hex(gp.sched.pc), " sp:", hex(gp.sched.sp), " lr:", hex(gp.sched.lr), " ctxt:", gp.sched.ctxt, "}\n")
+    }
+    if sp < gp.stack.lo {
+        print("runtime: gp=", gp, ", gp->status=", hex(readgstatus(gp)), "\n ")
+        print("runtime: split stack overflow: ", hex(sp), " < ", hex(gp.stack.lo), "\n")
+        throw("runtime: split stack overflow")
+    }
+
+    if preempt {
+        if gp == thisg.m.g0 {
+            throw("runtime: preempt g0")
+        }
+        if thisg.m.p == 0 && thisg.m.locks == 0 {
+            throw("runtime: g is running but p is not")
+        }
+        // Synchronize with scang.
+        casgstatus(gp, _Grunning, _Gwaiting)
+        if gp.preemptscan {
+            for !castogscanstatus(gp, _Gwaiting, _Gscanwaiting) {
+                // Likely to be racing with the GC as
+                // it sees a _Gwaiting and does the
+                // stack scan. If so, gcworkdone will
+                // be set and gcphasework will simply
+                // return.
+            }
+            if !gp.gcscandone {
+                // gcw is safe because we're on the
+                // system stack.
+                gcw := &gp.m.p.ptr().gcw
+                scanstack(gp, gcw)
+                if gcBlackenPromptly {
+                    gcw.dispose()
+                }
+                gp.gcscandone = true
+            }
+            gp.preemptscan = false
+            gp.preempt = false
+            casfrom_Gscanstatus(gp, _Gscanwaiting, _Gwaiting)
+            // This clears gcscanvalid.
+            casgstatus(gp, _Gwaiting, _Grunning)
+            gp.stackguard0 = gp.stack.lo + _StackGuard
+            gogo(&gp.sched) // never return
+        }
+
+        // Act like goroutine called runtime.Gosched.
+        casgstatus(gp, _Gwaiting, _Grunning)
+        gopreempt_m(gp) // never return
+    }
+
+    // Allocate a bigger segment and move the stack.
+    oldsize := gp.stack.hi - gp.stack.lo
+    newsize := oldsize * 2
+    if newsize > maxstacksize {
+        print("runtime: goroutine stack exceeds ", maxstacksize, "-byte limit\n")
+        throw("stack overflow")
+    }
+
+    // The goroutine must be executing in order to call newstack,
+    // so it must be Grunning (or Gscanrunning).
+    casgstatus(gp, _Grunning, _Gcopystack)
+
+    // The concurrent GC will not scan the stack while we are doing the copy since
+    // the gp is in a Gcopystack status.
+    copystack(gp, newsize, true)
+    if stackDebug >= 1 {
+        print("stack grow done\n")
+    }
+    casgstatus(gp, _Gcopystack, _Grunning)
+    gogo(&gp.sched)
+}
+```
