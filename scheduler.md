@@ -2320,15 +2320,16 @@ graph LR
 
 unlock --> |in case cleared in newstack|restorePreempt
 ready --> |in case cleared in newstack|restorePreempt
-scang --> setPreempt
 startTheWorldWithSema --> |in case cleared in newstack|restorePreempt
 allocm --> |in case cleared in newstack|restorePreempt
-reentersyscall --> setPreempt
-entersyscallblock --> setPreempt
 exitsyscall --> |in case cleared in newstack|restorePreempt
 newproc1--> |in case cleared in newstack|restorePreempt
+releasem -->  |in case cleared in newstack|restorePreempt
+
+scang --> setPreempt
+reentersyscall --> setPreempt
+entersyscallblock --> setPreempt
 preemptone--> setPreempt
-releasem --> setPreempt
 
 enlistWorker --> preemptone
 retake --> preemptone
@@ -2339,3 +2340,7 @@ forEachP --> preemptall
 startpanic_m --> freezetheworld
 gcMarkDone --> forEachP
 ```
+
+可见只有 gc 和 retake 才会去真正地抢占 g，并没有其它的入口，其它的地方就只是恢复一下可能在 newstack 中被清除掉的抢占标记。
+
+当然，这里 entersyscall 和 entersyscallblock 比较特殊，虽然这俩函数的实现中有设置抢占标记，但实际上这两段逻辑是不会被走到的。因为 syscall 执行时是在 m 的 g0 栈上，如果在执行时被抢占，那么会直接 throw，而无法恢复。
