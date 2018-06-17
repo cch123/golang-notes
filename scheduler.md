@@ -2161,3 +2161,11 @@ morestack_noctxt --> morestack
 morestack --> newstack
 newstack --> preempt
 ```
+
+抢占都是在 newstack 中完成，但抢占标记是在 Go 源代码中的其它位置来进行标记的:
+
+我们来看看 stackPreempt 是在哪些位置赋值给 stackguard0 的:
+
+```mermaid
+graph TD
+```
