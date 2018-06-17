@@ -2304,8 +2304,8 @@ func newstack() {
 ```mermaid
 graph TD
 start[entering func] --> cmp[sp < stackguard0]
-cmp --> |yes|morestack_noctxt
-cmp --> |no|end[execute func]
+cmp --> |yes| morestack_noctxt
+cmp --> |no|final[execute func]
 morestack_noctxt --> morestack
 morestack --> newstack
 newstack --> preempt
@@ -2316,7 +2316,7 @@ newstack --> preempt
 我们来看看 stackPreempt 是在哪些位置赋值给 stackguard0 的:
 
 ```mermaid
-graph TD
+graph LR
 
 unlock --> |in case cleared in newstack|restorePreempt
 ready --> |in case cleared in newstack|restorePreempt
@@ -2329,4 +2329,13 @@ exitsyscall --> |in case cleared in newstack|restorePreempt
 newproc1--> |in case cleared in newstack|restorePreempt
 preemptone--> setPreempt
 releasem --> setPreempt
+
+enlistWorker --> preemptone
+retake --> preemptone
+preemptall --> preemptone
+freezetheworld --> preemptall
+stopTheWorldWithSema --> preemptall
+forEachP --> preemptall
+startpanic_m --> freezetheworld
+gcMarkDone --> forEachP
 ```
