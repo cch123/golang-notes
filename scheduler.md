@@ -1517,9 +1517,100 @@ func startm(_p_ *p, spinning bool) {
 }
 ```
 
-#### notesleep/notewakeup/noteclear
+#### goroutine 挂起
 
-TODO
+```go
+// Puts the current goroutine into a waiting state and calls unlockf.
+// If unlockf returns false, the goroutine is resumed.
+// unlockf must not access this G's stack, as it may be moved between
+// the call to gopark and the call to unlockf.
+func gopark(unlockf func(*g, unsafe.Pointer) bool, lock unsafe.Pointer, reason string, traceEv byte, traceskip int) {
+    mp := acquirem()
+    gp := mp.curg
+    status := readgstatus(gp)
+    if status != _Grunning && status != _Gscanrunning {
+        throw("gopark: bad g status")
+    }
+    mp.waitlock = lock
+    mp.waitunlockf = *(*unsafe.Pointer)(unsafe.Pointer(&unlockf))
+    gp.waitreason = reason
+    mp.waittraceev = traceEv
+    mp.waittraceskip = traceskip
+    releasem(mp)
+    // can't do anything that might move the G between Ms here.
+    mcall(park_m)
+}
+
+func goready(gp *g, traceskip int) {
+    systemstack(func() {
+        ready(gp, traceskip, true)
+    })
+}
+
+// Mark gp ready to run.
+func ready(gp *g, traceskip int, next bool) {
+    if trace.enabled {
+        traceGoUnpark(gp, traceskip)
+    }
+
+    status := readgstatus(gp)
+
+    // Mark runnable.
+    _g_ := getg()
+    _g_.m.locks++ // disable preemption because it can be holding p in a local var
+    if status&^_Gscan != _Gwaiting {
+        dumpgstatus(gp)
+        throw("bad g->status in ready")
+    }
+
+    // status is Gwaiting or Gscanwaiting, make Grunnable and put on runq
+    casgstatus(gp, _Gwaiting, _Grunnable)
+    runqput(_g_.m.p.ptr(), gp, next)
+    if atomic.Load(&sched.npidle) != 0 && atomic.Load(&sched.nmspinning) == 0 {
+        wakep()
+    }
+    _g_.m.locks--
+    if _g_.m.locks == 0 && _g_.preempt { // restore the preemption request in Case we've cleared it in newstack
+        _g_.stackguard0 = stackPreempt
+    }
+}
+```
+
+```go
+func notesleep(n *note) {
+    gp := getg()
+    if gp != gp.m.g0 {
+        throw("notesleep not on g0")
+    }
+    ns := int64(-1)
+    if *cgo_yield != nil {
+        // Sleep for an arbitrary-but-moderate interval to poll libc interceptors.
+        ns = 10e6
+    }
+    for atomic.Load(key32(&n.key)) == 0 {
+        gp.m.blocked = true
+        futexsleep(key32(&n.key), 0, ns)
+        if *cgo_yield != nil {
+            asmcgocall(*cgo_yield, nil)
+        }
+        gp.m.blocked = false
+    }
+}
+
+// One-time notifications.
+func noteclear(n *note) {
+    n.key = 0
+}
+
+func notewakeup(n *note) {
+    old := atomic.Xchg(key32(&n.key), 1)
+    if old != 0 {
+        print("notewakeup - double wakeup (", old, ")\n")
+        throw("notewakeup - double wakeup")
+    }
+    futexwakeup(key32(&n.key), 1)
+}
+```
 
 #### findrunnable
 
@@ -1794,7 +1885,65 @@ entersyscallblock_handoff --> handoffp
 retake --> |p status == syscall| handoffp
 ```
 
-TODO 代码说明
+最终会把 p 放回全局的 pidle 队列中:
+
+```go
+// Hands off P from syscall or locked M.
+// Always runs without a P, so write barriers are not allowed.
+//go:nowritebarrierrec
+func handoffp(_p_ *p) {
+	// handoffp must start an M in any situation where
+	// findrunnable would return a G to run on _p_.
+
+	// if it has local work, start it straight away
+	if !runqempty(_p_) || sched.runqsize != 0 {
+		startm(_p_, false)
+		return
+	}
+	// if it has GC work, start it straight away
+	if gcBlackenEnabled != 0 && gcMarkWorkAvailable(_p_) {
+		startm(_p_, false)
+		return
+	}
+	// no local work, check that there are no spinning/idle M's,
+	// otherwise our help is not required
+	if atomic.Load(&sched.nmspinning)+atomic.Load(&sched.npidle) == 0 && atomic.Cas(&sched.nmspinning, 0, 1) { // TODO: fast atomic
+		startm(_p_, true)
+		return
+	}
+	lock(&sched.lock)
+	if sched.gcwaiting != 0 {
+		_p_.status = _Pgcstop
+		sched.stopwait--
+		if sched.stopwait == 0 {
+			notewakeup(&sched.stopnote)
+		}
+		unlock(&sched.lock)
+		return
+	}
+	if _p_.runSafePointFn != 0 && atomic.Cas(&_p_.runSafePointFn, 1, 0) {
+		sched.safePointFn(_p_)
+		sched.safePointWait--
+		if sched.safePointWait == 0 {
+			notewakeup(&sched.safePointNote)
+		}
+	}
+	if sched.runqsize != 0 {
+		unlock(&sched.lock)
+		startm(_p_, false)
+		return
+	}
+	// If this is the last running P and nobody is polling network,
+	// need to wakeup another M to poll network.
+	if sched.npidle == uint32(gomaxprocs-1) && atomic.Load64(&sched.lastpoll) != 0 {
+		unlock(&sched.lock)
+		startm(_p_, false)
+		return
+	}
+	pidleput(_p_)
+	unlock(&sched.lock)
+}
+```
 
 ## g 的状态迁移
 
@@ -2168,4 +2317,16 @@ newstack --> preempt
 
 ```mermaid
 graph TD
+
+unlock --> |in case cleared in newstack|restorePreempt
+ready --> |in case cleared in newstack|restorePreempt
+scang --> setPreempt
+startTheWorldWithSema --> |in case cleared in newstack|restorePreempt
+allocm --> |in case cleared in newstack|restorePreempt
+reentersyscall --> setPreempt
+entersyscallblock --> setPreempt
+exitsyscall --> |in case cleared in newstack|restorePreempt
+newproc1--> |in case cleared in newstack|restorePreempt
+preemptone--> setPreempt
+releasem --> setPreempt
 ```
