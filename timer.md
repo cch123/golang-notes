@@ -102,7 +102,7 @@ var timers [timersLen]struct {
 }
 ```
 
-在 Go 的早期实现中是全局一个 timer 的，但操作全局的 timer 堆要加锁，所有多核心会暴露出因为争锁而性能低下的问题。从某个版本(嗯，我也不知道哪个，大概是 1.10)起，Go 的 timers 修改成了这种多个时间堆的实现方式，目前在 runtime 里写死为 64:
+在 Go 的早期实现中是全局一个 timer 的，但操作全局的 timer 堆要加锁，所以多核心会暴露出因为争锁而性能低下的问题。从某个版本(嗯，我也不知道哪个，大概是 1.10)起，Go 的 timers 修改成了这种多个时间堆的实现方式，目前在 runtime 里写死为 64:
 
 ```go
 const timersLen = 64
@@ -138,6 +138,66 @@ type timersBucket struct {
 嗯，了解一下就行了，在用户代码中基本不会用得到。
 
 ### 时间堆插入
+
+```go
+// 分配 timerBucket
+// 加锁，添加 timer 进时间堆
+func addtimer(t *timer) {
+    tb := t.assignBucket()
+    lock(&tb.lock)
+    tb.addtimerLocked(t)
+    unlock(&tb.lock)
+}
+
+// 太简单了，就是用 g.m.p 的 id 模 64
+// 然后分配对应的 timerBucket
+func (t *timer) assignBucket() *timersBucket {
+    id := uint8(getg().m.p.ptr().id) % timersLen
+    t.tb = &timers[id].timersBucket
+    return t.tb
+}
+
+// 向时间堆中添加一个 timer，如果时间堆第一次被初始化或者当前的 timer 比之前所有的 timers 都要早，那么就启动(首次初始化)或唤醒(最早的 timer) timerproc
+// 函数内假设外部已经对 timers 数组加锁了
+func (tb *timersBucket) addtimerLocked(t *timer) {
+    // when 必须大于 0，否则会在计算 delta 的时候溢出并导致其它的 runtime timer 永远没法过期
+    if t.when < 0 {
+        t.when = 1<<63 - 1
+    }
+    t.i = len(tb.t)
+    tb.t = append(tb.t, t)
+    siftupTimer(tb.t, t.i)
+    if t.i == 0 {
+        // 新插入的 timer 比之前所有的都要早
+        // 向上调整堆
+        if tb.sleeping {
+            // 修改 timerBucket 的 sleep 状态
+            tb.sleeping = false
+            // 唤醒 timerproc
+            // 使 timerproc 中的 for 循环不再阻塞在 notesleepg 上
+            notewakeup(&tb.waitnote)
+        }
+        // 在一个 P 上的所有 timers 都在
+        // timerproc 中被弹出之后
+        // 该 rescheduling 会被标记为 true
+        // 并且启动 timerproc 的 goroutine 会被 goparkunlock
+        if tb.rescheduling {
+            // 该标记会在这里和 timejumpLocked 中被设置为 false
+            tb.rescheduling = false
+            goready(tb.gp, 0)
+        }
+    }
+    // 如果 timerBucket 是第一次创建，需要启动一个 goroutine
+    // 来循环弹出时间堆，内部会根据需要最早触发的 timer
+    // 进行相应时间的 sleep
+    if !tb.created {
+        tb.created = true
+        go timerproc(tb)
+    }
+}
+```
+
+插入 timer 到堆中的时候的逻辑是先追加到数组末尾(append)，然后向上 adjust(sift) heap 以重新恢复四叉小顶堆性质。
 
 ### 时间堆删除
 
@@ -176,46 +236,10 @@ func startTimer(t *timer) {
     addtimer(t)
 }
 
-func addtimer(t *timer) {
-    tb := t.assignBucket()
-    lock(&tb.lock)
-    tb.addtimerLocked(t)
-    unlock(&tb.lock)
-}
-
 func (t *timer) assignBucket() *timersBucket {
     id := uint8(getg().m.p.ptr().id) % timersLen
     t.tb = &timers[id].timersBucket
     return t.tb
-}
-
-// Add a timer to the heap and start or kick timerproc if the new timer is
-// earlier than any of the others.
-// Timers are locked.
-func (tb *timersBucket) addtimerLocked(t *timer) {
-    // when must never be negative; otherwise timerproc will overflow
-    // during its delta calculation and never expire other runtime timers.
-    if t.when < 0 {
-        t.when = 1<<63 - 1
-    }
-    t.i = len(tb.t)
-    tb.t = append(tb.t, t)
-    siftupTimer(tb.t, t.i)
-    if t.i == 0 {
-        // siftup moved to top: new earliest deadline.
-        if tb.sleeping {
-            tb.sleeping = false
-            notewakeup(&tb.waitnote)
-        }
-        if tb.rescheduling {
-            tb.rescheduling = false
-            goready(tb.gp, 0)
-        }
-    }
-    if !tb.created {
-        tb.created = true
-        go timerproc(tb)
-    }
 }
 
 // Timerproc runs the time-driven events.
@@ -281,3 +305,6 @@ func timerproc(tb *timersBucket) {
     }
 }
 ```
+
+
+TODO timejump
