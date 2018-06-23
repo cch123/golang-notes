@@ -284,35 +284,48 @@ func deltimer(t *timer) bool {
 }
 ```
 
-### timerProc
+### timer 触发
 
 ```go
-// Timerproc runs the time-driven events.
-// It sleeps until the next event in the tb heap.
-// If addtimer inserts a new earlier event, it wakes timerproc early.
+// timerproc 负责处理时间驱动的事件
+// 在堆中的下一个事件需要触发之前，会一直保持 sleep 状态
+// 如果 addtimer 插入了一个更早的事件，会提前唤醒 timerproc
 func timerproc(tb *timersBucket) {
     tb.gp = getg()
     for {
+        // timerBucket 的局部大锁
         lock(&tb.lock)
+        // 被唤醒，所以修改 sleeping 状态为 false
         tb.sleeping = false
+        // 计时
         now := nanotime()
         delta := int64(-1)
+        // 在处理完到期的 timer 之前，一直循环
         for {
+            // 如果 timer 已经都弹出了
+            // 那么不用循环了，跳出后接着睡觉
             if len(tb.t) == 0 {
                 delta = -1
                 break
             }
+            // 取小顶堆顶部元素
+            // 即最近会被触发的 timer
             t := tb.t[0]
-            delta = t.when - now
+            delta = t.when - now // 还差多长时间才需要触发最近的 timer
             if delta > 0 {
+                // 大于 0 说明这个 timer 还没到需要触发的时间
+                // 跳出循环去睡觉
                 break
             }
             if t.period > 0 {
-                // leave in heap but adjust next time to fire
+                // 这个 timer 还会留在堆里
+                // 不过要调整它的下次触发时间
                 t.when += t.period * (1 + -delta/t.period)
                 siftdownTimer(tb.t, 0)
             } else {
-                // remove from heap
+                // 从堆中移除这个 timer
+                // 用最后一个 timer 覆盖第 0 个 timer
+                // 然后向下调整堆
                 last := len(tb.t) - 1
                 if last > 0 {
                     tb.t[0] = tb.t[last]
@@ -323,29 +336,36 @@ func timerproc(tb *timersBucket) {
                 if last > 0 {
                     siftdownTimer(tb.t, 0)
                 }
-                t.i = -1 // mark as removed
+                t.i = -1 // 标记 timer 在堆中的位置已经没有了
             }
+            // timer 触发时需要调用的函数
             f := t.f
             arg := t.arg
             seq := t.seq
             unlock(&tb.lock)
-            if raceenabled {
-                raceacquire(unsafe.Pointer(t))
-            }
+            // 调用需触发的函数
             f(arg, seq)
+            // 把锁加回来，如果下次 break 了内层的 for 循环
+            // 能保证 timeBucket 是被锁住的
+            // 然后在下面的 goparkunlock 中被解锁
             lock(&tb.lock)
         }
         if delta < 0 || faketime > 0 {
-            // No timers left - put goroutine to sleep.
+            // 说明时间堆里已经没有 timer 了
+            // 让 goroutine 挂起，去睡觉
             tb.rescheduling = true
             goparkunlock(&tb.lock, "timer goroutine (idle)", traceEvGoBlock, 1)
             continue
         }
-        // At least one timer pending. Sleep until then.
+        // 说明堆里至少还有一个以上的 timer
+        // 睡到最近的 timer 时间
         tb.sleeping = true
         tb.sleepUntil = now + delta
         noteclear(&tb.waitnote)
         unlock(&tb.lock)
+        // 内部是 futex sleep
+        // 时间睡到了会自动醒
+        // 或者 addtimer 的时候，发现新的 timer 更早，会提前唤醒
         notetsleepg(&tb.waitnote, delta)
     }
 }
