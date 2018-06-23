@@ -687,10 +687,95 @@ func startTimer(*runtimeTimer)
 
 ```go
 // startTimer adds t to the timer heap.
+// 把 t 添加到 timer 堆
 //go:linkname startTimer time.startTimer
 func startTimer(t *timer) {
     addtimer(t)
 }
 ```
 
-#### timer.Ticker 流程
+addtimer 后面的流程之前已经看过了。
+
+#### timer.Tick 流程
+
+```go
+func Tick(d Duration) <-chan Time {
+    if d <= 0 {
+        return nil
+    }
+    return NewTicker(d).C
+}
+```
+
+```go
+// NewTicker 会返回一个 Ticker 对象，其 channel 每隔 period 时间
+// 会收到一个时间值
+// 如果 receiver 接收慢了，Ticker 会把不需要的 tick drop 掉
+// d 必须比 0 大，否则 panic
+// Stop ticker 才能释放相关的资源
+func NewTicker(d Duration) *Ticker {
+    if d <= 0 {
+        panic(errors.New("non-positive interval for NewTicker"))
+    }
+    c := make(chan Time, 1)
+    t := &Ticker{
+        C: c,
+        r: runtimeTimer{
+            when:   when(d),
+            period: int64(d),
+            f:      sendTime,
+            arg:    c,
+        },
+    }
+    startTimer(&t.r)
+    return t
+}
+```
+
+可以看到， Ticker 和 Timer 的 r 成员就只差在 period 这一个字段上，每隔一个 period 就往 channel 里发数据的就是 Ticker，而 fire and disappear 的就是 Timer。
+
+#### Stop 流程
+
+```go
+func (t *Ticker) Stop() {
+    stopTimer(&t.r)
+}
+
+func (t *Timer) Stop() bool {
+    if t.r.f == nil {
+        panic("time: Stop called on uninitialized Timer")
+    }
+    return stopTimer(&t.r)
+}
+```
+
+Timer 和 Ticker 都是调用的 stopTimer。
+
+```go
+func stopTimer(t *timer) bool {
+    return deltimer(t)
+}
+```
+
+deltimer 在上面也看到过了。
+
+#### Reset 流程
+
+```go
+func (t *Timer) Reset(d Duration) bool {
+    if t.r.f == nil {
+        panic("time: Reset called on uninitialized Timer")
+    }
+    w := when(d)
+    active := stopTimer(&t.r)
+    t.r.when = w
+    startTimer(&t.r)
+    return active
+}
+```
+
+都是见过的函数，没啥特别的。
+
+## 最后
+
+本篇内容主要是讲 Go 的定时器实现，工业界的定时器实现并不只有一种。如果你还想知道其它系统，比如 nginx 里是怎么实现定时器的，可以参考[这一篇](https://www.jianshu.com/p/427dfe8ad3c0)。

@@ -9,7 +9,7 @@
 3. [ ] Interface
 4. [ ] Select
 5. [ ] Slice
-6. [ ] Timer
+6. [x] Timer
 7. [ ] Defer
 8. [ ] Lock
 9. [ ] Netpoll
