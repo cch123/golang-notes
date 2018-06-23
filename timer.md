@@ -371,6 +371,75 @@ func timerproc(tb *timersBucket) {
 }
 ```
 
+### 时间堆调整
+
+之前的代码也看到了，时间堆调整有向上调整和向下调整两种调整方式。
+
+#### 向上调整
+
+```go
+func siftupTimer(t []*timer, i int) {
+    when := t[i].when
+    tmp := t[i]
+    for i > 0 {
+        p := (i - 1) / 4 // parent
+        if when >= t[p].when {
+            break
+        }
+        t[i] = t[p]
+        t[i].i = i
+        i = p
+    }
+    if tmp != t[i] {
+        t[i] = tmp
+        t[i].i = i
+    }
+}
+```
+
+#### 向下调整
+
+```go
+func siftdownTimer(t []*timer, i int) {
+    n := len(t)
+    when := t[i].when
+    tmp := t[i]
+    for {
+        c := i*4 + 1 // left child
+        c3 := c + 2  // mid child
+        if c >= n {
+            break
+        }
+        w := t[c].when
+        if c+1 < n && t[c+1].when < w {
+            w = t[c+1].when
+            c++
+        }
+        if c3 < n {
+            w3 := t[c3].when
+            if c3+1 < n && t[c3+1].when < w3 {
+                w3 = t[c3+1].when
+                c3++
+            }
+            if w3 < w {
+                w = w3
+                c = c3
+            }
+        }
+        if w >= when {
+            break
+        }
+        t[i] = t[c]
+        t[i].i = i
+        i = c
+    }
+    if tmp != t[i] {
+        t[i] = tmp
+        t[i].i = i
+    }
+}
+```
+
 ### time.After
 
 ```go
