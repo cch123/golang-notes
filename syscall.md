@@ -44,3 +44,35 @@ ok7:
     MOVQ    $0, err+8(FP)
     RET
 ```
+
+### asm files
+
+```shell
+/go/src/cmd/vendor/golang.org/x/sys/unix/README.md
+```
+
+The hand-written assembly file at `asm_${GOOS}_${GOARCH}.s` implements system
+call dispatch. There are three entry points:
+
+```go
+  func Syscall(trap, a1, a2, a3 uintptr) (r1, r2, err uintptr)
+  func Syscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr)
+  func RawSyscall(trap, a1, a2, a3 uintptr) (r1, r2, err uintptr)
+```
+
+The first and second are the standard ones; they differ only in how many
+arguments can be passed to the kernel. The third is for low-level use by the
+ForkExec wrapper. Unlike the first two, it does not call into the scheduler to
+let it know that a system call is running.
+
+When porting Go to an new architecture/OS, this file must be implemented for
+each GOOS/GOARCH pair.
+
+```
+
+//sys	PivotRoot(newroot string, putold string) (err error) = SYS_PIVOT_ROOT
+//sysnb prlimit(pid int, resource int, newlimit *Rlimit, old *Rlimit) (err error) = SYS_PRLIMIT64
+//sys	read(fd int, p []byte) (n int, err error)
+```
+
+sysnb 会用 RawSyscall， sys 用 Syscall
