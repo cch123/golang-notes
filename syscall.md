@@ -226,7 +226,10 @@ func Rename(oldpath string, newpath string) (err error) {
 
 ## runtime 中的 SYSCALL
 
-虽然 runtime 中有 entersyscall，在你调用 syscall 库时，会使你的 goroutine 和 p 都进入 syscall 状态。但 runtime 自己本身又封装了一些不暴露给用户的 syscall。虽然 Go 的注释中说这些是 runtime 自己用的 low-level 的 syscall，不过本质是一样的。这些代码在 `runtime/sys_linux_amd64.s` 中，举个具体的例子:
+除了上面提到的阻塞非阻塞和 wrapped syscall，runtime 中还定义了一些 low-level 的 syscall，这些是不暴露给用户的。
+
+提供给用户的 syscall 库，在使用时，会使 goroutine 和 p 分别进入 Gsyscall 和 Psyscall 状态。但 runtime 自己封装的这些 syscall 无论是否阻塞，都不会调用 entersyscall 和 exitsyscall。 虽说是 “low-level” 的 syscall，
+不过和暴露给用户的 syscall 本质是一样的。这些代码在 `runtime/sys_linux_amd64.s` 中，举个具体的例子:
 
 ```go
 TEXT runtime·write(SB),NOSPLIT,$0-28
@@ -294,6 +297,6 @@ TEXT runtime·read(SB),NOSPLIT,$0-28
 #define SYS_epoll_create1	291
 ```
 
-这些 syscall 都没有对 runtime 进行通知，所以应该理论上都是不会在执行期间被调度器剥离掉 p 的。
+这些 syscall 理论上都是不会在执行期间被调度器剥离掉 p 的，所以执行成功之后 goroutine 会继续执行，而不像用户的 goroutine 一样，若被剥离 p 会进入等待队列。
 
 ## 和调度的交互
