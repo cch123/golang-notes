@@ -220,3 +220,5 @@ func Rename(oldpath string, newpath string) (err error) {
 ```
 
 可能是觉得系统调用的名字不太好，或者参数太多，我们就简单包装一下。没啥特别的。
+
+## 和调度的交互

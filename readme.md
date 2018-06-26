@@ -20,4 +20,5 @@
 14. [ ] GC
 15. [x] Assembly
 16. [ ] Map
+17. [x] Syscall
 
