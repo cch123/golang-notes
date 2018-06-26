@@ -119,13 +119,13 @@ x, ok := <-ch
 不进行初始化，即不调用 make 来赋值的 channel 称为 nil channel：
 
 ```go
-var a = chan int
+var a chan int
 ```
 
 关闭一个 nil channel 会直接 panic
 
 ```go
-var a = chan int
+var a chan int
 close(a) // panic: close of nil channel
 ```
 
