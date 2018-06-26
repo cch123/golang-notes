@@ -150,7 +150,72 @@ ok7:
     RET
 ```
 
-### asm files
+## 系统调用管理
+
+先是系统调用的定义文件:
+
+```shell
+/syscall/syscall_linux.go
+```
+
+可以把系统调用分为三类:
+
+1. 阻塞系统调用
+2. 非阻塞系统调用
+3. wrapped 系统调用
+
+阻塞系统调用会定义成下面这样的形式:
+
+```go
+//sys   Madvise(b []byte, advice int) (err error)
+```
+
+非阻塞系统调用:
+
+```go
+//sysnb    EpollCreate(size int) (fd int, err error)
+```
+
+然后，根据这些注释，mksyscall.pl 脚本会生成对应的平台的具体实现。mksyscall.pl 是一段 perl 脚本，感兴趣的同学可以自行查看，这里就不再赘述了。
+
+看看阻塞和非阻塞的系统调用的生成结果:
+
+```go
+func Madvise(b []byte, advice int) (err error) {
+    var _p0 unsafe.Pointer
+    if len(b) > 0 {
+        _p0 = unsafe.Pointer(&b[0])
+    } else {
+        _p0 = unsafe.Pointer(&_zero)
+    }
+    _, _, e1 := Syscall(SYS_MADVISE, uintptr(_p0), uintptr(len(b)), uintptr(advice))
+    if e1 != 0 {
+        err = errnoErr(e1)
+    }
+    return
+}
+
+func EpollCreate(size int) (fd int, err error) {
+    r0, _, e1 := RawSyscall(SYS_EPOLL_CREATE, uintptr(size), 0, 0)
+    fd = int(r0)
+    if e1 != 0 {
+        err = errnoErr(e1)
+    }
+    return
+}
+```
+
+显然，标记为 sys 的系统调用使用的是 Syscall 或者 Syscall6，标记为 sysnb 的系统调用使用的是 RawSyscall 或 RawSyscall6。
+
+wrapped 的系统调用是怎么一回事呢？
+
+```go
+func Rename(oldpath string, newpath string) (err error) {
+    return Renameat(_AT_FDCWD, oldpath, _AT_FDCWD, newpath)
+}
+```
+
+可能是觉得系统调用的名字不太好，或者参数太多，我们就简单包装一下。没啥特别的。
 
 ```shell
 /go/src/cmd/vendor/golang.org/x/sys/unix/README.md
