@@ -1,5 +1,9 @@
 # 系统调用
 
+## 概念
+
+TODO
+
 ## 入口
 
 syscall 有下面几个入口，在 `syscall/asm_linux_amd64.s` 中。
@@ -216,33 +220,3 @@ func Rename(oldpath string, newpath string) (err error) {
 ```
 
 可能是觉得系统调用的名字不太好，或者参数太多，我们就简单包装一下。没啥特别的。
-
-```shell
-/go/src/cmd/vendor/golang.org/x/sys/unix/README.md
-```
-
-The hand-written assembly file at `asm_${GOOS}_${GOARCH}.s` implements system
-call dispatch. There are three entry points:
-
-```go
-  func Syscall(trap, a1, a2, a3 uintptr) (r1, r2, err uintptr)
-  func Syscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr)
-  func RawSyscall(trap, a1, a2, a3 uintptr) (r1, r2, err uintptr)
-```
-
-The first and second are the standard ones; they differ only in how many
-arguments can be passed to the kernel. The third is for low-level use by the
-ForkExec wrapper. Unlike the first two, it does not call into the scheduler to
-let it know that a system call is running.
-
-When porting Go to an new architecture/OS, this file must be implemented for
-each GOOS/GOARCH pair.
-
-```
-
-//sys    PivotRoot(newroot string, putold string) (err error) = SYS_PIVOT_ROOT
-//sysnb prlimit(pid int, resource int, newlimit *Rlimit, old *Rlimit) (err error) = SYS_PRLIMIT64
-//sys    read(fd int, p []byte) (n int, err error)
-```
-
-sysnb 会用 RawSyscall， sys 用 Syscall
