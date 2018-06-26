@@ -10,8 +10,11 @@ syscall 有下面几个入口，在 `syscall/asm_linux_amd64.s` 中。
 
 ```go
 func Syscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err syscall.Errno)
+
 func Syscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err syscall.Errno)
+
 func RawSyscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err syscall.Errno)
+
 func RawSyscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err syscall.Errno)
 ```
 
@@ -220,5 +223,77 @@ func Rename(oldpath string, newpath string) (err error) {
 ```
 
 可能是觉得系统调用的名字不太好，或者参数太多，我们就简单包装一下。没啥特别的。
+
+## runtime 中的 SYSCALL
+
+虽然 runtime 中有 entersyscall，在你调用 syscall 库时，会使你的 goroutine 和 p 都进入 syscall 状态。但 runtime 自己本身又封装了一些不暴露给用户的 syscall。虽然 Go 的注释中说这些是 runtime 自己用的 low-level 的 syscall，不过本质是一样的。这些代码在 `runtime/sys_linux_amd64.s` 中，举个具体的例子:
+
+```go
+TEXT runtime·write(SB),NOSPLIT,$0-28
+    MOVQ    fd+0(FP), DI
+    MOVQ    p+8(FP), SI
+    MOVL    n+16(FP), DX
+    MOVL    $SYS_write, AX
+    SYSCALL
+    CMPQ    AX, $0xfffffffffffff001
+    JLS    2(PC)
+    MOVL    $-1, AX
+    MOVL    AX, ret+24(FP)
+    RET
+
+TEXT runtime·read(SB),NOSPLIT,$0-28
+    MOVL    fd+0(FP), DI
+    MOVQ    p+8(FP), SI
+    MOVL    n+16(FP), DX
+    MOVL    $SYS_read, AX
+    SYSCALL
+    CMPQ    AX, $0xfffffffffffff001
+    JLS    2(PC)
+    MOVL    $-1, AX
+    MOVL    AX, ret+24(FP)
+    RET
+```
+
+下面是所有 runtime 另外定义的 syscall 列表:
+
+```go
+#define SYS_read		0
+#define SYS_write		1
+#define SYS_open		2
+#define SYS_close		3
+#define SYS_mmap		9
+#define SYS_munmap		11
+#define SYS_brk 		12
+#define SYS_rt_sigaction	13
+#define SYS_rt_sigprocmask	14
+#define SYS_rt_sigreturn	15
+#define SYS_access		21
+#define SYS_sched_yield 	24
+#define SYS_mincore		27
+#define SYS_madvise		28
+#define SYS_setittimer		38
+#define SYS_getpid		39
+#define SYS_socket		41
+#define SYS_connect		42
+#define SYS_clone		56
+#define SYS_exit		60
+#define SYS_kill		62
+#define SYS_fcntl		72
+#define SYS_getrlimit		97
+#define SYS_sigaltstack 	131
+#define SYS_arch_prctl		158
+#define SYS_gettid		186
+#define SYS_tkill		200
+#define SYS_futex		202
+#define SYS_sched_getaffinity	204
+#define SYS_epoll_create	213
+#define SYS_exit_group		231
+#define SYS_epoll_wait		232
+#define SYS_epoll_ctl		233
+#define SYS_pselect6		270
+#define SYS_epoll_create1	291
+```
+
+这些 syscall 都没有对 runtime 进行通知，所以应该理论上都是不会在执行期间被调度器剥离掉 p 的。
 
 ## 和调度的交互
