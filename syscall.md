@@ -181,7 +181,7 @@ RawSyscall 和 Syscall 的区别也非常微小，就只是在进入 Syscall 和
 
 RawSyscall 只是为了在执行那些一定不会阻塞的系统调用时，能节省两次对 runtime 的函数调用消耗。
 
-vdso:
+## vdso
 
 ```go
 // func gettimeofday(tv *Timeval) (err uintptr)
@@ -677,3 +677,5 @@ func entersyscall_gcwait() {
 1. http://blog.studygolang.com/2016/06/go-syscall-intro/
 
 2. the linux programming interface
+
+3. https://mzh.io/golang-arm64-vdso
