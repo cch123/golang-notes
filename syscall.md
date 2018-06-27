@@ -370,13 +370,11 @@ func reentersyscall(pc, sp uintptr) {
 ### exitsyscall
 
 ```go
-// The goroutine g exited its system call.
-// Arrange for it to run on a cpu again.
-// This is called only from the go syscall library, not
-// from the low-level system calls used by the runtime.
-//
-// Write barriers are not allowed because our P may have been stolen.
-//
+// g 已经退出了 syscall
+// 需要准备让 g 在 cpu 上重新运行
+// 这个函数只会在 syscall 库中被调用，在 runtime 里用的 low-level syscall
+// 不会用到
+// 不能有 write barrier，因为 P 可能已经被偷走了
 //go:nosplit
 //go:nowritebarrierrec
 func exitsyscall(dummy int32) {
@@ -400,11 +398,6 @@ func exitsyscall(dummy int32) {
                 throw("lost mcache")
             })
         }
-        if trace.enabled {
-            if oldp != _g_.m.p.ptr() || _g_.m.syscalltick != _g_.m.p.ptr().syscalltick {
-                systemstack(traceGoStart)
-            }
-        }
         // There's a cpu for us, so we can run.
         _g_.m.p.ptr().syscalltick++
         // We need to cas the status and scan before resuming...
@@ -426,19 +419,6 @@ func exitsyscall(dummy int32) {
     }
 
     _g_.sysexitticks = 0
-    if trace.enabled {
-        // Wait till traceGoSysBlock event is emitted.
-        // This ensures consistency of the trace (the goroutine is started after it is blocked).
-        for oldp != nil && oldp.syscalltick == _g_.m.syscalltick {
-            osyield()
-        }
-        // We can't trace syscall exit right now because we don't have a P.
-        // Tracing code can invoke write barriers that cannot run without a P.
-        // So instead we remember the syscall exit time and emit the event
-        // in execute when we have a P.
-        _g_.sysexitticks = cputicks()
-    }
-
     _g_.m.locks--
 
     // Call the scheduler.
@@ -459,6 +439,89 @@ func exitsyscall(dummy int32) {
     _g_.syscallsp = 0
     _g_.m.p.ptr().syscalltick++
     _g_.throwsplit = false
+}
+```
+
+这里还调用了 exitsyscallfast 和 exitsyscall0。
+
+#### exitsyscallfast
+
+```go
+//go:nosplit
+func exitsyscallfast() bool {
+    _g_ := getg()
+
+    // Freezetheworld sets stopwait but does not retake P's.
+    if sched.stopwait == freezeStopWait {
+        _g_.m.mcache = nil
+        _g_.m.p = 0
+        return false
+    }
+
+    // Try to re-acquire the last P.
+    if _g_.m.p != 0 && _g_.m.p.ptr().status == _Psyscall && atomic.Cas(&_g_.m.p.ptr().status, _Psyscall, _Prunning) {
+        // There's a cpu for us, so we can run.
+        exitsyscallfast_reacquired()
+        return true
+    }
+
+    // Try to get any other idle P.
+    oldp := _g_.m.p.ptr()
+    _g_.m.mcache = nil
+    _g_.m.p = 0
+    if sched.pidle != 0 {
+        var ok bool
+        systemstack(func() {
+            ok = exitsyscallfast_pidle()
+        })
+        if ok {
+            return true
+        }
+    }
+    return false
+}
+```
+
+总之就是努力获取一个 P 来执行 syscall 之后的逻辑。如果哪都没有 P 可以给我们用，那就进入 exitsyscall0 了。
+
+```go
+mcall(exitsyscall0)
+```
+
+调用 exitsyscall0 时，会切换到 g0 栈。
+
+#### exitsyscall0
+
+```go
+// exitsyscall slow path on g0.
+// Failed to acquire P, enqueue gp as runnable.
+//
+//go:nowritebarrierrec
+func exitsyscall0(gp *g) {
+    _g_ := getg()
+
+    casgstatus(gp, _Gsyscall, _Grunnable)
+    dropg()
+    lock(&sched.lock)
+    _p_ := pidleget()
+    if _p_ == nil {
+        globrunqput(gp)
+    } else if atomic.Load(&sched.sysmonwait) != 0 {
+        atomic.Store(&sched.sysmonwait, 0)
+        notewakeup(&sched.sysmonnote)
+    }
+    unlock(&sched.lock)
+    if _p_ != nil {
+        acquirep(_p_)
+        execute(gp, false) // Never returns.
+    }
+    if _g_.m.lockedg != 0 {
+        // Wait until another thread schedules gp and so m again.
+        stoplockedm()
+        execute(gp, false) // Never returns.
+    }
+    stopm()
+    schedule() // Never returns.
 }
 ```
 
