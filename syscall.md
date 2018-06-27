@@ -442,20 +442,20 @@ func exitsyscall(dummy int32) {
                 throw("lost mcache")
             })
         }
-        // There's a cpu for us, so we can run.
+        // 目前有 p，可以运行
         _g_.m.p.ptr().syscalltick++
-        // We need to cas the status and scan before resuming...
+        // 把 g 的状态修改回 running
         casgstatus(_g_, _Gsyscall, _Grunning)
 
-        // Garbage collector isn't running (since we are),
-        // so okay to clear syscallsp.
+        // 垃圾收集未在运行(因为我们这段逻辑在执行)
+        // 所以清理掉 syscallsp 是安全的
         _g_.syscallsp = 0
         _g_.m.locks--
         if _g_.preempt {
-            // restore the preemption request in case we've cleared it in newstack
+            // 防止在 newstack 中清理掉 preemption 标记
             _g_.stackguard0 = stackPreempt
         } else {
-            // otherwise restore the real _StackGuard, we've spoiled it in entersyscall/entersyscallblock
+            // 否则恢复在 entersyscall/entersyscallblock 中破坏掉的正常的 _StackGuard
             _g_.stackguard0 = _g_.stack.lo + _StackGuard
         }
         _g_.throwsplit = false
@@ -465,7 +465,7 @@ func exitsyscall(dummy int32) {
     _g_.sysexitticks = 0
     _g_.m.locks--
 
-    // Call the scheduler.
+    // 调用 scheduler
     mcall(exitsyscall0)
 
     if _g_.m.mcache == nil {
@@ -474,12 +474,9 @@ func exitsyscall(dummy int32) {
         })
     }
 
-    // Scheduler returned, so we're allowed to run now.
-    // Delete the syscallsp information that we left for
-    // the garbage collector during the system call.
-    // Must wait until now because until gosched returns
-    // we don't know for sure that the garbage collector
-    // is not running.
+    // 调度器返回了，所以我们可以清理掉在 syscall 期间为垃圾收集器
+    // 准备的 syscallsp 信息了
+    // 需要一直等待到 gosched 返回，我们不确定垃圾收集器是不是在运行
     _g_.syscallsp = 0
     _g_.m.p.ptr().syscalltick++
     _g_.throwsplit = false
@@ -537,9 +534,8 @@ mcall(exitsyscall0)
 #### exitsyscall0
 
 ```go
-// exitsyscall slow path on g0.
-// Failed to acquire P, enqueue gp as runnable.
-//
+// 在 exitsyscallfast 中吃瘪了，没办法，慢慢来
+// 把 g 的状态设置成 runnable，先进 runq 等着
 //go:nowritebarrierrec
 func exitsyscall0(gp *g) {
     _g_ := getg()
@@ -549,6 +545,7 @@ func exitsyscall0(gp *g) {
     lock(&sched.lock)
     _p_ := pidleget()
     if _p_ == nil {
+        // 如果 P 被人偷跑了
         globrunqput(gp)
     } else if atomic.Load(&sched.sysmonwait) != 0 {
         atomic.Store(&sched.sysmonwait, 0)
@@ -556,11 +553,12 @@ func exitsyscall0(gp *g) {
     }
     unlock(&sched.lock)
     if _p_ != nil {
+        // 如果现在还有 p，那就用这个 p 执行
         acquirep(_p_)
         execute(gp, false) // Never returns.
     }
     if _g_.m.lockedg != 0 {
-        // Wait until another thread schedules gp and so m again.
+        // 设置了 LockOsThread 的 g 的特殊逻辑
         stoplockedm()
         execute(gp, false) // Never returns.
     }
@@ -572,7 +570,7 @@ func exitsyscall0(gp *g) {
 ### entersyscallblock
 
 ```go
-// The same as entersyscall(), but with a hint that the syscall is blocking.
+// 和 entersyscall 一样，就是会直接把 P 给交出去，因为知道自己是会阻塞的
 //go:nosplit
 func entersyscallblock(dummy int32) {
     _g_ := getg()
@@ -623,6 +621,8 @@ func entersyscallblock_handoff() {
     handoffp(releasep())
 }
 ```
+
+比较简单。。
 
 ### entersyscall_sysmon
 
