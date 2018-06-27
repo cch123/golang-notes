@@ -610,3 +610,11 @@ func entersyscall_gcwait() {
     unlock(&sched.lock)
 }
 ```
+
+## 总结
+
+提供给用户使用的系统调用，基本都会通知 runtime，以 entersyscall，exitsyscall 的形式来告诉 runtime，在这个 syscall 阻塞的时候，是不是可以把 P 腾出来给其它的 M 用。
+
+同时 runtime 又保留了自己的特权，在执行自己的逻辑的时候，我的 P 不会被调走，这样保证了在 Go 自己“底层”使用的这些 syscall 返回之后都能被立刻处理。
+
+所以同样是 epollcreate，runtime 用的是不能被别人打断的，你用的 syscall.EpollCreate 那显然是没有这种特权的。
