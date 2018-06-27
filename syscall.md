@@ -569,6 +569,8 @@ func exitsyscall0(gp *g) {
 
 ### entersyscallblock
 
+知道自己会 block，直接就把 p 交出来了。
+
 ```go
 // 和 entersyscall 一样，就是会直接把 P 给交出去，因为知道自己是会阻塞的
 //go:nosplit
@@ -605,6 +607,7 @@ func entersyscallblock(dummy int32) {
         })
     }
 
+    // 直接调用 entersyscallblock_handoff 把 p 交出来了
     systemstack(entersyscallblock_handoff)
 
     // Resave for traceback during blocked call.
