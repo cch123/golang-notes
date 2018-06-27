@@ -33,12 +33,12 @@
 │        System call                                 Trap handler                      │        │                  
        service routine                                                           │     │        │                  
 │    ┌──────────────────┐                       ┌───────────────────────┐              │        │                  
-     │sys_faccessat()   │                       │system call:   ◀───────┼────────┼─────┘        │                  
-│    │{                 │                       │                       │                       │                  
-     │                  │                       │                       │        │              │                  
-│    │                  │                       │   ...                 │                       │                  
-     │                  │                       │                       │        │              │                  
-│    │  ...             │                       │   call sys_call_table │                  switch to user mode     
+     │sys_faccessat() ◀─┼───────────┐           │system call:   ◀───────┼────────┼─────┘        │                  
+│    │{                 │           │           │                       │                       │                  
+     │                  │           │           │                       │        │              │                  
+│    │                  │           │           │   ...                 │                       │                  
+     │                  │           │           │                       │        │              │                  
+│    │  ...             │           └───────────┼───call sys_call_table │                  switch to user mode     
      │                  │                       │                       │        │              │                  
 │    │                  │           ┌───────────┼─▶ ...                 │                       │                  
      │  return error; ──┼───────────┘           │                       │        │              │                  
