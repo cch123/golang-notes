@@ -617,6 +617,24 @@ func entersyscallblock(dummy int32) {
 }
 ```
 
+这个函数只有一个调用方:
+
+```go
+// same as runtime·notetsleep, but called on user g (not g0)
+// calls only nosplit functions between entersyscallblock/exitsyscall
+func notetsleepg(n *note, ns int64) bool {
+    gp := getg()
+    if gp == gp.m.g0 {
+        throw("notetsleepg on g0")
+    }
+    semacreate(gp.m)
+    entersyscallblock(0)
+    ok := notetsleep_internal(n, ns, nil, 0)
+    exitsyscall(0)
+    return ok
+}
+```
+
 ### entersyscallblock_handoff
 
 ```go
