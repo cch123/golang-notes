@@ -260,43 +260,290 @@ TEXT runtime·read(SB),NOSPLIT,$0-28
 下面是所有 runtime 另外定义的 syscall 列表:
 
 ```go
-#define SYS_read		0
-#define SYS_write		1
-#define SYS_open		2
-#define SYS_close		3
-#define SYS_mmap		9
-#define SYS_munmap		11
-#define SYS_brk 		12
-#define SYS_rt_sigaction	13
-#define SYS_rt_sigprocmask	14
-#define SYS_rt_sigreturn	15
-#define SYS_access		21
-#define SYS_sched_yield 	24
-#define SYS_mincore		27
-#define SYS_madvise		28
-#define SYS_setittimer		38
-#define SYS_getpid		39
-#define SYS_socket		41
-#define SYS_connect		42
-#define SYS_clone		56
-#define SYS_exit		60
-#define SYS_kill		62
-#define SYS_fcntl		72
-#define SYS_getrlimit		97
-#define SYS_sigaltstack 	131
-#define SYS_arch_prctl		158
-#define SYS_gettid		186
-#define SYS_tkill		200
-#define SYS_futex		202
-#define SYS_sched_getaffinity	204
-#define SYS_epoll_create	213
-#define SYS_exit_group		231
-#define SYS_epoll_wait		232
-#define SYS_epoll_ctl		233
-#define SYS_pselect6		270
-#define SYS_epoll_create1	291
+#define SYS_read        0
+#define SYS_write        1
+#define SYS_open        2
+#define SYS_close        3
+#define SYS_mmap        9
+#define SYS_munmap        11
+#define SYS_brk         12
+#define SYS_rt_sigaction    13
+#define SYS_rt_sigprocmask    14
+#define SYS_rt_sigreturn    15
+#define SYS_access        21
+#define SYS_sched_yield     24
+#define SYS_mincore        27
+#define SYS_madvise        28
+#define SYS_setittimer        38
+#define SYS_getpid        39
+#define SYS_socket        41
+#define SYS_connect        42
+#define SYS_clone        56
+#define SYS_exit        60
+#define SYS_kill        62
+#define SYS_fcntl        72
+#define SYS_getrlimit        97
+#define SYS_sigaltstack     131
+#define SYS_arch_prctl        158
+#define SYS_gettid        186
+#define SYS_tkill        200
+#define SYS_futex        202
+#define SYS_sched_getaffinity    204
+#define SYS_epoll_create    213
+#define SYS_exit_group        231
+#define SYS_epoll_wait        232
+#define SYS_epoll_ctl        233
+#define SYS_pselect6        270
+#define SYS_epoll_create1    291
 ```
 
 这些 syscall 理论上都是不会在执行期间被调度器剥离掉 p 的，所以执行成功之后 goroutine 会继续执行，而不像用户的 goroutine 一样，若被剥离 p 会进入等待队列。
 
 ## 和调度的交互
+
+### entersyscall
+
+```go
+// syscall 库和 cgo 调用的标准入口
+//go:nosplit
+func entersyscall() {
+    reentersyscall(getcallerpc(), getcallersp())
+}
+
+//go:nosplit
+func reentersyscall(pc, sp uintptr) {
+    _g_ := getg()
+
+    // 需要禁止 g 的抢占
+    _g_.m.locks++
+
+    // entersyscall 中不能调用任何会导致栈增长/分裂的函数
+    _g_.stackguard0 = stackPreempt
+    // 设置 throwsplit，在 newstack 中，如果发现 throwsplit 是 true
+    // 会直接 crash
+    // 下面的代码是 newstack 里的
+    // if thisg.m.curg.throwsplit {
+    //     throw("runtime: stack split at bad time")
+    // }
+    _g_.throwsplit = true
+
+    // Leave SP around for GC and traceback.
+    // 保存现场，在 syscall 之后会依据这些数据恢复现场
+    save(pc, sp)
+    _g_.syscallsp = sp
+    _g_.syscallpc = pc
+    casgstatus(_g_, _Grunning, _Gsyscall)
+    if _g_.syscallsp < _g_.stack.lo || _g_.stack.hi < _g_.syscallsp {
+        systemstack(func() {
+            print("entersyscall inconsistent ", hex(_g_.syscallsp), " [", hex(_g_.stack.lo), ",", hex(_g_.stack.hi), "]\n")
+            throw("entersyscall")
+        })
+    }
+
+    if atomic.Load(&sched.sysmonwait) != 0 {
+        systemstack(entersyscall_sysmon)
+        save(pc, sp)
+    }
+
+    if _g_.m.p.ptr().runSafePointFn != 0 {
+        // runSafePointFn may stack split if run on this stack
+        systemstack(runSafePointFn)
+        save(pc, sp)
+    }
+
+    _g_.m.syscalltick = _g_.m.p.ptr().syscalltick
+    _g_.sysblocktraced = true
+    _g_.m.mcache = nil
+    _g_.m.p.ptr().m = 0
+    atomic.Store(&_g_.m.p.ptr().status, _Psyscall)
+    if sched.gcwaiting != 0 {
+        systemstack(entersyscall_gcwait)
+        save(pc, sp)
+    }
+
+    _g_.m.locks--
+}
+```
+
+可以看到，进入 syscall 的 G 是铁定不会被抢占的。
+
+### exitsyscall
+
+```go
+// The goroutine g exited its system call.
+// Arrange for it to run on a cpu again.
+// This is called only from the go syscall library, not
+// from the low-level system calls used by the runtime.
+//
+// Write barriers are not allowed because our P may have been stolen.
+//
+//go:nosplit
+//go:nowritebarrierrec
+func exitsyscall(dummy int32) {
+    _g_ := getg()
+
+    _g_.m.locks++ // see comment in entersyscall
+    if getcallersp(unsafe.Pointer(&dummy)) > _g_.syscallsp {
+        // throw calls print which may try to grow the stack,
+        // but throwsplit == true so the stack can not be grown;
+        // use systemstack to avoid that possible problem.
+        systemstack(func() {
+            throw("exitsyscall: syscall frame is no longer valid")
+        })
+    }
+
+    _g_.waitsince = 0
+    oldp := _g_.m.p.ptr()
+    if exitsyscallfast() {
+        if _g_.m.mcache == nil {
+            systemstack(func() {
+                throw("lost mcache")
+            })
+        }
+        if trace.enabled {
+            if oldp != _g_.m.p.ptr() || _g_.m.syscalltick != _g_.m.p.ptr().syscalltick {
+                systemstack(traceGoStart)
+            }
+        }
+        // There's a cpu for us, so we can run.
+        _g_.m.p.ptr().syscalltick++
+        // We need to cas the status and scan before resuming...
+        casgstatus(_g_, _Gsyscall, _Grunning)
+
+        // Garbage collector isn't running (since we are),
+        // so okay to clear syscallsp.
+        _g_.syscallsp = 0
+        _g_.m.locks--
+        if _g_.preempt {
+            // restore the preemption request in case we've cleared it in newstack
+            _g_.stackguard0 = stackPreempt
+        } else {
+            // otherwise restore the real _StackGuard, we've spoiled it in entersyscall/entersyscallblock
+            _g_.stackguard0 = _g_.stack.lo + _StackGuard
+        }
+        _g_.throwsplit = false
+        return
+    }
+
+    _g_.sysexitticks = 0
+    if trace.enabled {
+        // Wait till traceGoSysBlock event is emitted.
+        // This ensures consistency of the trace (the goroutine is started after it is blocked).
+        for oldp != nil && oldp.syscalltick == _g_.m.syscalltick {
+            osyield()
+        }
+        // We can't trace syscall exit right now because we don't have a P.
+        // Tracing code can invoke write barriers that cannot run without a P.
+        // So instead we remember the syscall exit time and emit the event
+        // in execute when we have a P.
+        _g_.sysexitticks = cputicks()
+    }
+
+    _g_.m.locks--
+
+    // Call the scheduler.
+    mcall(exitsyscall0)
+
+    if _g_.m.mcache == nil {
+        systemstack(func() {
+            throw("lost mcache")
+        })
+    }
+
+    // Scheduler returned, so we're allowed to run now.
+    // Delete the syscallsp information that we left for
+    // the garbage collector during the system call.
+    // Must wait until now because until gosched returns
+    // we don't know for sure that the garbage collector
+    // is not running.
+    _g_.syscallsp = 0
+    _g_.m.p.ptr().syscalltick++
+    _g_.throwsplit = false
+}
+```
+
+### entersyscallblock
+
+```go
+// The same as entersyscall(), but with a hint that the syscall is blocking.
+//go:nosplit
+func entersyscallblock(dummy int32) {
+    _g_ := getg()
+
+    _g_.m.locks++ // see comment in entersyscall
+    _g_.throwsplit = true
+    _g_.stackguard0 = stackPreempt // see comment in entersyscall
+    _g_.m.syscalltick = _g_.m.p.ptr().syscalltick
+    _g_.sysblocktraced = true
+    _g_.m.p.ptr().syscalltick++
+
+    // Leave SP around for GC and traceback.
+    pc := getcallerpc()
+    sp := getcallersp(unsafe.Pointer(&dummy))
+    save(pc, sp)
+    _g_.syscallsp = _g_.sched.sp
+    _g_.syscallpc = _g_.sched.pc
+    if _g_.syscallsp < _g_.stack.lo || _g_.stack.hi < _g_.syscallsp {
+        sp1 := sp
+        sp2 := _g_.sched.sp
+        sp3 := _g_.syscallsp
+        systemstack(func() {
+            print("entersyscallblock inconsistent ", hex(sp1), " ", hex(sp2), " ", hex(sp3), " [", hex(_g_.stack.lo), ",", hex(_g_.stack.hi), "]\n")
+            throw("entersyscallblock")
+        })
+    }
+    casgstatus(_g_, _Grunning, _Gsyscall)
+    if _g_.syscallsp < _g_.stack.lo || _g_.stack.hi < _g_.syscallsp {
+        systemstack(func() {
+            print("entersyscallblock inconsistent ", hex(sp), " ", hex(_g_.sched.sp), " ", hex(_g_.syscallsp), " [", hex(_g_.stack.lo), ",", hex(_g_.stack.hi), "]\n")
+            throw("entersyscallblock")
+        })
+    }
+
+    systemstack(entersyscallblock_handoff)
+
+    // Resave for traceback during blocked call.
+    save(getcallerpc(), getcallersp(unsafe.Pointer(&dummy)))
+
+    _g_.m.locks--
+}
+```
+
+### entersyscallblock_handoff
+
+```go
+func entersyscallblock_handoff() {
+    handoffp(releasep())
+}
+```
+
+### entersyscall_sysmon
+
+```go
+func entersyscall_sysmon() {
+    lock(&sched.lock)
+    if atomic.Load(&sched.sysmonwait) != 0 {
+        atomic.Store(&sched.sysmonwait, 0)
+        notewakeup(&sched.sysmonnote)
+    }
+    unlock(&sched.lock)
+}
+```
+
+### entersyscall_gcwait
+
+```go
+func entersyscall_gcwait() {
+    _g_ := getg()
+    _p_ := _g_.m.p.ptr()
+
+    lock(&sched.lock)
+    if sched.stopwait > 0 && atomic.Cas(&_p_.status, _Psyscall, _Pgcstop) {
+        _p_.syscalltick++
+        if sched.stopwait--; sched.stopwait == 0 {
+            notewakeup(&sched.stopnote)
+        }
+    }
+    unlock(&sched.lock)
+}
+```
