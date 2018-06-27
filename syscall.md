@@ -345,6 +345,10 @@ TEXT runtime·read(SB),NOSPLIT,$0-28
 
 ## 和调度的交互
 
+既然要和调度交互，那友好地通知我要 syscall 了: entersyscall，我完事了: exitsyscall。
+
+所以这里的交互指的是用户代码使用 syscall 库时和调度器的交互。**runtime 里的 syscall 不走这套流程**。
+
 ### entersyscall
 
 ```go
