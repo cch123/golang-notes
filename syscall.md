@@ -183,6 +183,10 @@ RawSyscall 只是为了在执行那些一定不会阻塞的系统调用时，能
 
 ## vdso
 
+vdso 可以认为是一种特殊的调用，在使用时，没有本文开头的用户态到内核态的切换，引用一段参考资料:
+
+> 用来执行特定的系统调用，减少系统调用的开销。某些系统调用并不会向内核提交参数，而仅仅只是从内核里请求读取某个数据，例如gettimeofday()，内核在处理这部分系统调用时可以把系统当前时间写在一个固定的位置(由内核在每个时间中断里去完成这个更新动作)，mmap映射到用户空间。这样会更快速，避免了传统系统调用模式INT 0x80/SYSCALL造成的内核空间和用户空间的上下文切换。
+
 ```go
 // func gettimeofday(tv *Timeval) (err uintptr)
 TEXT ·gettimeofday(SB),NOSPLIT,$0-16
@@ -679,3 +683,5 @@ func entersyscall_gcwait() {
 2. the linux programming interface
 
 3. https://mzh.io/golang-arm64-vdso
+
+4. https://blog.csdn.net/luozhaotian/article/details/79609077
