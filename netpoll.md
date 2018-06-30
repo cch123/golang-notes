@@ -1,5 +1,50 @@
 # netpoll
 
+```go
+    // Placeholders for socket system calls.
+    socketFunc        func(int, int, int) (int, error)  = syscall.Socket
+    connectFunc       func(int, syscall.Sockaddr) error = syscall.Connect
+    listenFunc        func(int, int) error              = syscall.Listen
+    getsockoptIntFunc func(int, int, int) (int, error)  = syscall.GetsockoptInt
+```
+
+```go
+// Network file descriptor.
+type netFD struct {
+    pfd poll.FD
+
+    // immutable until Close
+    family      int
+    sotype      int
+    isConnected bool
+    net         string
+    laddr       Addr
+    raddr       Addr
+}
+```
+
+```go
+func newFD(sysfd, family, sotype int, net string) (*netFD, error) {
+    ret := &netFD{
+        pfd: poll.FD{
+            Sysfd:         sysfd,
+            IsStream:      sotype == syscall.SOCK_STREAM,
+            ZeroReadIsEOF: sotype != syscall.SOCK_DGRAM && sotype != syscall.SOCK_RAW,
+        },
+        family: family,
+        sotype: sotype,
+        net:    net,
+    }
+    return ret, nil
+}
+```
+
+```go
+func (fd *netFD) init() error {
+    return fd.pfd.Init(fd.net, true)
+}
+```
+
 ```mermaid
 graph LR
 
