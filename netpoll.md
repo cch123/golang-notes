@@ -1,0 +1,135 @@
+# netpoll
+
+```mermaid
+graph LR
+
+ListenTCP --> listenTCP
+listenTCP --> internetSocket
+internetSocket --> socket
+socket --> listenStream
+```
+
+```go
+func ListenTCP(network string, laddr *TCPAddr) (*TCPListener, error) {
+    switch network {
+    case "tcp", "tcp4", "tcp6":
+    default:
+        return nil, &OpError{Op: "listen", Net: network, Source: nil, Addr: laddr.opAddr(), Err: UnknownNetworkError(network)}
+    }
+    if laddr == nil {
+        laddr = &TCPAddr{}
+    }
+    ln, err := listenTCP(context.Background(), network, laddr)
+    if err != nil {
+        return nil, &OpError{Op: "listen", Net: network, Source: nil, Addr: laddr.opAddr(), Err: err}
+    }
+    return ln, nil
+}
+```
+
+```go
+func listenTCP(ctx context.Context, network string, laddr *TCPAddr) (*TCPListener, error) {
+    fd, err := internetSocket(ctx, network, laddr, nil, syscall.SOCK_STREAM, 0, "listen")
+    if err != nil {
+        return nil, err
+    }
+    return &TCPListener{fd}, nil
+}
+```
+
+```go
+func internetSocket(ctx context.Context, net string, laddr, raddr sockaddr, sotype, proto int, mode string) (fd *netFD, err error) {
+    if (runtime.GOOS == "windows" || runtime.GOOS == "openbsd" || runtime.GOOS == "nacl") && mode == "dial" && raddr.isWildcard() {
+        raddr = raddr.toLocal(net)
+    }
+    family, ipv6only := favoriteAddrFamily(net, laddr, raddr, mode)
+    return socket(ctx, net, family, sotype, proto, ipv6only, laddr, raddr)
+}
+```
+
+```go
+// socket returns a network file descriptor that is ready for
+// asynchronous I/O using the network poller.
+func socket(ctx context.Context, net string, family, sotype, proto int, ipv6only bool, laddr, raddr sockaddr) (fd *netFD, err error) {
+    s, err := sysSocket(family, sotype, proto)
+    if err != nil {
+        return nil, err
+    }
+    if err = setDefaultSockopts(s, family, sotype, ipv6only); err != nil {
+        poll.CloseFunc(s)
+        return nil, err
+    }
+    if fd, err = newFD(s, family, sotype, net); err != nil {
+        poll.CloseFunc(s)
+        return nil, err
+    }
+
+    // This function makes a network file descriptor for the
+    // following applications:
+    //
+    // - An endpoint holder that opens a passive stream
+    //   connection, known as a stream listener
+    //
+    // - An endpoint holder that opens a destination-unspecific
+    //   datagram connection, known as a datagram listener
+    //
+    // - An endpoint holder that opens an active stream or a
+    //   destination-specific datagram connection, known as a
+    //   dialer
+    //
+    // - An endpoint holder that opens the other connection, such
+    //   as talking to the protocol stack inside the kernel
+    //
+    // For stream and datagram listeners, they will only require
+    // named sockets, so we can assume that it's just a request
+    // from stream or datagram listeners when laddr is not nil but
+    // raddr is nil. Otherwise we assume it's just for dialers or
+    // the other connection holders.
+
+    if laddr != nil && raddr == nil {
+        switch sotype {
+        case syscall.SOCK_STREAM, syscall.SOCK_SEQPACKET:
+            if err := fd.listenStream(laddr, listenerBacklog); err != nil {
+                fd.Close()
+                return nil, err
+            }
+            return fd, nil
+        case syscall.SOCK_DGRAM:
+            if err := fd.listenDatagram(laddr); err != nil {
+                fd.Close()
+                return nil, err
+            }
+            return fd, nil
+        }
+    }
+    if err := fd.dial(ctx, laddr, raddr); err != nil {
+        fd.Close()
+        return nil, err
+    }
+    return fd, nil
+}
+```
+
+```go
+func (fd *netFD) listenStream(laddr sockaddr, backlog int) error {
+    if err := setDefaultListenerSockopts(fd.pfd.Sysfd); err != nil {
+        return err
+    }
+    if lsa, err := laddr.sockaddr(fd.family); err != nil {
+        return err
+    } else if lsa != nil {
+        if err := syscall.Bind(fd.pfd.Sysfd, lsa); err != nil {
+            return os.NewSyscallError("bind", err)
+        }
+    }
+    if err := listenFunc(fd.pfd.Sysfd, backlog); err != nil {
+        return os.NewSyscallError("listen", err)
+    }
+    if err := fd.init(); err != nil {
+        return err
+    }
+    lsa, _ := syscall.Getsockname(fd.pfd.Sysfd)
+    fd.setAddr(fd.addrFunc()(lsa), nil)
+    return nil
+}
+```
