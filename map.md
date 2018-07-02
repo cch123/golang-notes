@@ -136,15 +136,7 @@ func makemap(t *maptype, hint int, h *hmap) *hmap {
 
 ```go
 func mapaccess2(t *maptype, h *hmap, key unsafe.Pointer) (unsafe.Pointer, bool) {
-    if raceenabled && h != nil {
-        callerpc := getcallerpc()
-        pc := funcPC(mapaccess2)
-        racereadpc(unsafe.Pointer(h), callerpc, pc)
-        raceReadObjectPC(t.key, key, callerpc, pc)
-    }
-    if msanenabled && h != nil {
-        msanread(key, t.key.size)
-    }
+    // map 为空，或者元素数为 0，直接返回未找到
     if h == nil || h.count == 0 {
         return unsafe.Pointer(&zeroVal[0]), false
     }
@@ -152,12 +144,20 @@ func mapaccess2(t *maptype, h *hmap, key unsafe.Pointer) (unsafe.Pointer, bool) 
         throw("concurrent map read and map write")
     }
     alg := t.key.alg
+    // 不同类型的 key，所用的 hash 算法是不一样的
+    // 具体可以参考 algarray
     hash := alg.hash(key, uintptr(h.hash0))
+    // 如果 B = 3，那么结果用二进制表示就是 111
+    // 如果 B = 4，那么结果用二进制表示就是 1111
     m := bucketMask(h.B)
+    // 按位 &，可以 select 出对应的 bucket
     b := (*bmap)(unsafe.Pointer(uintptr(h.buckets) + (hash&m)*uintptr(t.bucketsize)))
+    // 会用到 h.oldbuckets 时，说明 map 发生了扩容
+    // 这时候，新的 buckets 里可能还没有老的内容
+    // 所以一定要在老的里面找，否则有可能发生“消失”的诡异现象
     if c := h.oldbuckets; c != nil {
         if !h.sameSizeGrow() {
-            // There used to be half as many buckets; mask down one more power of two.
+            // 说明之前只有一半的 bucket，需要除 2
             m >>= 1
         }
         oldb := (*bmap)(unsafe.Pointer(uintptr(c) + (hash&m)*uintptr(t.bucketsize)))
@@ -165,9 +165,15 @@ func mapaccess2(t *maptype, h *hmap, key unsafe.Pointer) (unsafe.Pointer, bool) 
             b = oldb
         }
     }
+    // tophash 取其高 8bit 的值
     top := tophash(hash)
     for ; b != nil; b = b.overflow(t) {
+        // 一个 bucket 在存储满 8 个元素后，就再也放不下了
+        // 这时候会创建新的 bucket
+        // 挂在原来的 bucket 的 overflow 指针成员上
         for i := uintptr(0); i < bucketCnt; i++ {
+            // 循环对比 bucket 中的 tophash 数组
+            // 如果找到了相等的 tophash，那说明就是这个 bucket 了
             if b.tophash[i] != top {
                 continue
             }
@@ -184,6 +190,8 @@ func mapaccess2(t *maptype, h *hmap, key unsafe.Pointer) (unsafe.Pointer, bool) 
             }
         }
     }
+
+    // 所有 bucket 都没有找到，返回零值和 false
     return unsafe.Pointer(&zeroVal[0]), false
 }
 ```
