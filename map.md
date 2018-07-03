@@ -72,6 +72,8 @@
                                                                                                                 └───────────────────────────────┘                                                                                   
 ```
 
+## 初始化
+
 形如:
 
 ```go
@@ -131,6 +133,8 @@ func makemap(t *maptype, hint int, h *hmap) *hmap {
     return h
 }
 ```
+
+## 元素访问
 
 元素访问有 mapaccess1，mapaccess2，mapaccessK，但几个方法都差不多，只差别在返回内容上，我们来看看 mapaccess2:
 
@@ -203,6 +207,8 @@ v, ok := m[k]
 ```
 
 所使用的底层函数。
+
+## 赋值
 
 ```go
 // 和 mapaccess 函数差不多，但在没有找到 key 时，会为 key 分配一个新的槽位
@@ -351,3 +357,5 @@ done:
 ```
 
 赋值的最后一步实际上是编译器额外生成的汇编指令来完成的，可见靠 runtime 有些工作是没有做完的。这里和 go 在函数调用时插入 prologue 和 epilogue 是类似的。编译器和 runtime 配合，才能完成一些复杂的工作。
+
+## 扩容
