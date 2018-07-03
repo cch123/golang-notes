@@ -328,3 +328,26 @@ done:
     return val
 }
 ```
+
+这里有件比较奇怪的事情，mapassign 并没有把用户 `m[k] = v` 时的 v 写入到 map 的 value 区域，而是直接返回了这个值所应该在的内存地址。那么把 v 拷贝到该内存区域的操作是在哪里做的呢？
+
+```go
+    var a = make(map[int]int, 7)
+    for i := 0; i < 1000; i++ {
+        a[i] = 99999
+    }
+```
+
+看看生成的汇编部分:
+
+```go
+    0x003f 00063 (m.go:9)    MOVQ    DX, (SP) // 第一个参数
+    0x0043 00067 (m.go:9)    MOVQ    AX, 8(SP) // 第二个参数
+    0x0048 00072 (m.go:9)    MOVQ    CX, 16(SP) // 第三个参数
+    0x004d 00077 (m.go:9)    PCDATA    $0, $1 // GC 相关
+    0x004d 00077 (m.go:9)    CALL    runtime.mapassign_fast64(SB) // 调用函数
+    0x0052 00082 (m.go:9)    MOVQ    24(SP), AX // 返回值，即 value 应该存放的内存地址
+    0x0057 00087 (m.go:9)    MOVQ    $99999, (AX) // 把 99999 放入该地址中
+```
+
+赋值的最后一步实际上是编译器额外生成的汇编指令来完成的，可见靠 runtime 有些工作是没有做完的。这里和 go 在函数调用时插入 prologue 和 epilogue 是类似的。编译器和 runtime 配合，才能完成一些复杂的工作。
