@@ -364,6 +364,6 @@ done:
 
 ## 其它
 
-针对 32 位、64 位 和 string 类型的 map 元素的访问、赋值、删除、扩容，Go 内部有都有对应的优化函数，比如 mapaccess1 对应有 mapaccess1_fast64，mapaccess1_fast32，mapaccess1_faststr。mapassign 对应有 mapassign_fast64，mapassign_fast32 和 mapassign_faststr。
+针对 32 位、64 位 和 string 类型的 map 元素的访问、赋值、删除、扩容，Go 内部有都有对应的优化函数，比如 mapaccess1 对应有 mapaccess1_fast64，mapaccess1_fast32，mapaccess1_faststr。mapassign 对应有 mapassign_fast64，mapassign_fast32 和 mapassign_faststr。
 
-但这些优化函数长得都差不多，但不知为何官方没有用脚本来做这些优化函数的生成工作。可见有时候 Go team 的复制粘贴功力也是蛮强的。
+但这些优化函数长得都差不多，不知为何官方没有用脚本来做这些优化函数的生成工作。可见有时候 Go team 的复制粘贴功力也是蛮强的。
