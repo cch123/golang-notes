@@ -203,3 +203,128 @@ v, ok := m[k]
 ```
 
 所使用的底层函数。
+
+```go
+// 和 mapaccess 函数差不多，但在没有找到 key 时，会为 key 分配一个新的槽位
+func mapassign(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer {
+    if h == nil {
+        // nil map 不能进行赋值操作
+        panic(plainError("assignment to entry in nil map"))
+    }
+    if h.flags&hashWriting != 0 {
+        throw("concurrent map writes")
+    }
+
+    // 调用对应类型的 hash 算法
+    alg := t.key.alg
+    hash := alg.hash(key, uintptr(h.hash0))
+
+    // 调用 alg.hash 设置 hashWriting 的 flag，因为 alg.hash 可能会 panic
+    // 这时候我们没法完成一次写操作
+    h.flags |= hashWriting
+
+    if h.buckets == nil {
+        // 分配第一个 buckt
+        h.buckets = newobject(t.bucket) // newarray(t.bucket, 1)
+    }
+
+again:
+    // 计算低 8 位 hash，根据计算出的 bucketMask 选择对应的 bucket
+    // mask : 1111111
+    bucket := hash & bucketMask(h.B)
+    if h.growing() {
+        growWork(t, h, bucket)
+    }
+    // 计算出存储的 bucket 的内存位置
+    // pos = start + bucketNumber * bucetsize
+    // 这里的命名不太好，bucket 其实是 bucketNumber
+    b := (*bmap)(unsafe.Pointer(uintptr(h.buckets) + bucket*uintptr(t.bucketsize)))
+    // 计算高 8 位 hash
+    top := tophash(hash)
+
+    var inserti *uint8
+    var insertk unsafe.Pointer
+    var val unsafe.Pointer
+    for {
+        for i := uintptr(0); i < bucketCnt; i++ {
+            // 遍历 8 个 bucket 中的元素
+            // 这里的 bucketCnt 是全局常量
+            // 其实叫 bucketElemCnt 更合适
+            if b.tophash[i] != top {
+                if b.tophash[i] == empty && inserti == nil {
+                    // 如果这个槽位没有被占，说明可以往这里塞 key 和 value
+                    inserti = &b.tophash[i] // tophash 的插入位置
+                    insertk = add(unsafe.Pointer(b), dataOffset+i*uintptr(t.keysize))
+                    val = add(unsafe.Pointer(b), dataOffset+bucketCnt*uintptr(t.keysize)+i*uintptr(t.valuesize))
+                }
+                continue
+            }
+            k := add(unsafe.Pointer(b), dataOffset+i*uintptr(t.keysize))
+            if t.indirectkey {
+                k = *((*unsafe.Pointer)(k))
+            }
+            // 如果相同的 hash 位置的 key 和要插入的 key 字面上不相等
+            // 注意，hash 碰撞的时候就可能会走到这里的
+            if !alg.equal(key, k) {
+                continue
+            }
+            // 对应的位置已经有 key 了，直接更新就行
+            if t.needkeyupdate {
+                typedmemmove(t.key, k, key)
+            }
+            val = add(unsafe.Pointer(b), dataOffset+bucketCnt*uintptr(t.keysize)+i*uintptr(t.valuesize))
+            goto done
+        }
+        // bucket 的 8 个槽没有满足条件的能插入或者能更新的，去 overflow 里继续找
+        ovf := b.overflow(t)
+        // 如果 overflow 为 nil，说明到了 overflow 链表的末端了
+        if ovf == nil {
+            break
+        }
+        // 赋值为链表的下一个元素，继续循环
+        b = ovf
+    }
+
+    // 没有找到 key，分配新的空间
+
+    // 如果触发了最大的 load factor，或者已经有太多 overflow buckets
+    // 并且这个时刻没有在进行 growing 的途中，那么就开始 growing
+    if !h.growing() && (overLoadFactor(h.count+1, h.B) || tooManyOverflowBuckets(h.noverflow, h.B)) {
+        hashGrow(t, h)
+        goto again // Growing the table invalidates everything, so try again
+    }
+
+    if inserti == nil {
+        // 前面在桶里找的时候，没有找到能塞这个 tophash 的位置
+        // 说明当前所有 buckets 都是满的，分配一个新的 bucket
+        newb := h.newoverflow(t, b)
+        inserti = &newb.tophash[0]
+        insertk = add(unsafe.Pointer(newb), dataOffset)
+        val = add(insertk, bucketCnt*uintptr(t.keysize))
+    }
+
+    // 把新的 key 和 value 存储到应插入的位置
+    if t.indirectkey {
+        kmem := newobject(t.key)
+        *(*unsafe.Pointer)(insertk) = kmem
+        insertk = kmem
+    }
+    if t.indirectvalue {
+        vmem := newobject(t.elem)
+        *(*unsafe.Pointer)(val) = vmem
+    }
+    typedmemmove(t.key, insertk, key)
+    *inserti = top
+    h.count++
+
+done:
+    if h.flags&hashWriting == 0 {
+        throw("concurrent map writes")
+    }
+    h.flags &^= hashWriting
+    if t.indirectvalue {
+        val = *((*unsafe.Pointer)(val))
+    }
+    return val
+}
+```
