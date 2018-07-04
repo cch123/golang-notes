@@ -372,37 +372,54 @@ func mapdelete(t *maptype, h *hmap, key unsafe.Pointer) {
     alg := t.key.alg
     hash := alg.hash(key, uintptr(h.hash0))
 
-    // Set hashWriting after calling alg.hash, since alg.hash may panic,
-    // in which case we have not actually done a write (delete).
+    // 调用 alg.hash 设置 hashWriting 的 flag，因为 alg.hash 可能会 panic
+    // 这时候我们没法完成一次写操作
     h.flags |= hashWriting
 
+    // 按低 8 位 hash 值选择 bucket
     bucket := hash & bucketMask(h.B)
     if h.growing() {
         growWork(t, h, bucket)
     }
+    // 按上面算出的桶的索引，找到 bucket 的内存地址
+    // 并强制转换为需要的 bmap 结构
     b := (*bmap)(add(h.buckets, bucket*uintptr(t.bucketsize)))
+    // 高 8 位 hash 值
     top := tophash(hash)
 search:
     for ; b != nil; b = b.overflow(t) {
         for i := uintptr(0); i < bucketCnt; i++ {
+            // 和上面的差不多，8 个槽位，分别对比 tophash
+            // 没找到的话就去外围 for 循环的 overflow 链表中继续查找
             if b.tophash[i] != top {
                 continue
             }
+
+            // b.tophash[i] == top
+            // 计算 k 所在的槽位的内存地址
             k := add(unsafe.Pointer(b), dataOffset+i*uintptr(t.keysize))
             k2 := k
+            // 如果 key > 128 字节
             if t.indirectkey {
                 k2 = *((*unsafe.Pointer)(k2))
             }
+
+            // 当高 8 位哈希值相等时，还需要对具体值进行比较
+            // 以避免哈希冲突时值覆盖
             if !alg.equal(key, k2) {
                 continue
             }
-            // Only clear key if there are pointers in it.
+
+            // 如果 key 中是指针，那么清空 key 的内容
             if t.indirectkey {
                 *(*unsafe.Pointer)(k) = nil
             } else if t.key.kind&kindNoPointers == 0 {
                 memclrHasPointers(k, t.key.size)
             }
+
+            // 计算 value 所在的内存地址
             v := add(unsafe.Pointer(b), dataOffset+bucketCnt*uintptr(t.keysize)+i*uintptr(t.valuesize))
+            // 和上面 key 的逻辑差不多
             if t.indirectvalue {
                 *(*unsafe.Pointer)(v) = nil
             } else if t.elem.kind&kindNoPointers == 0 {
@@ -410,7 +427,9 @@ search:
             } else {
                 memclrNoHeapPointers(v, t.elem.size)
             }
+            // 设置 tophash[i] = 0
             b.tophash[i] = empty
+            // hmap 的大小计数 -1
             h.count--
             break search
         }
@@ -423,7 +442,54 @@ search:
 }
 ```
 
+TODO，删除时，是否会缩容，是否会释放内存
+
 ## 扩容
+
+```go
+func hashGrow(t *maptype, h *hmap) {
+    // If we've hit the load factor, get bigger.
+    // Otherwise, there are too many overflow buckets,
+    // so keep the same number of buckets and "grow" laterally.
+    bigger := uint8(1)
+    if !overLoadFactor(h.count+1, h.B) {
+        bigger = 0
+        h.flags |= sameSizeGrow
+    }
+    oldbuckets := h.buckets
+    newbuckets, nextOverflow := makeBucketArray(t, h.B+bigger, nil)
+
+    flags := h.flags &^ (iterator | oldIterator)
+    if h.flags&iterator != 0 {
+        flags |= oldIterator
+    }
+    // commit the grow (atomic wrt gc)
+    h.B += bigger
+    h.flags = flags
+    h.oldbuckets = oldbuckets
+    h.buckets = newbuckets
+    h.nevacuate = 0
+    h.noverflow = 0
+
+    if h.extra != nil && h.extra.overflow != nil {
+        // Promote current overflow buckets to the old generation.
+        if h.extra.oldoverflow != nil {
+            throw("oldoverflow is not nil")
+        }
+        h.extra.oldoverflow = h.extra.overflow
+        h.extra.overflow = nil
+    }
+    if nextOverflow != nil {
+        if h.extra == nil {
+            h.extra = new(mapextra)
+        }
+        h.extra.nextOverflow = nextOverflow
+    }
+
+    // the actual copying of the hash table data is done incrementally
+    // by growWork() and evacuate().
+}
+```
 
 ```go
 func growWork(t *maptype, h *hmap, bucket uintptr) {
