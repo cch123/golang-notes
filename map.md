@@ -646,6 +646,29 @@ func advanceEvacuationMark(h *hmap, t *maptype, newbit uintptr) {
 }
 ```
 
+## 编译期判断
+
+### 编译器如何选择 assign 函数
+
+就两个依据:
+
+1. key 的类型是否是 string
+2. 如果不是 string，那么根据 key 的类型大小做选择
+
+```mermaid
+```
+
+mapassign
+mapassign_fast32
+mapassign_fasat64
+mapassign_faststr
+
+### indirectkey 和 indirectvalue
+
+key > 128 字节时，indirectkey = true
+
+value > 128 字节时，indirectvalue = true
+
 ## 其它
 
 针对 32 位、64 位 和 string 类型的 map 元素的访问、赋值、删除、扩容，Go 内部有都有对应的优化函数，比如 mapaccess1 对应有 mapaccess1_fast64，mapaccess1_fast32，mapaccess1_faststr。mapassign 对应有 mapassign_fast64，mapassign_fast32 和 mapassign_faststr。
