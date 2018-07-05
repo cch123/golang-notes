@@ -564,7 +564,7 @@ func evacuate(t *maptype, h *hmap, oldbucket uintptr) {
         // TODO: reuse overflow buckets instead of using new ones, if there
         // is no iterator using the old buckets.  (If !oldIterator.)
 
-        // xy contains the x and y (low and high) evacuation destinations.
+        // xy 包含的是移动的目标，x 表示前(low)半部分，y 表示后(high)半部分
         var xy [2]evacDst
         x := &xy[0]
         x.b = (*bmap)(add(h.buckets, oldbucket*uintptr(t.bucketsize)))
@@ -572,8 +572,8 @@ func evacuate(t *maptype, h *hmap, oldbucket uintptr) {
         x.v = add(x.k, bucketCnt*uintptr(t.keysize))
 
         if !h.sameSizeGrow() {
-            // Only calculate y pointers if we're growing bigger.
-            // Otherwise GC can see bad pointers.
+            // 如果 map 大小(hmap.B)增大了，那么我们只计算 y
+            // 否则 GC 可能会看到损坏的指针
             y := &xy[1]
             y.b = (*bmap)(add(h.buckets, (oldbucket+newbit)*uintptr(t.bucketsize)))
             y.k = add(unsafe.Pointer(y.b), dataOffset)
@@ -685,11 +685,11 @@ func advanceEvacuationMark(h *hmap, t *maptype, newbit uintptr) {
         h.nevacuate++
     }
     if h.nevacuate == newbit { // newbit == # of oldbuckets
-        // Growing is all done. Free old main bucket array.
+        // 大小增长全部结束。释放老的 bucket array
         h.oldbuckets = nil
-        // Can discard old overflow buckets as well.
-        // If they are still referenced by an iterator,
-        // then the iterator holds a pointers to the slice.
+        // 同样可以丢弃老的 overflow buckets
+        // 如果它们还被迭代器所引用的话
+        // 迭代器会持有一份指向 slice 的指针
         if h.extra != nil {
             h.extra.oldoverflow = nil
         }
