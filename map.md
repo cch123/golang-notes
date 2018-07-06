@@ -298,7 +298,7 @@ again:
                 //          ^
                 //          ^
                 //       这个位置
-                // 所有在循环的时候还要顺便把前面的空位置先记下来
+                // 所以在循环的时候还要顺便把前面的空位置先记下来
                 if b.tophash[i] == empty && inserti == nil {
                     // 如果这个槽位没有被占，说明可以往这里塞 key 和 value
                     inserti = &b.tophash[i] // tophash 的插入位置
@@ -312,7 +312,8 @@ again:
                 k = *((*unsafe.Pointer)(k))
             }
             // 如果相同的 hash 位置的 key 和要插入的 key 字面上不相等
-            // 注意，hash 碰撞的时候就可能会走到这里的
+            // 如果两个 key 的首八位后最后八位哈希值一样，就会进行其值比较
+            // 算是一种哈希碰撞吧
             if !alg.equal(key, k) {
                 continue
             }
@@ -339,6 +340,9 @@ again:
     // 并且这个时刻没有在进行 growing 的途中，那么就开始 growing
     if !h.growing() && (overLoadFactor(h.count+1, h.B) || tooManyOverflowBuckets(h.noverflow, h.B)) {
         hashGrow(t, h)
+        // hashGrow 的时候会把当前的 bucket 放到 oldbucket 里
+        // 但还没有开始分配新的 bucket，所以需要到 again 重试一次
+        // 重试的时候在 growWork 里会把这个 key 的 bucket 优先分配好
         goto again // Growing the table invalidates everything, so try again
     }
 
@@ -744,9 +748,18 @@ func advanceEvacuationMark(h *hmap, t *maptype, newbit uintptr) {
 
 ## indirectkey 和 indirectvalue
 
-key > 128 字节时，indirectkey = true
+在上面的代码中我们见过无数次的 indirectkey 和 indirectvalue。indirectkey 和 indirectvalue 在 map 里实际存储的是指针，会造成 GC 扫描时，扫描更多的对象。至于是否是 indirect，依然是由编译器来决定的，依据是:
 
-value > 128 字节时，indirectvalue = true
+1. key > 128 字节时，indirectkey = true
+2. value > 128 字节时，indirectvalue = true
+
+我们可以用 lldb 来进行简单验证:
+
+```
+```
+
+```
+```
 
 ## 其它
 
