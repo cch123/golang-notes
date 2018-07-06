@@ -287,6 +287,18 @@ again:
             // 这里的 bucketCnt 是全局常量
             // 其实叫 bucketElemCnt 更合适
             if b.tophash[i] != top {
+                // 在 b.tophash[i] != top 的情况下
+                // 理论上有可能会是一个空槽位
+                // 一般情况下 map 的槽位分布是这样的，e 表示 empty:
+                // [h1][h2][h3][h4][h5][e][e][e]
+                // 但在执行过 delete 操作时，可能会变成这样:
+                // [h1][h2][e][e][h5][e][e][e]
+                // 所以如果再插入的话，会尽量往前面的位置插
+                // [h1][h2][e][e][h5][e][e][e]
+                //          ^
+                //          ^
+                //       这个位置
+                // 所有在循环的时候还要顺便把前面的空位置先记下来
                 if b.tophash[i] == empty && inserti == nil {
                     // 如果这个槽位没有被占，说明可以往这里塞 key 和 value
                     inserti = &b.tophash[i] // tophash 的插入位置
