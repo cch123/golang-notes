@@ -210,6 +210,27 @@ v, ok := m[k]
 
 ## 赋值
 
+### 编译器如何选择 assign 函数
+
+mapassign 有几个变种，是由编译器决定具体用哪一个函数的。选择依据:
+
+1. key 的类型是否是 string
+2. 如果不是 string，那么根据 key 的类型大小做选择
+
+流程图:
+
+```mermaid
+graph TD
+A[key is string] --> |yes|B[mapassign_faststr]
+A --> |no|C[key size is 32]
+C --> |yes|D[mapassign_fast32]
+C --> |no|E[key size is 64]
+E --> |yes|F[mapassign_fast64]
+E --> |no|G[mapassign]
+```
+
+几个函数长得都差不多，我们看一下 mapassign 的逻辑就行了:
+
 ```go
 // 和 mapaccess 函数差不多，但在没有找到 key 时，会为 key 分配一个新的槽位
 func mapassign(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer {
@@ -564,7 +585,9 @@ func evacuate(t *maptype, h *hmap, oldbucket uintptr) {
         // TODO: reuse overflow buckets instead of using new ones, if there
         // is no iterator using the old buckets.  (If !oldIterator.)
 
-        // xy 包含的是移动的目标，x 表示前(low)半部分，y 表示后(high)半部分
+        // xy 包含的是移动的目标
+        // x 表示新 bucket 数组的前(low)半部分
+        // y 表示新 bucket 数组的后(high)半部分
         var xy [2]evacDst
         x := &xy[0]
         x.b = (*bmap)(add(h.buckets, oldbucket*uintptr(t.bucketsize)))
@@ -598,8 +621,8 @@ func evacuate(t *maptype, h *hmap, oldbucket uintptr) {
                 }
                 var useY uint8
                 if !h.sameSizeGrow() {
-                    // Compute hash to make our evacuation decision (whether we need
-                    // to send this key/value to bucket x or bucket y).
+                    // 计算哈希，以判断我们的数据要转移到哪一部分的 bucket
+                    // 可能是 x 部分，也可能是 y 部分
                     hash := t.key.alg.hash(k2, uintptr(h.hash0))
                     if h.flags&iterator != 0 && !t.reflexivekey && !t.key.alg.equal(k2, k2) {
                         // If key != key (NaNs), then the hash could be (and probably
@@ -627,7 +650,7 @@ func evacuate(t *maptype, h *hmap, oldbucket uintptr) {
                 }
 
                 b.tophash[i] = evacuatedX + useY // evacuatedX + 1 == evacuatedY
-                dst := &xy[useY]                 // evacuation destination
+                dst := &xy[useY]                 // 移动目标
 
                 if dst.i == bucketCnt {
                     dst.b = h.newoverflow(t, dst.b)
@@ -637,9 +660,9 @@ func evacuate(t *maptype, h *hmap, oldbucket uintptr) {
                 }
                 dst.b.tophash[dst.i&(bucketCnt-1)] = top // mask dst.i as an optimization, to avoid a bounds check
                 if t.indirectkey {
-                    *(*unsafe.Pointer)(dst.k) = k2 // copy pointer
+                    *(*unsafe.Pointer)(dst.k) = k2 // 拷贝指针
                 } else {
-                    typedmemmove(t.key, dst.k, k) // copy value
+                    typedmemmove(t.key, dst.k, k) // 拷贝值
                 }
                 if t.indirectvalue {
                     *(*unsafe.Pointer)(dst.v) = *(*unsafe.Pointer)(v)
@@ -698,24 +721,7 @@ func advanceEvacuationMark(h *hmap, t *maptype, newbit uintptr) {
 }
 ```
 
-## 编译期判断
-
-### 编译器如何选择 assign 函数
-
-就两个依据:
-
-1. key 的类型是否是 string
-2. 如果不是 string，那么根据 key 的类型大小做选择
-
-```mermaid
-```
-
-mapassign
-mapassign_fast32
-mapassign_fasat64
-mapassign_faststr
-
-### indirectkey 和 indirectvalue
+## indirectkey 和 indirectvalue
 
 key > 128 字节时，indirectkey = true
 
