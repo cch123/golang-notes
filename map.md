@@ -136,7 +136,14 @@ func makemap(t *maptype, hint int, h *hmap) *hmap {
 
 ## 元素访问
 
-元素访问有 mapaccess1，mapaccess2，mapaccessK，但几个方法都差不多，只差别在返回内容上，我们来看看 mapaccess2:
+元素访问有 mapaccess1，mapaccess2，mapaccessK，但几个方法都差不多，只差别在返回内容上。mapaccess1 和 mapaccess2 同时有 32 位、64 位和 string 类型的变种:
+
+1. mapaccess1_fast32, mapaccess1_fast64, mapaccess1_faststr
+2. mapaccess2_fast32, mapaccess2_fast64, mapaccess2_faststr
+
+具体用哪一个变种函数是由编译器在编译期选择的，选择依据可以参考后面的赋值一小节。
+
+因为这些函数实现上都大同小异，我们挑一个来看看 mapaccess2:
 
 ```go
 func mapaccess2(t *maptype, h *hmap, key unsafe.Pointer) (unsafe.Pointer, bool) {
@@ -228,6 +235,8 @@ C --> |no|E[key size is 64]
 E --> |yes|F[mapassign_fast64]
 E --> |no|G[mapassign]
 ```
+
+### 赋值流程
 
 几个函数长得都差不多，我们看一下 mapassign 的逻辑就行了:
 
