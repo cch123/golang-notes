@@ -759,14 +759,106 @@ func advanceEvacuationMark(h *hmap, t *maptype, newbit uintptr) {
 
 我们可以用 lldb 来进行简单验证:
 
-```
-```
+```go
+package main
+
+import "fmt"
+
+func main() {
+    type P struct {
+        Age [17]int
+    }
+    var a = map[P]int{}
+    a[P{}] = 1
+    fmt.Println(a)
+}
+
 
 ```
+
+在 lldb 中可以看到 indirectkey 为 false。
+
+```shell
+(lldb) b mapassign
+(lldb) p *t
+(runtime.maptype) *t = {
+  typ = {
+    size = 0x0000000000000008
+    ptrdata = 0x0000000000000008
+    hash = 2678392653
+    tflag = 2
+    align = 8
+    fieldalign = 8
+    kind = 53
+    alg = 0x0000000001137020
+    gcdata = 0x00000000010cf298
+    str = 26128
+    ptrToThis = 0
+  }
+  key = 0x00000000010a77a0
+  elem = 0x000000000109d180
+  bucket = 0x00000000010aea00
+  hmap = 0x00000000010b4da0
+  keysize = 128  =======> 128 字节
+  indirectkey = false =====> false
+  valuesize = 8
+  indirectvalue = false
+  bucketsize = 1104
+  reflexivekey = true
+  needkeyupdate = false
+}
 ```
 
-## 其它
+给 P 加一个字节:
 
-针对 32 位、64 位 和 string 类型的 map 元素的访问、赋值、删除、扩容，Go 内部有都有对应的优化函数，比如 mapaccess1 对应有 mapaccess1_fast64，mapaccess1_fast32，mapaccess1_faststr。mapassign 对应有 mapassign_fast64，mapassign_fast32 和 mapassign_faststr。
+```go
+package main
 
-但这些优化函数长得都差不多，不知为何官方没有用脚本来做这些优化函数的生成工作。可见有时候 Go team 的复制粘贴功力也是蛮强的。
+import "fmt"
+
+func main() {
+    type P struct {
+        Age  [16]int
+        Male bool
+    }
+    var a = map[P]int{}
+    a[P{}] = 1
+    fmt.Println(a)
+}
+```
+
+indirectkey 变成了 true:
+
+```shell
+(lldb) p *t
+(runtime.maptype) *t = {
+  typ = {
+    size = 0x0000000000000008
+    ptrdata = 0x0000000000000008
+    hash = 2678392653
+    tflag = 2
+    align = 8
+    fieldalign = 8
+    kind = 53
+    alg = 0x0000000001137020
+    gcdata = 0x00000000010cf3b8
+    str = 26176
+    ptrToThis = 0
+  }
+  key = 0x00000000010a92c0
+  elem = 0x000000000109d280
+  bucket = 0x00000000010aeb20
+  hmap = 0x00000000010b4ec0
+  keysize = 8
+  indirectkey = true
+  valuesize = 8
+  indirectvalue = false
+  bucketsize = 144
+  reflexivekey = true
+  needkeyupdate = false
+}
+```
+
+indirectvalue 也是完全一样的，超过 128 字节(不含)时，会被赋值为 true，并退化为指针。
+
+## 总结
