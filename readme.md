@@ -19,6 +19,6 @@
 13. [x] Scheduler
 14. [ ] GC
 15. [x] Assembly
-16. [ ] Map
+16. [x] Map
 17. [x] Syscall
 

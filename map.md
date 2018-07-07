@@ -488,8 +488,6 @@ search:
 }
 ```
 
-TODO，删除时，是否会缩容，是否会释放内存
-
 ## 扩容
 
 ```go
@@ -849,8 +847,8 @@ indirectkey 变成了 true:
   elem = 0x000000000109d280
   bucket = 0x00000000010aeb20
   hmap = 0x00000000010b4ec0
-  keysize = 8
-  indirectkey = true
+  keysize = 8 ======> 变成了 8 字节的指针
+  indirectkey = true ======> 变成了 true
   valuesize = 8
   indirectvalue = false
   bucketsize = 144
