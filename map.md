@@ -1040,5 +1040,3 @@ indirectkey 变成了 true:
 ```
 
 indirectvalue 也是完全一样的，超过 128 字节(不含)时，会被赋值为 true，并退化为指针。
-
-## 总结
