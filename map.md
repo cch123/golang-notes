@@ -650,18 +650,22 @@ func evacuate(t *maptype, h *hmap, oldbucket uintptr) {
                     // 可能是 x 部分，也可能是 y 部分
                     hash := t.key.alg.hash(k2, uintptr(h.hash0))
                     if h.flags&iterator != 0 && !t.reflexivekey && !t.key.alg.equal(k2, k2) {
-                        // If key != key (NaNs), then the hash could be (and probably
-                        // will be) entirely different from the old hash. Moreover,
-                        // it isn't reproducible. Reproducibility is required in the
-                        // presence of iterators, as our evacuation decision must
-                        // match whatever decision the iterator made.
-                        // Fortunately, we have the freedom to send these keys either
-                        // way. Also, tophash is meaningless for these kinds of keys.
-                        // We let the low bit of tophash drive the evacuation decision.
-                        // We recompute a new random tophash for the next level so
-                        // these keys will get evenly distributed across all buckets
-                        // after multiple grows.
-                        useY = top & 1
+                        // 为什么要加 reflexivekey 的判断，可以参考这里:
+                        // https://go-review.googlesource.com/c/go/+/1480
+                        // key != key，只有在 float 数的 NaN 时会出现
+                        // 比如:
+                        // n1 := math.NaN()
+                        // n2 := math.NaN()
+                        // fmt.Println(n1, n2)
+                        // fmt.Println(n1 == n2)
+                        // 这种情况下 n1 和 n2 的哈希值也完全不一样
+                        // 这里官方表示这种情况是不可复现的
+                        // 需要在 iterators 参与的情况下才能复现
+                        // 但是对于这种 key 我们也可以随意对其目标进行发配
+                        // 同时 tophash 对于 NaN 也没啥意义
+                        // 还是按正常的情况下算一个随机的 tophash
+                        // 然后公平地把这些 key 平均分布到各 bucket 就好
+                        useY = top & 1 // 让这个 key 50% 概率去 Y 半区
                         top = tophash(hash)
                     } else {
                         if hash&newbit != 0 {
