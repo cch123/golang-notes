@@ -72,6 +72,89 @@
                                                                                                                 └───────────────────────────────┘                                                                                   
 ```
 
+## 数据结构
+
+```go
+const (
+    // 一个 bucket 最多能放的元素数
+    bucketCntBits = 3
+    bucketCnt     = 1 << bucketCntBits
+
+    // load factor = 13/2
+    loadFactorNum = 13
+    loadFactorDen = 2
+
+    // 超过这两个 size 的对应对象，会被转为指针
+    maxKeySize   = 128
+    maxValueSize = 128
+
+    // data offset should be the size of the bmap struct, but needs to be
+    // aligned correctly. For amd64p32 this means 64-bit alignment
+    // even though pointers are 32 bit.
+    dataOffset = unsafe.Offsetof(struct {
+        b bmap
+        v int64
+    }{}.v)
+
+    // tophash 除了放正常的高 8 位的 hash 值
+    // 还会在空闲、迁移时存储一些特征的状态值
+    // 所以合法的 tophash(指计算出来的那种)，最小也应该是 4
+    // 小于 4 的表示的都是我们自己定义的状态值
+    empty          = 0 // cell is empty
+    evacuatedEmpty = 1 // cell is empty, bucket is evacuated.
+    evacuatedX     = 2 // key/value is valid.  Entry has been evacuated to first half of larger table.
+    evacuatedY     = 3 // same as above, but evacuated to second half of larger table.
+    minTopHash     = 4 // minimum tophash for a normal filled cell.
+
+    // flags
+    iterator     = 1 // there may be an iterator using buckets
+    oldIterator  = 2 // there may be an iterator using oldbuckets
+    hashWriting  = 4 // a goroutine is writing to the map
+    sameSizeGrow = 8 // the current map growth is to a new map of the same size
+
+    // sentinel bucket ID for iterator checks
+    noCheck = 1<<(8*sys.PtrSize) - 1
+)
+
+// A header for a Go map.
+type hmap struct {
+    count     int // map 中的元素个数，必须放在 struct 的第一个位置，因为 内置的 len 函数会从这里读取
+    flags     uint8
+    B         uint8  // log_2 of # of buckets (最多可以放 loadFactor * 2^B 个元素，再多就要 hashGrow 了)
+    noverflow uint16 // overflow 的 bucket 的近似数
+    hash0     uint32 // hash seed
+
+    buckets    unsafe.Pointer // 2^B 大小的数组，如果 count == 0 的话，可能是 nil
+    oldbuckets unsafe.Pointer // 一半大小的之前的 bucket 数组，只有在 growing 过程中是非 nil
+    nevacuate  uintptr        // progress counter for evacuation (buckets less than this have been evacuated)
+
+    extra *mapextra // 当 key 和 value 都可以 inline 的时候，就会用这个字段
+}
+
+type mapextra struct {
+    // 如果 key 和 value 都不包含指针，并且可以被 inline(<=128 字节)
+    // 使用 extra 来存储 overflow bucket，这样可以避免 GC 扫描整个 map
+    // 然而 bmap.overflow 也是个指针。这时候我们只能把这些 overflow 的指针
+    // 都放在 hmap.extra.overflow 和 hmap.extra.oldoverflow 中了
+    // overflow 包含的是 hmap.buckets 的 overflow 的 bucket
+    // oldoverflow 包含扩容时的 hmap.oldbuckets 的 overflow 的 bucket
+    overflow    *[]*bmap
+    oldoverflow *[]*bmap
+
+    // 指向空闲的 overflow bucket 的指针
+    nextOverflow *bmap
+}
+
+// bucket 本体
+type bmap struct {
+    // tophash 是 hash 值的高 8 位
+    tophash [bucketCnt]uint8
+    // keys
+    // values
+    // overflow pointer
+}
+```
+
 ## 初始化
 
 形如:
