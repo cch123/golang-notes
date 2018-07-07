@@ -690,7 +690,7 @@ func evacuate(t *maptype, h *hmap, oldbucket uintptr) {
                         // 而扩容后的 bucketMask 是
                         //    1111
                         // 所以实际上这个就是
-                        // xxx1xxx & 1111 > 0
+                        // xxx1xxx & 1000 > 0
                         // 说明这个元素在扩容后一定会去上半区
                         // 所以就是 useY 了
                         if hash&newbit != 0 {
