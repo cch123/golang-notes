@@ -490,6 +490,22 @@ search:
 
 ## 扩容
 
+扩容触发在 mapassign 中，我们之前注释过了，主要是两点:
+
+1. 是不是已经到了 load factor 的临界点，即元素个数 >= 桶个数 * 6.5，这时候说明大部分的桶可能都快满了，如果插入新元素，有大概率需要挂在 overflow 的桶上。
+2. overflow 的桶是不是太多了，当 bucket 总数 < 2 ^ 15 时，如果 overflow 的 bucket 总数 >= bucket 的总数，那么我们认为 overflow 的桶太多了。当 bucket 总数 >= 2 ^ 15 时，那我们直接和 2 ^ 15 比较，overflow 的 bucket >= 2 ^ 15 时，即认为溢出桶太多了。为啥会导致这种情况呢？是因为我们对 map 一边插入，一边删除，会导致其中很多桶出现空洞，这样使得 bucket 使用率不高，值存储得比较稀疏。在查找时效率会下降。
+
+两种情况官方采用了不同的解决方法: 
+
+* 针对 1，将 B + 1，进而 hmap 的 bucket 数组扩容一倍；
+* 针对 2，通过移动 bucket 内容，使其倾向于紧密排列从而提高 bucket 利用率。
+
+实际上这里还有一种麻烦的情况，如果 map 中有大量的哈希冲突的话，也会导致落入 2 中的判断，这时候对 bucket 的内容进行移动其实没什么意义，反而是纯粹的无用功，所以理论上存在对 Go 的 map 进行 hash 碰撞攻击的可能性。
+
+但 Go 的每一个 map 都会在初始化阶段的 makemap 时定一个随机的 hash seed，所以要构造这种冲突是没那么容易的。
+
+看看 hashGrow 的具体流程:
+
 ```go
 func hashGrow(t *maptype, h *hmap) {
     // 如果已经超过了 load factor 的阈值，那么需要对 map 进行扩容，即 B = B + 1，bucket 总数会变为原来的二倍
@@ -666,6 +682,17 @@ func evacuate(t *maptype, h *hmap, oldbucket uintptr) {
                         useY = top & 1 // 让这个 key 50% 概率去 Y 半区
                         top = tophash(hash)
                     } else {
+                        // 这里写的比较 trick
+                        // 比如当前有 8 个桶
+                        // 那么如果 hash & 8 != 0
+                        // 那么说明这个元素的 hash 这种形式
+                        // xxx1xxx
+                        // 而扩容后的 bucketMask 是
+                        //    1111
+                        // 所以实际上这个就是
+                        // xxx1xxx & 1111 > 0
+                        // 说明这个元素在扩容后一定会去上半区
+                        // 所以就是 useY 了
                         if hash&newbit != 0 {
                             useY = 1
                         }
