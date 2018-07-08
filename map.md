@@ -1162,3 +1162,78 @@ indirectkey 变成了 true:
 ```
 
 indirectvalue 也是完全一样的，超过 128 字节(不含)时，会被赋值为 true，并退化为指针。
+
+## overflow 处理
+
+思路，从 nextOverflow 中拿 overflow bucket，如果拿到，就放进 hmap.extra.overflow 数组，并让 bmap 的 overflow pointer 指向这个 bucket。
+
+如果没找到，那就 new 一个。
+
+```go
+func (h *hmap) newoverflow(t *maptype, b *bmap) *bmap {
+    var ovf *bmap
+    if h.extra != nil && h.extra.nextOverflow != nil {
+        // We have preallocated overflow buckets available.
+        // See makeBucketArray for more details.
+        ovf = h.extra.nextOverflow
+        if ovf.overflow(t) == nil {
+            // We're not at the end of the preallocated overflow buckets. Bump the pointer.
+            h.extra.nextOverflow = (*bmap)(add(unsafe.Pointer(ovf), uintptr(t.bucketsize)))
+        } else {
+            // This is the last preallocated overflow bucket.
+            // Reset the overflow pointer on this bucket,
+            // which was set to a non-nil sentinel value.
+            ovf.setoverflow(t, nil)
+            h.extra.nextOverflow = nil
+        }
+    } else {
+        ovf = (*bmap)(newobject(t.bucket))
+    }
+    h.incrnoverflow()
+    if t.bucket.kind&kindNoPointers != 0 {
+        h.createOverflow()
+        *h.extra.overflow = append(*h.extra.overflow, ovf)
+    }
+    b.setoverflow(t, ovf)
+    return ovf
+}
+```
+
+```go
+func (h *hmap) createOverflow() {
+    if h.extra == nil {
+        h.extra = new(mapextra)
+    }
+    if h.extra.overflow == nil {
+        h.extra.overflow = new([]*bmap)
+    }
+}
+```
+
+```go
+// incrnoverflow increments h.noverflow.
+// noverflow counts the number of overflow buckets.
+// This is used to trigger same-size map growth.
+// See also tooManyOverflowBuckets.
+// To keep hmap small, noverflow is a uint16.
+// When there are few buckets, noverflow is an exact count.
+// When there are many buckets, noverflow is an approximate count.
+func (h *hmap) incrnoverflow() {
+    // We trigger same-size map growth if there are
+    // as many overflow buckets as buckets.
+    // We need to be able to count to 1<<h.B.
+    if h.B < 16 {
+        h.noverflow++
+        return
+    }
+    // Increment with probability 1/(1<<(h.B-15)).
+    // When we reach 1<<15 - 1, we will have approximately
+    // as many overflow buckets as buckets.
+    mask := uint32(1)<<(h.B-15) - 1
+    // Example: if h.B == 18, then mask == 7,
+    // and fastrand & 7 == 0 with probability 1/8.
+    if fastrand()&mask == 0 {
+        h.noverflow++
+    }
+}
+```
