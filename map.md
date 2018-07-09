@@ -1068,7 +1068,7 @@ import "fmt"
 
 func main() {
     type P struct {
-        Age [17]int
+        Age [16]int
     }
     var a = map[P]int{}
     a[P{}] = 1
