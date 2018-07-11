@@ -21,4 +21,5 @@
 15. [x] Assembly
 16. [x] Map
 17. [x] Syscall
+18. [ ] Memory
 
