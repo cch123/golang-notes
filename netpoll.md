@@ -1,5 +1,7 @@
 # netpoll
 
+hook_unix.go :
+
 ```go
     // Placeholders for socket system calls.
     socketFunc        func(int, int, int) (int, error)  = syscall.Socket
@@ -7,6 +9,25 @@
     listenFunc        func(int, int) error              = syscall.Listen
     getsockoptIntFunc func(int, int, int) (int, error)  = syscall.GetsockoptInt
 ```
+
+这些 hook 主要是为了能够写测试，在测试代码中，socketFunc，connectFunc ... 都会被替换成测试专用函数，main_unix_test.go:
+
+```go
+func installTestHooks() {
+    socketFunc = sw.Socket
+    poll.CloseFunc = sw.Close
+    connectFunc = sw.Connect
+    listenFunc = sw.Listen
+    poll.AcceptFunc = sw.Accept
+    getsockoptIntFunc = sw.GetsockoptInt
+
+    for _, fn := range extraTestHookInstallers {
+        fn()
+    }
+}
+```
+
+用这种全局函数 hook，或者叫注册表的方式，可以实现类似于面向对象中的 interface 功能。不过因为不同平台提供的网络编程函数差别有些大，所以这里这些全局网络函数也就只是用来方便测试。
 
 ```go
 // Network file descriptor.
@@ -20,6 +41,67 @@ type netFD struct {
     net         string
     laddr       Addr
     raddr       Addr
+}
+
+// FD is a file descriptor. The net and os packages use this type as a
+// field of a larger type representing a network connection or OS file.
+type FD struct {
+    // Lock sysfd and serialize access to Read and Write methods.
+    fdmu fdMutex
+
+    // System file descriptor. Immutable until Close.
+    Sysfd int
+
+    // I/O poller.
+    pd pollDesc
+
+    // Writev cache.
+    iovecs *[]syscall.Iovec
+
+    // Semaphore signaled when file is closed.
+    csema uint32
+
+    // Whether this is a streaming descriptor, as opposed to a
+    // packet-based descriptor like a UDP socket. Immutable.
+    IsStream bool
+
+    // Whether a zero byte read indicates EOF. This is false for a
+    // message based socket connection.
+    ZeroReadIsEOF bool
+
+    // Whether this is a file rather than a network socket.
+    isFile bool
+
+    // Whether this file has been set to blocking mode.
+    isBlocking bool
+}
+
+// Network poller descriptor.
+//
+// No heap pointers.
+//
+//go:notinheap
+type pollDesc struct {
+    link *pollDesc // in pollcache, protected by pollcache.lock
+
+    // The lock protects pollOpen, pollSetDeadline, pollUnblock and deadlineimpl operations.
+    // This fully covers seq, rt and wt variables. fd is constant throughout the PollDesc lifetime.
+    // pollReset, pollWait, pollWaitCanceled and runtime·netpollready (IO readiness notification)
+    // proceed w/o taking the lock. So closing, rg, rd, wg and wd are manipulated
+    // in a lock-free way by all operations.
+    // NOTE(dvyukov): the following code uses uintptr to store *g (rg/wg),
+    // that will blow up when GC starts moving objects.
+    lock    mutex // protects the following fields
+    fd      uintptr
+    closing bool
+    seq     uintptr // protects from stale timers and ready notifications
+    rg      uintptr // pdReady, pdWait, G waiting for read or nil
+    rt      timer   // read deadline timer (set if rt.f != nil)
+    rd      int64   // read deadline
+    wg      uintptr // pdReady, pdWait, G waiting for write or nil
+    wt      timer   // write deadline timer
+    wd      int64   // write deadline
+    user    uint32  // user settable cookie
 }
 ```
 
