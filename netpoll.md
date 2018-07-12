@@ -1,5 +1,7 @@
 # netpoll
 
+socket，connect，listen，getsocketopt 都有一个全局函数变量来表示。
+
 hook_unix.go :
 
 ```go
@@ -30,11 +32,38 @@ func installTestHooks() {
 用这种全局函数 hook，或者叫注册表的方式，可以实现类似于面向对象中的 interface 功能。不过因为不同平台提供的网络编程函数差别有些大，所以这里这些全局网络函数也就只是用来方便测试。
 
 ```go
+// Integrated network poller (platform-independent part).
+// A particular implementation (epoll/kqueue) must define the following functions:
+// func netpollinit()            // to initialize the poller
+// func netpollopen(fd uintptr, pd *pollDesc) int32    // to arm edge-triggered notifications
+// and associate fd with pd.
+// An implementation must call the following function to denote that the pd is ready.
+// func netpollready(gpp **g, pd *pollDesc, mode int32)
+
+// pollDesc contains 2 binary semaphores, rg and wg, to park reader and writer
+// goroutines respectively. The semaphore can be in the following states:
+// pdReady - io readiness notification is pending;
+//           a goroutine consumes the notification by changing the state to nil.
+// pdWait - a goroutine prepares to park on the semaphore, but not yet parked;
+//          the goroutine commits to park by changing the state to G pointer,
+//          or, alternatively, concurrent io notification changes the state to READY,
+//          or, alternatively, concurrent timeout/close changes the state to nil.
+// G pointer - the goroutine is blocked on the semaphore;
+//             io notification or timeout/close changes the state to READY or nil respectively
+//             and unparks the goroutine.
+// nil - nothing of the above.
+const (
+    pdReady uintptr = 1
+    pdWait  uintptr = 2
+)
+
+const pollBlockSize = 4 * 1024
+
 // Network file descriptor.
 type netFD struct {
     pfd poll.FD
 
-    // immutable until Close
+    // 下面这些元素在 Close 之前都是不可变的
     family      int
     sotype      int
     isConnected bool
@@ -43,13 +72,13 @@ type netFD struct {
     raddr       Addr
 }
 
-// FD is a file descriptor. The net and os packages use this type as a
-// field of a larger type representing a network connection or OS file.
+// FD 是对 file descriptor 的一个包装，内部的 Sysfd 就是 linux 下的
+// file descriptor。net 和 os 包中使用这个类型来代表一个网络连接或者一个 OS 文件
 type FD struct {
-    // Lock sysfd and serialize access to Read and Write methods.
+    // 对 sysfd 加锁，以使 Read 和 Write 方法串行执行
     fdmu fdMutex
 
-    // System file descriptor. Immutable until Close.
+    // 操作系统的 file descriptor。在关闭之前是不可变的
     Sysfd int
 
     // I/O poller.
@@ -61,18 +90,18 @@ type FD struct {
     // Semaphore signaled when file is closed.
     csema uint32
 
-    // Whether this is a streaming descriptor, as opposed to a
-    // packet-based descriptor like a UDP socket. Immutable.
+    // 不可变。表示当前这个 fd 是否是一个流，或者是一个基于包的 fd
+    // 用来区分是 TCP 还是 UDP
     IsStream bool
 
     // Whether a zero byte read indicates EOF. This is false for a
     // message based socket connection.
     ZeroReadIsEOF bool
 
-    // Whether this is a file rather than a network socket.
+    // 这个 fd 表示的是不是一个文件，如果 false 的话就是一个 network socket
     isFile bool
 
-    // Whether this file has been set to blocking mode.
+    // 这个文件是否被设置为了 blocking 模式
     isBlocking bool
 }
 
