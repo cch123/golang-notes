@@ -240,3 +240,41 @@ func (fd *netFD) listenStream(laddr sockaddr, backlog int) error {
 ```
 
 Go 的 listenTCP 一个函数就把 c 网络编程中 `socket()`，`bind()`，`listen()` 三步都完成了。大大减小了用户的心智负担。
+
+这里有一点需要注意，listenStream 虽然提供了 backlog 的参数，但用户层是没有办法通过 Go 的代码来修改 listen 的 backlog 的。
+
+```go
+func maxListenerBacklog() int {
+    fd, err := open("/proc/sys/net/core/somaxconn")
+    if err != nil {
+        return syscall.SOMAXCONN
+    }
+    defer fd.close()
+    l, ok := fd.readLine()
+    if !ok {
+        return syscall.SOMAXCONN
+    }
+    f := getFields(l)
+    n, _, ok := dtoi(f[0])
+    if n == 0 || !ok {
+        return syscall.SOMAXCONN
+    }
+    // Linux stores the backlog in a uint16.
+    // Truncate number to avoid wrapping.
+    // See issue 5030.
+    if n > 1<<16-1 {
+        n = 1<<16 - 1
+    }
+    return n
+}
+```
+
+如上，在 linux 中，如果配置了 /proc/sys/net/core/somaxconn，那么就用这个值，如果没有配置，那么就使用 syscall 中的 SOMAXCONN:
+
+```go
+const (
+    SOMAXCONN = 0x80 // 128
+)
+```
+
+社区里有很多人吐槽，希望能有手段能修改这个值，不过看起来官方并不打算支持。所以现阶段只能通过修改 /proc/sys/net/core/somaxconn 来修改 listen 的 backlog。
