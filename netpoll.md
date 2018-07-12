@@ -32,16 +32,16 @@ func installTestHooks() {
 用这种全局函数 hook，或者叫注册表的方式，可以实现类似于面向对象中的 interface 功能。不过因为不同平台提供的网络编程函数差别有些大，所以这里这些全局网络函数也就只是用来方便测试。
 
 ```go
-// Integrated network poller (platform-independent part).
-// A particular implementation (epoll/kqueue) must define the following functions:
-// func netpollinit()            // to initialize the poller
-// func netpollopen(fd uintptr, pd *pollDesc) int32    // to arm edge-triggered notifications
-// and associate fd with pd.
-// An implementation must call the following function to denote that the pd is ready.
+// 整体的 network poller(平台无关部分)
+// 具体的实现需要定义下面这些函数:
+// func netpollinit()            // 初始化 poller
+// func netpollopen(fd uintptr, pd *pollDesc) int32    // 用来装备边缘触发的通知
+// 并且将 fd 和 pd 做好关联
+// 具体实现中，必须调用 下面的函数来表示 pd 已经 ready
 // func netpollready(gpp **g, pd *pollDesc, mode int32)
 
-// pollDesc contains 2 binary semaphores, rg and wg, to park reader and writer
-// goroutines respectively. The semaphore can be in the following states:
+// pollDesc 包含两个二元信号量, rg 和 wg, 分别用来 park 读、写的 goroutine
+// 信号量可以是下面几种状态:
 // pdReady - io readiness notification is pending;
 //           a goroutine consumes the notification by changing the state to nil.
 // pdWait - a goroutine prepares to park on the semaphore, but not yet parked;
