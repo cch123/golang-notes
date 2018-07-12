@@ -109,28 +109,6 @@ func socket(ctx context.Context, net string, family, sotype, proto int, ipv6only
         return nil, err
     }
 
-    // This function makes a network file descriptor for the
-    // following applications:
-    //
-    // - An endpoint holder that opens a passive stream
-    //   connection, known as a stream listener
-    //
-    // - An endpoint holder that opens a destination-unspecific
-    //   datagram connection, known as a datagram listener
-    //
-    // - An endpoint holder that opens an active stream or a
-    //   destination-specific datagram connection, known as a
-    //   dialer
-    //
-    // - An endpoint holder that opens the other connection, such
-    //   as talking to the protocol stack inside the kernel
-    //
-    // For stream and datagram listeners, they will only require
-    // named sockets, so we can assume that it's just a request
-    // from stream or datagram listeners when laddr is not nil but
-    // raddr is nil. Otherwise we assume it's just for dialers or
-    // the other connection holders.
-
     if laddr != nil && raddr == nil {
         switch sotype {
         case syscall.SOCK_STREAM, syscall.SOCK_SEQPACKET:
@@ -178,3 +156,5 @@ func (fd *netFD) listenStream(laddr sockaddr, backlog int) error {
     return nil
 }
 ```
+
+Go 的 listenTCP 一个函数就把 c 网络编程中 `socket()`，`bind()`，`listen()` 三步都完成了。大大减小了用户的心智负担。
