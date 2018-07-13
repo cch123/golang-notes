@@ -477,6 +477,21 @@ func netpollblock(pd *pollDesc, mode int32, waitio bool) bool {
 }
 ```
 
+gopark 会执行 netpollblockcommit，并将 gpp 挂起，netpollblockcommit 比较简单:
+
+```go
+func netpollblockcommit(gp *g, gpp unsafe.Pointer) bool {
+    r := atomic.Casuintptr((*uintptr)(gpp), pdWait, uintptr(unsafe.Pointer(gp)))
+    if r {
+        // Bump the count of goroutines waiting for the poller.
+        // The scheduler uses this to decide whether to block
+        // waiting for the poller if there is nothing else to do.
+        atomic.Xadd(&netpollWaiters, 1)
+    }
+    return r
+}
+```
+
 #### Write 流程
 
 ```go
