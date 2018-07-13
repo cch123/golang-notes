@@ -324,4 +324,180 @@ const (
 
 ### poll 流程
 
-TODO
+```go
+type conn struct {
+    fd *netFD
+}
+
+TODO，conn 是什么时候赋值给 Conn 类型的？
+
+
+#### Read 流程
+
+
+func (c *conn) ok() bool { return c != nil && c.fd != nil }
+
+// Implementation of the Conn interface.
+
+// Read implements the Conn Read method.
+func (c *conn) Read(b []byte) (int, error) {
+    if !c.ok() {
+        return 0, syscall.EINVAL
+    }
+    n, err := c.fd.Read(b)
+    if err != nil && err != io.EOF {
+        err = &OpError{Op: "read", Net: c.fd.net, Source: c.fd.laddr, Addr: c.fd.raddr, Err: err}
+    }
+    return n, err
+}
+
+```
+
+```go
+func (fd *netFD) Read(buf []byte) (int, error) {
+    n, err := fd.pfd.Read(buf)
+    runtime.KeepAlive(fd)
+    return n, wrapSyscallError("wsarecv", err)
+}
+```
+
+```go
+// Read implements io.Reader.
+func (fd *FD) Read(p []byte) (int, error) {
+    if err := fd.readLock(); err != nil {
+        return 0, err
+    }
+    defer fd.readUnlock()
+    if len(p) == 0 {
+        return 0, nil
+    }
+
+    if err := fd.pd.prepareRead(fd.isFile); err != nil {
+        return 0, err
+    }
+    if fd.IsStream && len(p) > maxRW {
+        p = p[:maxRW]
+    }
+    for {
+        // 第一次调用 syscall.Read 之后，如果读到了数据
+        // 那么直接就返回了
+        n, err := syscall.Read(fd.Sysfd, p)
+        if err != nil {
+            n = 0
+            // 如果 os 返回 EAGAIN，说明可能暂时没数据
+            // 判断 fd 是 pollable 的话，说明可以走 poll 流程
+            if err == syscall.EAGAIN && fd.pd.pollable() {
+                if err = fd.pd.waitRead(fd.isFile); err == nil {
+                    continue
+                }
+            }
+
+        }
+        err = fd.eofError(n, err)
+        return n, err
+    }
+}
+
+```
+
+```go
+func (pd *pollDesc) waitRead(isFile bool) error {
+    return pd.wait('r', isFile)
+}
+
+
+func (pd *pollDesc) wait(mode int, isFile bool) error {
+    if pd.runtimeCtx == 0 {
+        return errors.New("waiting for unsupported file type")
+    }
+    res := runtime_pollWait(pd.runtimeCtx, mode)
+    return convertErr(res, isFile)
+}
+```
+
+runtime_pollWait 是用 `go:linkname` 来链接期链接到的函数，实现在 `runtime/netpoll.go` 中:
+
+```go
+//go:linkname poll_runtime_pollWait internal/poll.runtime_pollWait
+func poll_runtime_pollWait(pd *pollDesc, mode int) int {
+    err := netpollcheckerr(pd, int32(mode))
+    if err != 0 {
+        return err
+    }
+
+    for !netpollblock(pd, int32(mode), false) {
+        err = netpollcheckerr(pd, int32(mode))
+        if err != 0 {
+            return err
+        }
+        // Can happen if timeout has fired and unblocked us,
+        // but before we had a chance to run, timeout has been reset.
+        // Pretend it has not happened and retry.
+    }
+    return 0
+}
+```
+
+```go
+// returns true if IO is ready, or false if timedout or closed
+// waitio - wait only for completed IO, ignore errors
+func netpollblock(pd *pollDesc, mode int32, waitio bool) bool {
+    gpp := &pd.rg
+    if mode == 'w' {
+        gpp = &pd.wg
+    }
+
+    // set the gpp semaphore to WAIT
+    for {
+        old := *gpp
+        if old == pdReady {
+            *gpp = 0
+            return true
+        }
+        if old != 0 {
+            throw("runtime: double wait")
+        }
+        if atomic.Casuintptr(gpp, 0, pdWait) {
+            break
+        }
+    }
+
+    // need to recheck error states after setting gpp to WAIT
+    // this is necessary because runtime_pollUnblock/runtime_pollSetDeadline/deadlineimpl
+    // do the opposite: store to closing/rd/wd, membarrier, load of rg/wg
+    if waitio || netpollcheckerr(pd, mode) == 0 {
+        gopark(netpollblockcommit, unsafe.Pointer(gpp), "IO wait", traceEvGoBlockNet, 5)
+    }
+    // be careful to not lose concurrent READY notification
+    old := atomic.Xchguintptr(gpp, 0)
+    if old > pdWait {
+        throw("runtime: corrupted polldesc")
+    }
+    return old == pdReady
+}
+```
+
+#### Write 流程
+
+```go
+// Write implements the Conn Write method.
+func (c *conn) Write(b []byte) (int, error) {
+    if !c.ok() {
+        return 0, syscall.EINVAL
+    }
+    n, err := c.fd.Write(b)
+    if err != nil {
+        err = &OpError{Op: "write", Net: c.fd.net, Source: c.fd.laddr, Addr: c.fd.raddr, Err: err}
+    }
+    return n, err
+}
+
+```
+
+```go
+func (fd *netFD) Write(buf []byte) (int, error) {
+    n, err := fd.pfd.Write(buf)
+    runtime.KeepAlive(fd)
+    return n, wrapSyscallError("wsasend", err)
+}
+```
