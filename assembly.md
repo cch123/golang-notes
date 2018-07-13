@@ -71,7 +71,7 @@ JMP 2(PC)  // 以当前指令为基础，向前/后跳转 x 行
 JMP -2(PC) // 同上
 
 // 有条件跳转
-JNZ target // 如果 zero flag 被 set 过，则跳转
+JZ target // 如果 zero flag 被 set 过，则跳转
 
 ```
 
