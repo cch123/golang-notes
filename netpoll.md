@@ -31,6 +31,8 @@ func installTestHooks() {
 
 用这种全局函数 hook，或者叫注册表的方式，可以实现类似于面向对象中的 interface 功能。不过因为不同平台提供的网络编程函数差别有些大，所以这里这些全局网络函数也就只是用来方便测试。
 
+## 数据结构
+
 ```go
 // 整体的 network poller(平台无关部分)
 // 具体的实现需要定义下面这些函数:
@@ -55,8 +57,8 @@ func installTestHooks() {
 
 // wg 和 rg 这两个字段用法实在有点特殊
 // 既会被用来当作状态值，又会被用来存储被 park 的 g 列表
-// 如果没有 g 在等，也没事件，那就是 0，其实就是 0
-// 官方这里非得说是 nil
+// 如果没有 g 在等，也没事件，那就是 0
+// 官方这里说的 nil 其实就是 0
 
 const (
     pdReady uintptr = 1
@@ -140,6 +142,10 @@ type pollDesc struct {
 }
 ```
 
+## 流程
+
+### netFD 初始化
+
 ```go
 func newFD(sysfd, family, sotype int, net string) (*netFD, error) {
     ret := &netFD{
@@ -161,6 +167,8 @@ func (fd *netFD) init() error {
     return fd.pfd.Init(fd.net, true)
 }
 ```
+
+### listen
 
 ```mermaid
 graph LR
@@ -313,3 +321,7 @@ const (
 ```
 
 社区里有很多人吐槽，希望能有手段能修改这个值，不过看起来官方并不打算支持。所以现阶段只能通过修改 /proc/sys/net/core/somaxconn 来修改 listen 的 backlog。
+
+### poll 流程
+
+TODO
