@@ -52,6 +52,12 @@ func installTestHooks() {
 //             io notification or timeout/close changes the state to READY or nil respectively
 //             and unparks the goroutine.
 // nil - nothing of the above.
+
+// wg 和 rg 这两个字段用法实在有点特殊
+// 既会被用来当作状态值，又会被用来存储被 park 的 g 列表
+// 如果没有 g 在等，也没事件，那就是 0，其实就是 0
+// 官方这里非得说是 nil
+
 const (
     pdReady uintptr = 1
     pdWait  uintptr = 2
