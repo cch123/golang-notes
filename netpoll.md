@@ -328,13 +328,13 @@ const (
 type conn struct {
     fd *netFD
 }
+```
 
 TODO，conn 是什么时候赋值给 Conn 类型的？
 
-
 #### Read 流程
 
-
+```go
 func (c *conn) ok() bool { return c != nil && c.fd != nil }
 
 // Implementation of the Conn interface.
@@ -516,3 +516,81 @@ func (fd *netFD) Write(buf []byte) (int, error) {
     return n, wrapSyscallError("wsasend", err)
 }
 ```
+
+TODO
+
+#### 就续通知
+
+```go
+// polls for ready network connections
+// returns list of goroutines that become runnable
+func netpoll(block bool) *g {
+    if epfd == -1 {
+        return nil
+    }
+    waitms := int32(-1)
+    if !block {
+        waitms = 0
+    }
+    var events [128]epollevent
+retry:
+    n := epollwait(epfd, &events[0], int32(len(events)), waitms)
+    if n < 0 {
+        if n != -_EINTR {
+            println("runtime: epollwait on fd", epfd, "failed with", -n)
+            throw("runtime: netpoll failed")
+        }
+        goto retry
+    }
+    var gp guintptr
+    for i := int32(0); i < n; i++ {
+        ev := &events[i]
+        if ev.events == 0 {
+            continue
+        }
+        var mode int32
+        if ev.events&(_EPOLLIN|_EPOLLRDHUP|_EPOLLHUP|_EPOLLERR) != 0 {
+            mode += 'r'
+        }
+        if ev.events&(_EPOLLOUT|_EPOLLHUP|_EPOLLERR) != 0 {
+            mode += 'w'
+        }
+        if mode != 0 {
+            pd := *(**pollDesc)(unsafe.Pointer(&ev.data))
+
+            netpollready(&gp, pd, mode)
+        }
+    }
+    if block && gp == 0 {
+        goto retry
+    }
+    return gp.ptr()
+}
+
+// make pd ready, newly runnable goroutines (if any) are returned in rg/wg
+// May run during STW, so write barriers are not allowed.
+//go:nowritebarrier
+func netpollready(gpp *guintptr, pd *pollDesc, mode int32) {
+    var rg, wg guintptr
+    if mode == 'r' || mode == 'r'+'w' {
+        rg.set(netpollunblock(pd, 'r', true))
+    }
+    if mode == 'w' || mode == 'r'+'w' {
+        wg.set(netpollunblock(pd, 'w', true))
+    }
+    if rg != 0 {
+        rg.ptr().schedlink = *gpp
+        *gpp = rg
+    }
+    if wg != 0 {
+        wg.ptr().schedlink = *gpp
+        *gpp = wg
+    }
+}
+```
+
+注释中这里说，返回一个 goroutines 的列表。实际这个是有个前提的，那就是 epoll_wait 返回的例如读事件，多个读对应的是同一个 pollDesc，那么这时候才会构成链表，因为 netpoll 函数中的 for 循环在 i > 0 的时候，才会让 gp != 0。
+
+如果所有 event 分别属于不同的 pollDesc，那么就不会是链表了。
+
+### 读写超时
