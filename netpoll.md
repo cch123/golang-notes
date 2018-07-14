@@ -1,6 +1,6 @@
 # netpoll
 
-socket，connect，listen，getsocketopt 都有一个全局函数变量来表示。
+socket，connect，listen，getsockopt 都有一个全局函数变量来表示。
 
 hook_unix.go :
 
