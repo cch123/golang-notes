@@ -1,39 +1,51 @@
 # Channel
+
 go 的有锁数据结构，CSP 概念的组成因子之一。
 
 ## basic usage
+
 阻塞式 channel ：
+
 ```go
 var a = make(chan int)
 ```
+
 非阻塞 channel：
+
 ```go
 var a = make(chan int, 10)
 ```
+
 阻塞和非阻塞关键就在是否有 capacity。没有 capacity 的话，channel 也就只是个同步通信工具。
 
 向 channel 中发送内容：
+
 ```go
 ch := make(chan int, 100)
 ch <- 1
 ```
 
 从 channel 中接收内容：
+
 ```go
-var i := <- ch
+var i = <- ch
 ```
 
 关闭 channel：
+
 ```go
 close(ch)
 ```
+
 注意，已关闭的 channel，再次关闭会 panic
+
 ```go
 close(ch)
 close(ch) // panic: close of closed channel
 ```
 
 在 channel 关闭时自动退出循环
+
 ```go
 func main() {
     ch := make(chan int, 100)
@@ -42,7 +54,9 @@ func main() {
     }
 }
 ```
+
 获取 channel 中元素数量、buffer 容量：
+
 ```go
 func main() {
     ch := make(chan int, 100)
@@ -51,16 +65,21 @@ func main() {
     fmt.Println(cap(ch)) // 100
 }
 ```
+
 注意，len 和 cap 并不是函数调用。编译后是直接去取 hchan 的 field 了。
 
 ## closed channel
+
 被关闭的 channel 不能再向其中发送内容，否则会 panic
+
 ```go
 ch := make(chan int)
 close(ch)
 ch <- 1 // panic: send on closed channel
 ```
+
 注意，如果 close channel 时，有 sender goroutine 挂在 channel 的阻塞发送队列中，会导致 panic：
+
 ```go
 func main() {
     ch := make(chan int)
@@ -72,35 +91,46 @@ func main() {
     fmt.Println(x, ok)
 }
 ```
+
 close 一个 channel 会唤醒所有等待在该 channel 上的 g，并使其进入 Grunnable 状态，这时这些 writer goroutine 会发现该 channel 已经是 closed 状态，就 panic了。
 
 在不确定是否还有 goroutine 需要向 channel 发送数据时，请勿贸然关闭 channel。
 
 可以从已经 closed 的 channel 中接收值：
+
 ```go
 ch := make(chan int)
 close(ch)
 x := <-ch
 ```
+
 如果 channel 中有值，这里特指带 buffer 的 channel，那么就从 channel 中取，如果没有值，那么会返回 channel 元素的 0 值。
 
 区分是返回的零值还是 buffer 中的值可使用 comma, ok 语法：
+
 ```go
 x, ok := <-ch
 ```
+
 若 ok 为 false，表明 channel 已被关闭，所得的是无效的值。
 
 ## nil channel
+
 不进行初始化，即不调用 make 来赋值的 channel 称为 nil channel：
+
 ```go
-var a = chan int
+var a chan int
 ```
+
 关闭一个 nil channel 会直接 panic
+
 ```go
-var a = chan int
+var a chan int
 close(a) // panic: close of nil channel
 ```
+
 ## close principle
+
 一个 sender，多个 receiver，由 sender 来关闭 channel，通知数据已发送完毕。
 
 一旦 sender 有多个，可能就无法判断数据是否完毕了。这时候可以借助外部额外 channel 来做信号广播。这种做法类似于 done channel，或者 stop channel。
@@ -112,7 +142,9 @@ close(a) // panic: close of nil channel
 # 源码分析
 
 ## hchan
+
 hchan 是 channel 在 runtime 中的数据结构
+
 ```go
 // channel 在 runtime 中的结构体
 type hchan struct {
@@ -148,6 +180,7 @@ type hchan struct {
 ```
 
 ## init
+
 ```go
 // 初始化 channel
 func makechan(t *chantype, size int) *hchan {
@@ -204,6 +237,7 @@ func makechan(t *chantype, size int) *hchan {
 ```
 
 ## send
+
 ```go
 // entry point for c <- x from compiled code
 // 英文写的比较明白了。。
@@ -372,7 +406,9 @@ func send(c *hchan, sg *sudog, ep unsafe.Pointer, unlockf func(), skip int) {
 }
 
 ```
+
 ## receive
+
 ```go
 // entry points for <- c from compiled code
 //go:nosplit
@@ -538,46 +574,47 @@ func chanrecv(c *hchan, ep unsafe.Pointer, block bool) (selected, received bool)
 // sg must already be dequeued from c.
 // A non-nil ep must point to the heap or the caller's stack.
 func recv(c *hchan, sg *sudog, ep unsafe.Pointer, unlockf func(), skip int) {
-	if c.dataqsiz == 0 {
-		if ep != nil {
-			// copy data from sender
-			recvDirect(c.elemtype, sg, ep)
-		}
-	} else {
-		// Queue is full. Take the item at the
-		// head of the queue. Make the sender enqueue
-		// its item at the tail of the queue. Since the
-		// queue is full, those are both the same slot.
-		qp := chanbuf(c, c.recvx)
+    if c.dataqsiz == 0 {
+        if ep != nil {
+            // copy data from sender
+            recvDirect(c.elemtype, sg, ep)
+        }
+    } else {
+        // Queue is full. Take the item at the
+        // head of the queue. Make the sender enqueue
+        // its item at the tail of the queue. Since the
+        // queue is full, those are both the same slot.
+        qp := chanbuf(c, c.recvx)
 
-		// copy data from queue to receiver
-		// 英文写的很明白
-		if ep != nil {
-			typedmemmove(c.elemtype, ep, qp)
-		}
-		// copy data from sender to queue
-		// 英文写的很明白
-		typedmemmove(c.elemtype, qp, sg.elem)
-		c.recvx++
-		if c.recvx == c.dataqsiz {
-			c.recvx = 0
-		}
-		c.sendx = c.recvx // c.sendx = (c.sendx+1) % c.dataqsiz
-	}
-	sg.elem = nil
-	gp := sg.g
-	unlockf()
-	gp.param = unsafe.Pointer(sg)
-	if sg.releasetime != 0 {
-		sg.releasetime = cputicks()
-	}
+        // copy data from queue to receiver
+        // 英文写的很明白
+        if ep != nil {
+            typedmemmove(c.elemtype, ep, qp)
+        }
+        // copy data from sender to queue
+        // 英文写的很明白
+        typedmemmove(c.elemtype, qp, sg.elem)
+        c.recvx++
+        if c.recvx == c.dataqsiz {
+            c.recvx = 0
+        }
+        c.sendx = c.recvx // c.sendx = (c.sendx+1) % c.dataqsiz
+    }
+    sg.elem = nil
+    gp := sg.g
+    unlockf()
+    gp.param = unsafe.Pointer(sg)
+    if sg.releasetime != 0 {
+        sg.releasetime = cputicks()
+    }
 
-	// Gwaiting -> Grunnable
-	goready(gp, skip+1)
+    // Gwaiting -> Grunnable
+    goready(gp, skip+1)
 }
 ```
 
 ## close
+
 ```go
 func closechan(c *hchan) {
     // 关闭一个 nil channel 会直接 panic
@@ -662,12 +699,3 @@ func closechan(c *hchan) {
     }
 }
 ```
-
-
-<!--stackedit_data:
-eyJoaXN0b3J5IjpbMTY2OTk4NTMzMywxMzc4NzUyODgzXX0=
--->
-<!--stackedit_data:
-eyJoaXN0b3J5IjpbMTcyMjI5MjE1MywzNjgzNDM5MywxNzIyMj
-kyMTUzLDM2ODM0MzkzXX0=
--->
