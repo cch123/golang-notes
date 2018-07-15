@@ -12,7 +12,7 @@
 6. [x] Timer
 7. [ ] Defer
 8. [ ] Lock
-9. [ ] Netpoll
+9. [x] Netpoll
 10. [ ] Reflect
 11. [ ] Panic
 12. [ ] Goroutine
