@@ -1,6 +1,6 @@
 # netpoll
 
-socket，connect，listen，getsocketopt 都有一个全局函数变量来表示。
+socket，connect，listen，getsockopt 都有一个全局函数变量来表示。
 
 hook_unix.go :
 
@@ -144,29 +144,6 @@ type pollDesc struct {
 
 ## 流程
 
-### netFD 初始化
-
-```go
-func newFD(sysfd, family, sotype int, net string) (*netFD, error) {
-    ret := &netFD{
-        pfd: poll.FD{
-            Sysfd:         sysfd,
-            IsStream:      sotype == syscall.SOCK_STREAM,
-            ZeroReadIsEOF: sotype != syscall.SOCK_DGRAM && sotype != syscall.SOCK_RAW,
-        },
-        family: family,
-        sotype: sotype,
-        net:    net,
-    }
-    return ret, nil
-}
-```
-
-```go
-func (fd *netFD) init() error {
-    return fd.pfd.Init(fd.net, true)
-}
-```
 
 ### listen
 
@@ -236,12 +213,14 @@ func socket(ctx context.Context, net string, family, sotype, proto int, ipv6only
 
     if laddr != nil && raddr == nil {
         switch sotype {
+        // 基于流的协议
         case syscall.SOCK_STREAM, syscall.SOCK_SEQPACKET:
             if err := fd.listenStream(laddr, listenerBacklog); err != nil {
                 fd.Close()
                 return nil, err
             }
             return fd, nil
+        // 基于数据报的协议
         case syscall.SOCK_DGRAM:
             if err := fd.listenDatagram(laddr); err != nil {
                 fd.Close()
@@ -266,10 +245,13 @@ func (fd *netFD) listenStream(laddr sockaddr, backlog int) error {
     if lsa, err := laddr.sockaddr(fd.family); err != nil {
         return err
     } else if lsa != nil {
+        // bind()
         if err := syscall.Bind(fd.pfd.Sysfd, lsa); err != nil {
             return os.NewSyscallError("bind", err)
         }
     }
+
+    // listenFunc 是全局函数值，在 linux 下非测试环境被绑定到 syscall.Listen
     if err := listenFunc(fd.pfd.Sysfd, backlog); err != nil {
         return os.NewSyscallError("listen", err)
     }
@@ -322,15 +304,108 @@ const (
 
 社区里有很多人吐槽，希望能有手段能修改这个值，不过看起来官方并不打算支持。所以现阶段只能通过修改 /proc/sys/net/core/somaxconn 来修改 listen 的 backlog。
 
-### poll 流程
+### netFD 初始化
+
+在上面的 listen 流程的 socket 函数中会调用 newFD 来初始化一个 fd。
 
 ```go
-type conn struct {
-    fd *netFD
+func newFD(sysfd, family, sotype int, net string) (*netFD, error) {
+    ret := &netFD{
+        pfd: poll.FD{
+            Sysfd:         sysfd,
+            IsStream:      sotype == syscall.SOCK_STREAM,
+            ZeroReadIsEOF: sotype != syscall.SOCK_DGRAM && sotype != syscall.SOCK_RAW,
+        },
+        family: family,
+        sotype: sotype,
+        net:    net,
+    }
+    return ret, nil
 }
 ```
 
-TODO，conn 是什么时候赋值给 Conn 类型的？
+在 socket、bind、listen 三连发，都没有出错的情况下，会调用 fd.init():
+
+```go
+func (fd *netFD) init() error {
+    return fd.pfd.Init(fd.net, true)
+}
+```
+
+```go
+// Init initializes the FD. The Sysfd field should already be set.
+// This can be called multiple times on a single FD.
+// The net argument is a network name from the net package (e.g., "tcp"),
+// or "file".
+// Set pollable to true if fd should be managed by runtime netpoll.
+func (fd *FD) Init(net string, pollable bool) error {
+    // We don't actually care about the various network types.
+    if net == "file" {
+        fd.isFile = true
+    }
+    if !pollable {
+        fd.isBlocking = true
+        return nil
+    }
+    return fd.pd.init(fd)
+}
+```
+
+```go
+func (pd *pollDesc) init(fd *FD) error {
+    serverInit.Do(runtime_pollServerInit)
+    ctx, errno := runtime_pollOpen(uintptr(fd.Sysfd))
+    if errno != 0 {
+        if ctx != 0 {
+            runtime_pollUnblock(ctx)
+            runtime_pollClose(ctx)
+        }
+        return syscall.Errno(errno)
+    }
+    pd.runtimeCtx = ctx
+    return nil
+}
+```
+
+```go
+//go:linkname poll_runtime_pollOpen internal/poll.runtime_pollOpen
+func poll_runtime_pollOpen(fd uintptr) (*pollDesc, int) {
+    pd := pollcache.alloc()
+    lock(&pd.lock)
+    if pd.wg != 0 && pd.wg != pdReady {
+        throw("runtime: blocked write on free polldesc")
+    }
+    if pd.rg != 0 && pd.rg != pdReady {
+        throw("runtime: blocked read on free polldesc")
+    }
+    pd.fd = fd
+    pd.closing = false
+    pd.seq++
+    pd.rg = 0
+    pd.rd = 0
+    pd.wg = 0
+    pd.wd = 0
+    unlock(&pd.lock)
+
+    var errno int32
+    errno = netpollopen(fd, pd)
+    return pd, int(errno)
+}
+```
+
+每一个 fd 对会都应一个 pollDesc 结构，可以看到有 pollcache 提供一定程度的复用。
+
+```go
+func netpollopen(fd uintptr, pd *pollDesc) int32 {
+    var ev epollevent
+    ev.events = _EPOLLIN | _EPOLLOUT | _EPOLLRDHUP | _EPOLLET
+    *(**pollDesc)(unsafe.Pointer(&ev.data)) = pd
+    return -epollctl(epfd, _EPOLL_CTL_ADD, int32(fd), &ev)
+}
+```
+
+pollDesc 初始化好之后，会当作 epoll event 的数据存储到 ev.data 中。 当有事件就续时，会取 ev.data，以判断是哪个 fd 可读/可写。
+
 
 #### Read 流程
 
@@ -589,8 +664,18 @@ func netpollready(gpp *guintptr, pd *pollDesc, mode int32) {
 }
 ```
 
-注释中这里说，返回一个 goroutines 的列表。实际这个是有个前提的，那就是 epoll_wait 返回的例如读事件，多个读对应的是同一个 pollDesc，那么这时候才会构成链表，因为 netpoll 函数中的 for 循环在 i > 0 的时候，才会让 gp != 0。
+注释中这里说，返回一个 goroutines 的列表。实际这个是有个前提的，那就是 epoll_wait 返回的例如读事件，多个读对应的是同一个 pollDesc(本质上就是同一个 file descriptor 的事件)，那么这时候才会构成链表，因为 netpoll 函数中的 for 循环在 i > 0 的时候，才会让 gp != 0。
 
 如果所有 event 分别属于不同的 pollDesc，那么就不会是链表了。
+
+### poll 就续流程
+
+```go
+type conn struct {
+    fd *netFD
+}
+```
+
+TODO，conn 是什么时候赋值给 Conn 类型的？
 
 ### 读写超时
