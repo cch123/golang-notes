@@ -144,7 +144,6 @@ type pollDesc struct {
 
 ## 流程
 
-
 ### listen
 
 ```mermaid
@@ -406,6 +405,7 @@ func netpollopen(fd uintptr, pd *pollDesc) int32 {
 
 pollDesc 初始化好之后，会当作 epoll event 的数据存储到 ev.data 中。 当有事件就续时，会取 ev.data，以判断是哪个 fd 可读/可写。
 
+TODO，conn 是什么时候赋值给 Conn 类型的？
 
 #### Read 流程
 
@@ -552,20 +552,7 @@ func netpollblock(pd *pollDesc, mode int32, waitio bool) bool {
 }
 ```
 
-gopark 会执行 netpollblockcommit，并将 gpp 挂起，netpollblockcommit 比较简单:
-
-```go
-func netpollblockcommit(gp *g, gpp unsafe.Pointer) bool {
-    r := atomic.Casuintptr((*uintptr)(gpp), pdWait, uintptr(unsafe.Pointer(gp)))
-    if r {
-        // Bump the count of goroutines waiting for the poller.
-        // The scheduler uses this to decide whether to block
-        // waiting for the poller if there is nothing else to do.
-        atomic.Xadd(&netpollWaiters, 1)
-    }
-    return r
-}
-```
+gopark 将当前 g 挂起，等待就绪事件到达之后再继续执行。
 
 #### Write 流程
 
@@ -592,7 +579,61 @@ func (fd *netFD) Write(buf []byte) (int, error) {
 }
 ```
 
-TODO
+```go
+// Write implements io.Writer.
+func (fd *FD) Write(p []byte) (int, error) {
+    if err := fd.writeLock(); err != nil {
+        return 0, err
+    }
+    defer fd.writeUnlock()
+    if err := fd.pd.prepareWrite(fd.isFile); err != nil {
+        return 0, err
+    }
+    var nn int
+    for {
+        max := len(p)
+        if fd.IsStream && max-nn > maxRW {
+            max = nn + maxRW
+        }
+        n, err := syscall.Write(fd.Sysfd, p[nn:max])
+        if n > 0 {
+            nn += n
+        }
+        if nn == len(p) {
+            return nn, err
+        }
+        if err == syscall.EAGAIN && fd.pd.pollable() {
+            if err = fd.pd.waitWrite(fd.isFile); err == nil {
+                continue
+            }
+        }
+        if err != nil {
+            return nn, err
+        }
+        if n == 0 {
+            return nn, io.ErrUnexpectedEOF
+        }
+    }
+}
+```
+
+内核的写缓冲区满，这里的 syscall.Write 就会返回 EAGAIN。
+
+```go
+func (pd *pollDesc) waitWrite(isFile bool) error {
+    return pd.wait('w', isFile)
+}
+
+func (pd *pollDesc) wait(mode int, isFile bool) error {
+    if pd.runtimeCtx == 0 {
+        return errors.New("waiting for unsupported file type")
+    }
+    res := runtime_pollWait(pd.runtimeCtx, mode)
+    return convertErr(res, isFile)
+}
+```
+
+后面的流程就和 Read 完全一致了。
 
 #### 就续通知
 
@@ -662,20 +703,161 @@ func netpollready(gpp *guintptr, pd *pollDesc, mode int32) {
         *gpp = wg
     }
 }
-```
 
-注释中这里说，返回一个 goroutines 的列表。实际这个是有个前提的，那就是 epoll_wait 返回的例如读事件，多个读对应的是同一个 pollDesc(本质上就是同一个 file descriptor 的事件)，那么这时候才会构成链表，因为 netpoll 函数中的 for 循环在 i > 0 的时候，才会让 gp != 0。
+// 按照 mode 把 pollDesc 的 wg 或者 rg 捞出来，返回
+func netpollunblock(pd *pollDesc, mode int32, ioready bool) *g {
+    gpp := &pd.rg
+    if mode == 'w' {
+        gpp = &pd.wg
+    }
 
-如果所有 event 分别属于不同的 pollDesc，那么就不会是链表了。
-
-### poll 就续流程
-
-```go
-type conn struct {
-    fd *netFD
+    for {
+        old := *gpp
+        if old == pdReady {
+            return nil
+        }
+        if old == 0 && !ioready {
+            // Only set READY for ioready. runtime_pollWait
+            // will check for timeout/cancel before waiting.
+            return nil
+        }
+        var new uintptr
+        if ioready {
+            new = pdReady
+        }
+        if atomic.Casuintptr(gpp, old, new) {
+            if old == pdReady || old == pdWait {
+                old = 0
+            }
+            return (*g)(unsafe.Pointer(old))
+        }
+    }
 }
 ```
 
-TODO，conn 是什么时候赋值给 Conn 类型的？
+三个函数配合完成就续后唤醒对应的 g 的工作，netpollunblock 从 pollDesc 中捞出 rg/wg，netpollready 然后再把所有的 rg/wg 通过 schedlink 串成一个链表。findrunnable 之类需要 g 的场景下，调度器会主动调用 netpoll 函数来寻找是否有已经就绪的网络事件对应的 g。
+
+netpoll 这个函数是平台相关的，实现在对应的 netpoll_epoll、netpoll_kqueue 文件中。
+
+#### 读写 g 的挂起和恢复
+
+在上面读写流程，syscall.Read 或者 syscall.Write 返回 EAGAIN 时，会挂起当前正在进行这个读/写操作的 g，具体是调用 gopark，并执行 netpollblockcommit，并将 gpp 挂起，netpollblockcommit 比较简单:
+
+```go
+func netpollblockcommit(gp *g, gpp unsafe.Pointer) bool {
+    r := atomic.Casuintptr((*uintptr)(gpp), pdWait, uintptr(unsafe.Pointer(gp)))
+    if r {
+        // Bump the count of goroutines waiting for the poller.
+        // The scheduler uses this to decide whether to block
+        // waiting for the poller if there is nothing else to do.
+        atomic.Xadd(&netpollWaiters, 1)
+    }
+    return r
+}
+```
+
+EAGAIN 的时候:
+
+```go
+gopark(netpollblockcommit, unsafe.Pointer(gpp), "IO wait", traceEvGoBlockNet, 5)
+```
+
+```go
+// Puts the current goroutine into a waiting state and calls unlockf.
+// If unlockf returns false, the goroutine is resumed.
+// unlockf must not access this G's stack, as it may be moved between
+// the call to gopark and the call to unlockf.
+func gopark(unlockf func(*g, unsafe.Pointer) bool, lock unsafe.Pointer, reason string, traceEv byte, traceskip int) {
+    mp := acquirem()
+    gp := mp.curg
+    status := readgstatus(gp)
+    if status != _Grunning && status != _Gscanrunning {
+        throw("gopark: bad g status")
+    }
+    mp.waitlock = lock
+    mp.waitunlockf = *(*unsafe.Pointer)(unsafe.Pointer(&unlockf)) // unlockf = netpollblockcommit
+    gp.waitreason = reason
+    mp.waittraceev = traceEv
+    mp.waittraceskip = traceskip
+    releasem(mp)
+    // can't do anything that might move the G between Ms here.
+    mcall(park_m)
+}
+```
+
+```go
+// park continuation on g0.
+func park_m(gp *g) {
+    _g_ := getg()
+
+    casgstatus(gp, _Grunning, _Gwaiting)
+    dropg()
+
+    if _g_.m.waitunlockf != nil {
+        // fn = netpollblockcommit
+        fn := *(*func(*g, unsafe.Pointer) bool)(unsafe.Pointer(&_g_.m.waitunlockf))
+        ok := fn(gp, _g_.m.waitlock)
+        _g_.m.waitunlockf = nil
+        _g_.m.waitlock = nil
+        // 原子操作没成功，那还得先继续执行当前的逻辑
+        // 回到最外面的读/写循环
+        if !ok {
+            casgstatus(gp, _Gwaiting, _Grunnable)
+            execute(gp, true) // Schedule it back, never returns.
+        }
+    }
+    // g 成功挂起，m 成功解绑，当前的 m 进入调度循环，去找其它可以执行的 g
+    schedule()
+}
+
+// 切换到 m->g0 的栈，然后调用 fn(g)
+// fn 必须不能返回
+// 这个 g 之后应该用 gogo(&g->sched) 来恢复执行
+TEXT runtime·mcall(SB), NOSPLIT, $0-8
+    MOVQ    fn+0(FP), DI
+
+    get_tls(CX)
+    MOVQ    g(CX), AX    // save state in g->sched
+    MOVQ    0(SP), BX    // caller's PC
+    // 把当前 g 的运行现场保存到 g.gobuf 中
+    MOVQ    BX, (g_sched+gobuf_pc)(AX)
+    LEAQ    fn+0(FP), BX    // caller's SP
+    MOVQ    BX, (g_sched+gobuf_sp)(AX)
+    MOVQ    AX, (g_sched+gobuf_g)(AX)
+    MOVQ    BP, (g_sched+gobuf_bp)(AX)
+
+    // switch to m->g0 & its stack, call fn
+    MOVQ    g(CX), BX
+    MOVQ    g_m(BX), BX
+    MOVQ    m_g0(BX), SI
+    CMPQ    SI, AX    // if g == m->g0 call badmcall
+    JNE    3(PC)
+    MOVQ    $runtime·badmcall(SB), AX
+    JMP    AX
+    MOVQ    SI, g(CX)    // g = m->g0
+    MOVQ    (g_sched+gobuf_sp)(SI), SP    // sp = m->g0->sched.sp
+    PUSHQ    AX
+    MOVQ    DI, DX
+    MOVQ    0(DI), DI
+    CALL    DI
+    POPQ    AX
+    MOVQ    $runtime·badmcall2(SB), AX
+    JMP    AX
+    RET
+
+// 把 g 当前所在的 m 的指针都清 0
+// 将 m 腾出来干别的事去
+func dropg() {
+    _g_ := getg()
+    setMNoWB(&_g_.m.curg.m, nil)
+    setGNoWB(&_g_.m.curg, nil)
+}
+```
+
+上面就是挂起的所有流程了，可见所谓的挂起，就是把 g 当前的运行状态: bp、sp、pc 寄存器，以及 g 的地址保存起来。
+
+至于唤醒流程，当调度器在 findrunnable、startTheWorldWithSema 或者 sysmon 中调用 netpoll 函数时，会获取到上面说的就绪的 g 列表。把这些 g 的 bp/sp/pc 都从 g.gobuf 中恢复出来，就可以继续执行它们的 Read/Write 操作了。
+
+因为调度中有讲，这里就不赘述了。
 
 ### 读写超时
