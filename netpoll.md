@@ -861,3 +861,239 @@ func dropg() {
 因为调度中有讲，这里就不赘述了。
 
 ### 读写超时
+
+```go
+// SetReadDeadline sets the read deadline on the underlying connection.
+// A zero value for t means Read will not time out.
+func (c *Conn) SetReadDeadline(t time.Time) error {
+    return c.conn.SetReadDeadline(t)
+}
+
+// SetWriteDeadline sets the write deadline on the underlying connection.
+// A zero value for t means Write will not time out.
+// After a Write has timed out, the TLS state is corrupt and all future writes will return the same error.
+func (c *Conn) SetWriteDeadline(t time.Time) error {
+    return c.conn.SetWriteDeadline(t)
+}
+```
+
+```go
+// SetReadDeadline implements the Conn SetReadDeadline method.
+func (c *conn) SetReadDeadline(t time.Time) error {
+    if !c.ok() {
+        return syscall.EINVAL
+    }
+    if err := c.fd.pfd.SetReadDeadline(t); err != nil {
+        return &OpError{Op: "set", Net: c.fd.net, Source: nil, Addr: c.fd.laddr, Err: err}
+    }
+    return nil
+}
+
+// SetWriteDeadline implements the Conn SetWriteDeadline method.
+func (c *conn) SetWriteDeadline(t time.Time) error {
+    if !c.ok() {
+        return syscall.EINVAL
+    }
+    if err := c.fd.pfd.SetWriteDeadline(t); err != nil {
+        return &OpError{Op: "set", Net: c.fd.net, Source: nil, Addr: c.fd.laddr, Err: err}
+    }
+    return nil
+}
+```
+
+```go
+// SetReadDeadline sets the read deadline associated with fd.
+func (fd *FD) SetReadDeadline(t time.Time) error {
+    return setDeadlineImpl(fd, t, 'r')
+}
+
+// SetWriteDeadline sets the write deadline associated with fd.
+func (fd *FD) SetWriteDeadline(t time.Time) error {
+    return setDeadlineImpl(fd, t, 'w')
+}
+```
+
+```go
+func setDeadlineImpl(fd *FD, t time.Time, mode int) error {
+    diff := int64(time.Until(t))
+    d := runtimeNano() + diff
+    if d <= 0 && diff > 0 {
+        // If the user has a deadline in the future, but the delay calculation
+        // overflows, then set the deadline to the maximum possible value.
+        d = 1<<63 - 1
+    }
+    if t.IsZero() {
+        d = 0
+    }
+    if err := fd.incref(); err != nil {
+        return err
+    }
+    defer fd.decref()
+    if fd.pd.runtimeCtx == 0 {
+        return ErrNoDeadline
+    }
+    runtime_pollSetDeadline(fd.pd.runtimeCtx, d, mode)
+    return nil
+}
+```
+
+```go
+//go:linkname poll_runtime_pollSetDeadline internal/poll.runtime_pollSetDeadline
+func poll_runtime_pollSetDeadline(pd *pollDesc, d int64, mode int) {
+    lock(&pd.lock)
+    if pd.closing {
+        unlock(&pd.lock)
+        return
+    }
+    pd.seq++ // invalidate current timers
+    // Reset current timers.
+    if pd.rt.f != nil {
+        deltimer(&pd.rt)
+        pd.rt.f = nil
+    }
+    if pd.wt.f != nil {
+        deltimer(&pd.wt)
+        pd.wt.f = nil
+    }
+    // Setup new timers.
+    if d != 0 && d <= nanotime() {
+        d = -1
+    }
+    if mode == 'r' || mode == 'r'+'w' {
+        pd.rd = d
+    }
+    if mode == 'w' || mode == 'r'+'w' {
+        pd.wd = d
+    }
+    if pd.rd > 0 && pd.rd == pd.wd {
+        pd.rt.f = netpollDeadline
+        pd.rt.when = pd.rd
+        // Copy current seq into the timer arg.
+        // Timer func will check the seq against current descriptor seq,
+        // if they differ the descriptor was reused or timers were reset.
+        pd.rt.arg = pd
+        pd.rt.seq = pd.seq
+        addtimer(&pd.rt)
+    } else {
+        if pd.rd > 0 {
+            pd.rt.f = netpollReadDeadline
+            pd.rt.when = pd.rd
+            pd.rt.arg = pd
+            pd.rt.seq = pd.seq
+            addtimer(&pd.rt)
+        }
+        if pd.wd > 0 {
+            pd.wt.f = netpollWriteDeadline
+            pd.wt.when = pd.wd
+            pd.wt.arg = pd
+            pd.wt.seq = pd.seq
+            addtimer(&pd.wt)
+        }
+    }
+    // If we set the new deadline in the past, unblock currently pending IO if any.
+    var rg, wg *g
+    atomicstorep(unsafe.Pointer(&wg), nil) // full memory barrier between stores to rd/wd and load of rg/wg in netpollunblock
+    if pd.rd < 0 {
+        rg = netpollunblock(pd, 'r', false)
+    }
+    if pd.wd < 0 {
+        wg = netpollunblock(pd, 'w', false)
+    }
+    unlock(&pd.lock)
+    if rg != nil {
+        netpollgoready(rg, 3)
+    }
+    if wg != nil {
+        netpollgoready(wg, 3)
+    }
+}
+```
+
+```go
+func netpollDeadline(arg interface{}, seq uintptr) {
+    netpolldeadlineimpl(arg.(*pollDesc), seq, true, true)
+}
+
+func netpollReadDeadline(arg interface{}, seq uintptr) {
+    netpolldeadlineimpl(arg.(*pollDesc), seq, true, false)
+}
+```
+
+```go
+func netpolldeadlineimpl(pd *pollDesc, seq uintptr, read, write bool) {
+    lock(&pd.lock)
+    // Seq arg is seq when the timer was set.
+    // If it's stale, ignore the timer event.
+    if seq != pd.seq {
+        // The descriptor was reused or timers were reset.
+        unlock(&pd.lock)
+        return
+    }
+    var rg *g
+    if read {
+        if pd.rd <= 0 || pd.rt.f == nil {
+            throw("runtime: inconsistent read deadline")
+        }
+        pd.rd = -1
+        atomicstorep(unsafe.Pointer(&pd.rt.f), nil) // full memory barrier between store to rd and load of rg in netpollunblock
+        rg = netpollunblock(pd, 'r', false)
+    }
+    var wg *g
+    if write {
+        if pd.wd <= 0 || pd.wt.f == nil && !read {
+            throw("runtime: inconsistent write deadline")
+        }
+        pd.wd = -1
+        atomicstorep(unsafe.Pointer(&pd.wt.f), nil) // full memory barrier between store to wd and load of wg in netpollunblock
+        wg = netpollunblock(pd, 'w', false)
+    }
+    unlock(&pd.lock)
+    if rg != nil {
+        netpollgoready(rg, 0)
+    }
+    if wg != nil {
+        netpollgoready(wg, 0)
+    }
+}
+```
+
+```go
+func netpollgoready(gp *g, traceskip int) {
+    atomic.Xadd(&netpollWaiters, -1)
+    goready(gp, traceskip+1)
+}
+
+func goready(gp *g, traceskip int) {
+    systemstack(func() {
+        ready(gp, traceskip, true)
+    })
+}
+
+// Mark gp ready to run.
+func ready(gp *g, traceskip int, next bool) {
+    if trace.enabled {
+        traceGoUnpark(gp, traceskip)
+    }
+
+    status := readgstatus(gp)
+
+    // Mark runnable.
+    _g_ := getg()
+    _g_.m.locks++ // disable preemption because it can be holding p in a local var
+    if status&^_Gscan != _Gwaiting {
+        dumpgstatus(gp)
+        throw("bad g->status in ready")
+    }
+
+    // status is Gwaiting or Gscanwaiting, make Grunnable and put on runq
+    casgstatus(gp, _Gwaiting, _Grunnable)
+    runqput(_g_.m.p.ptr(), gp, next)
+    if atomic.Load(&sched.npidle) != 0 && atomic.Load(&sched.nmspinning) == 0 {
+        wakep()
+    }
+    _g_.m.locks--
+    if _g_.m.locks == 0 && _g_.preempt { // restore the preemption request in Case we've cleared it in newstack
+        _g_.stackguard0 = stackPreempt
+    }
+}
+```
