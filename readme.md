@@ -7,7 +7,7 @@
 1. [x] Bootstrap
 2. [x] Channel
 3. [ ] Interface
-4. [ ] Select
+4. [x] Select
 5. [ ] Slice
 6. [x] Timer
 7. [ ] Defer
