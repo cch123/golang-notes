@@ -405,7 +405,7 @@ func netpollopen(fd uintptr, pd *pollDesc) int32 {
 
 pollDesc 初始化好之后，会当作 epoll event 的数据存储到 ev.data 中。 当有事件就续时，会取 ev.data，以判断是哪个 fd 可读/可写。
 
-TODO，conn 是什么时候赋值给 Conn 类型的？
+`type conn struct` 是在 accept 阶段赋值给 `type Conn interface` 的。
 
 ### accept 流程
 
