@@ -147,6 +147,29 @@ func selectsend(sel *hselect, c *hchan, elem unsafe.Pointer) {
 }
 ```
 
+```go
+// compiler implements
+//
+//    select {
+//    case c <- v:
+//        ... foo
+//    default:
+//        ... bar
+//    }
+//
+// as
+//
+//    if selectnbsend(c, v) {
+//        ... foo
+//    } else {
+//        ... bar
+//    }
+//
+func selectnbsend(c *hchan, elem unsafe.Pointer) (selected bool) {
+    return chansend(c, elem, false, getcallerpc())
+}
+```
+
 ### select receive
 
 ```go
@@ -154,7 +177,7 @@ func selectsend(sel *hselect, c *hchan, elem unsafe.Pointer) {
 // case <-ch: ==> 这时候就会调用 selectrecv
 // case ,ok <- ch: 也可以这样写
 // 在 ch 被关闭时，这个 case 每次都可能被轮询到
-//}
+// }
 func selectrecv(sel *hselect, c *hchan, elem unsafe.Pointer, received *bool) {
     pc := getcallerpc()
     i := sel.ncase
@@ -177,6 +200,55 @@ func selectrecv(sel *hselect, c *hchan, elem unsafe.Pointer, received *bool) {
 
 }
 
+```
+
+```go
+// compiler implements
+//
+//    select {
+//    case v = <-c:
+//        ... foo
+//    default:
+//        ... bar
+//    }
+//
+// as
+//
+//    if selectnbrecv(&v, c) {
+//        ... foo
+//    } else {
+//        ... bar
+//    }
+//
+func selectnbrecv(elem unsafe.Pointer, c *hchan) (selected bool) {
+    selected, _ = chanrecv(c, elem, false)
+    return
+}
+```
+
+```go
+// compiler implements
+//
+//    select {
+//    case v, ok = <-c:
+//        ... foo
+//    default:
+//        ... bar
+//    }
+//
+// as
+//
+//    if c != nil && selectnbrecv2(&v, &ok, c) {
+//        ... foo
+//    } else {
+//        ... bar
+//    }
+//
+func selectnbrecv2(elem unsafe.Pointer, received *bool, c *hchan) (selected bool) {
+    // TODO(khr): just return 2 values from this function, now that it is in Go.
+    selected, *received = chanrecv(c, elem, false)
+    return
+}
 ```
 
 ### select default
