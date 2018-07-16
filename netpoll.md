@@ -638,8 +638,8 @@ func (pd *pollDesc) wait(mode int, isFile bool) error {
 #### 就续通知
 
 ```go
-// polls for ready network connections
-// returns list of goroutines that become runnable
+// poll 已经就绪的网络连接
+// 返回那些已经可以跑的 goroutine 列表
 func netpoll(block bool) *g {
     if epfd == -1 {
         return nil
@@ -683,7 +683,7 @@ retry:
     return gp.ptr()
 }
 
-// make pd ready, newly runnable goroutines (if any) are returned in rg/wg
+// 让 pd 就续，新的可以运行的 goroutine 会 set 到 wg/rg
 // May run during STW, so write barriers are not allowed.
 //go:nowritebarrier
 func netpollready(gpp *guintptr, pd *pollDesc, mode int32) {
@@ -1121,3 +1121,96 @@ func ready(gp *g, traceskip int, next bool) {
 ```
 
 ### 连接关闭
+
+```go
+// Close closes the connection.
+func (c *conn) Close() error {
+    if !c.ok() {
+        return syscall.EINVAL
+    }
+    err := c.fd.Close()
+    if err != nil {
+        err = &OpError{Op: "close", Net: c.fd.net, Source: c.fd.laddr, Addr: c.fd.raddr, Err: err}
+    }
+    return err
+}
+```
+
+```go
+func (fd *netFD) Close() error {
+    runtime.SetFinalizer(fd, nil)
+    return fd.pfd.Close()
+}
+```
+
+```go
+// Close closes the FD. The underlying file descriptor is closed by the
+// destroy method when there are no remaining references.
+func (fd *FD) Close() error {
+    if !fd.fdmu.increfAndClose() {
+        return errClosing(fd.isFile)
+    }
+
+    // Unblock any I/O.  Once it all unblocks and returns,
+    // so that it cannot be referring to fd.sysfd anymore,
+    // the final decref will close fd.sysfd. This should happen
+    // fairly quickly, since all the I/O is non-blocking, and any
+    // attempts to block in the pollDesc will return errClosing(fd.isFile).
+    fd.pd.evict()
+
+    // The call to decref will call destroy if there are no other
+    // references.
+    err := fd.decref()
+
+    // Wait until the descriptor is closed. If this was the only
+    // reference, it is already closed. Only wait if the file has
+    // not been set to blocking mode, as otherwise any current I/O
+    // may be blocking, and that would block the Close.
+    if !fd.isBlocking {
+        runtime_Semacquire(&fd.csema)
+    }
+
+    return err
+}
+```
+
+```go
+// Evict evicts fd from the pending list, unblocking any I/O running on fd.
+func (pd *pollDesc) evict() {
+    if pd.runtimeCtx == 0 {
+        return
+    }
+    runtime_pollUnblock(pd.runtimeCtx)
+}
+```
+
+```go
+//go:linkname poll_runtime_pollUnblock internal/poll.runtime_pollUnblock
+func poll_runtime_pollUnblock(pd *pollDesc) {
+    lock(&pd.lock)
+    if pd.closing {
+        throw("runtime: unblock on closing polldesc")
+    }
+    pd.closing = true
+    pd.seq++
+    var rg, wg *g
+    atomicstorep(unsafe.Pointer(&rg), nil) // full memory barrier between store to closing and read of rg/wg in netpollunblock
+    rg = netpollunblock(pd, 'r', false)
+    wg = netpollunblock(pd, 'w', false)
+    if pd.rt.f != nil {
+        deltimer(&pd.rt)
+        pd.rt.f = nil
+    }
+    if pd.wt.f != nil {
+        deltimer(&pd.wt)
+        pd.wt.f = nil
+    }
+    unlock(&pd.lock)
+    if rg != nil {
+        netpollgoready(rg, 3)
+    }
+    if wg != nil {
+        netpollgoready(wg, 3)
+    }
+}
+```
