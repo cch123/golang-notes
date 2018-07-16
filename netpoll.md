@@ -542,6 +542,8 @@ func accept(s int) (int, syscall.Sockaddr, string, error) {
 
 ```
 
+可以看到，最终还是用 syscall 中的 accept4 或 accept 完成了系统调用。
+
 ### Read 流程
 
 ```go
