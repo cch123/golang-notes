@@ -863,22 +863,22 @@ func dropg() {
 ### 读写超时
 
 ```go
-// SetReadDeadline sets the read deadline on the underlying connection.
-// A zero value for t means Read will not time out.
+// 设置底层连接的读超时
+// 超时时间是 0 值的话永远都不会超时
 func (c *Conn) SetReadDeadline(t time.Time) error {
     return c.conn.SetReadDeadline(t)
 }
 
-// SetWriteDeadline sets the write deadline on the underlying connection.
-// A zero value for t means Write will not time out.
-// After a Write has timed out, the TLS state is corrupt and all future writes will return the same error.
+// 设置底层连接的读超时
+// 超时时间是 0 值的话永远都不会超时
+// 写超时发生之后， TLS 状态会被破坏，未来的所有写都会返回相同的错误
 func (c *Conn) SetWriteDeadline(t time.Time) error {
     return c.conn.SetWriteDeadline(t)
 }
 ```
 
 ```go
-// SetReadDeadline implements the Conn SetReadDeadline method.
+// 实现 Conn 接口中的方法
 func (c *conn) SetReadDeadline(t time.Time) error {
     if !c.ok() {
         return syscall.EINVAL
@@ -889,7 +889,7 @@ func (c *conn) SetReadDeadline(t time.Time) error {
     return nil
 }
 
-// SetWriteDeadline implements the Conn SetWriteDeadline method.
+// 实现 Conn 接口中的方法
 func (c *conn) SetWriteDeadline(t time.Time) error {
     if !c.ok() {
         return syscall.EINVAL
@@ -902,12 +902,12 @@ func (c *conn) SetWriteDeadline(t time.Time) error {
 ```
 
 ```go
-// SetReadDeadline sets the read deadline associated with fd.
+// 设置关联 fd 的读取 deadline
 func (fd *FD) SetReadDeadline(t time.Time) error {
     return setDeadlineImpl(fd, t, 'r')
 }
 
-// SetWriteDeadline sets the write deadline associated with fd.
+// 设置关联 fd 的写入 deadline
 func (fd *FD) SetWriteDeadline(t time.Time) error {
     return setDeadlineImpl(fd, t, 'w')
 }
@@ -918,11 +918,15 @@ func setDeadlineImpl(fd *FD, t time.Time, mode int) error {
     diff := int64(time.Until(t))
     d := runtimeNano() + diff
     if d <= 0 && diff > 0 {
-        // If the user has a deadline in the future, but the delay calculation
-        // overflows, then set the deadline to the maximum possible value.
+        // 如果用户提供了未来的 deadline，但是 delay 计算溢出了，那么设置 dealine 到最大的可能的值
         d = 1<<63 - 1
     }
     if t.IsZero() {
+        // IsZero reports whether t represents the zero time instant,
+        // January 1, year 1, 00:00:00 UTC.
+        // func (t Time) IsZero() bool {
+        //     return t.sec() == 0 && t.nsec() == 0
+        // }
         d = 0
     }
     if err := fd.incref(); err != nil {
@@ -946,23 +950,27 @@ func poll_runtime_pollSetDeadline(pd *pollDesc, d int64, mode int) {
         return
     }
     pd.seq++ // invalidate current timers
-    // Reset current timers.
+    // 重置当前的 timer
     if pd.rt.f != nil {
+        // 删除 pollDesc 相关的 read timer
         deltimer(&pd.rt)
         pd.rt.f = nil
     }
     if pd.wt.f != nil {
+        // 删除 pollDesc 相关的 write timer
         deltimer(&pd.wt)
         pd.wt.f = nil
     }
-    // Setup new timers.
+    // 设置新 timer
     if d != 0 && d <= nanotime() {
         d = -1
     }
     if mode == 'r' || mode == 'r'+'w' {
+        // 记录 read deadline
         pd.rd = d
     }
     if mode == 'w' || mode == 'r'+'w' {
+        // 记录 write deadline
         pd.wd = d
     }
     if pd.rd > 0 && pd.rd == pd.wd {
@@ -973,6 +981,7 @@ func poll_runtime_pollSetDeadline(pd *pollDesc, d int64, mode int) {
         // if they differ the descriptor was reused or timers were reset.
         pd.rt.arg = pd
         pd.rt.seq = pd.seq
+        // 插入 timer 到时间堆
         addtimer(&pd.rt)
     } else {
         if pd.rd > 0 {
@@ -1009,6 +1018,8 @@ func poll_runtime_pollSetDeadline(pd *pollDesc, d int64, mode int) {
 }
 ```
 
+根据 read deadline 和 write deadline 给要插入时间堆的 timer 设置不同的回调函数。
+
 ```go
 func netpollDeadline(arg interface{}, seq uintptr) {
     netpolldeadlineimpl(arg.(*pollDesc), seq, true, true)
@@ -1017,7 +1028,13 @@ func netpollDeadline(arg interface{}, seq uintptr) {
 func netpollReadDeadline(arg interface{}, seq uintptr) {
     netpolldeadlineimpl(arg.(*pollDesc), seq, true, false)
 }
+
+func netpollWriteDeadline(arg interface{}, seq uintptr) {
+    netpolldeadlineimpl(arg.(*pollDesc), seq, false, true)
+}
 ```
+
+调用最终的实现函数:
 
 ```go
 func netpolldeadlineimpl(pd *pollDesc, seq uintptr, read, write bool) {
@@ -1048,10 +1065,15 @@ func netpolldeadlineimpl(pd *pollDesc, seq uintptr, read, write bool) {
         wg = netpollunblock(pd, 'w', false)
     }
     unlock(&pd.lock)
+    // rg 和 wg 是通过 netpollunblock 从 pollDesc 结构中捞出来的
     if rg != nil {
+        // 恢复 goroutine 执行现场
+        // 继续执行
         netpollgoready(rg, 0)
     }
     if wg != nil {
+        // 恢复 goroutine 执行现场
+        // 继续执行
         netpollgoready(wg, 0)
     }
 }
@@ -1064,6 +1086,7 @@ func netpollgoready(gp *g, traceskip int) {
 }
 
 func goready(gp *g, traceskip int) {
+    // switch -> g0
     systemstack(func() {
         ready(gp, traceskip, true)
     })
@@ -1071,13 +1094,10 @@ func goready(gp *g, traceskip int) {
 
 // Mark gp ready to run.
 func ready(gp *g, traceskip int, next bool) {
-    if trace.enabled {
-        traceGoUnpark(gp, traceskip)
-    }
 
     status := readgstatus(gp)
 
-    // Mark runnable.
+    // 标记为 runnable
     _g_ := getg()
     _g_.m.locks++ // disable preemption because it can be holding p in a local var
     if status&^_Gscan != _Gwaiting {
@@ -1087,8 +1107,10 @@ func ready(gp *g, traceskip int, next bool) {
 
     // status is Gwaiting or Gscanwaiting, make Grunnable and put on runq
     casgstatus(gp, _Gwaiting, _Grunnable)
+    // 放到执行队列里
     runqput(_g_.m.p.ptr(), gp, next)
     if atomic.Load(&sched.npidle) != 0 && atomic.Load(&sched.nmspinning) == 0 {
+        // 如果有空闲的 p，那么就叫起床干活
         wakep()
     }
     _g_.m.locks--
@@ -1097,3 +1119,5 @@ func ready(gp *g, traceskip int, next bool) {
     }
 }
 ```
+
+### 连接关闭
