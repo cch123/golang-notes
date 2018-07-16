@@ -542,7 +542,7 @@ func accept(s int) (int, syscall.Sockaddr, string, error) {
 
 ```
 
-可以看到，最终还是用 syscall 中的 accept4 或 accept 完成了系统调用。
+可以看到，最终还是用 syscall 中的 accept4 或 accept 完成了系统调用。accept4 对比 accept 的优势是，可以通过一次系统调用完成 accept 和 nonblock flag 的两个目的。而使用 accept 的话，还要手动 syscall.SetNonblock。
 
 ### Read 流程
 
