@@ -407,7 +407,142 @@ pollDesc 初始化好之后，会当作 epoll event 的数据存储到 ev.data �
 
 TODO，conn 是什么时候赋值给 Conn 类型的？
 
-#### Read 流程
+### accept 流程
+
+```go
+// Accept implements the Accept method in the Listener interface; it
+// waits for the next call and returns a generic Conn.
+func (l *TCPListener) Accept() (Conn, error) {
+    if !l.ok() {
+        return nil, syscall.EINVAL
+    }
+    c, err := l.accept()
+    if err != nil {
+        return nil, &OpError{Op: "accept", Net: l.fd.net, Source: nil, Addr: l.fd.laddr, Err: err}
+    }
+    return c, nil
+}
+```
+
+```go
+func (ln *TCPListener) accept() (*TCPConn, error) {
+    fd, err := ln.fd.accept()
+    if err != nil {
+        return nil, err
+    }
+    return newTCPConn(fd), nil
+}
+
+```
+
+```go
+func newTCPConn(fd *netFD) *TCPConn {
+    c := &TCPConn{conn{fd}}
+    setNoDelay(c.fd, true)
+    return c
+}
+```
+
+```go
+func (fd *netFD) accept() (netfd *netFD, err error) {
+    d, rsa, errcall, err := fd.pfd.Accept()
+    if err != nil {
+        if errcall != "" {
+            err = wrapSyscallError(errcall, err)
+        }
+        return nil, err
+    }
+
+    if netfd, err = newFD(d, fd.family, fd.sotype, fd.net); err != nil {
+        poll.CloseFunc(d)
+        return nil, err
+    }
+    if err = netfd.init(); err != nil {
+        fd.Close()
+        return nil, err
+    }
+    lsa, _ := syscall.Getsockname(netfd.pfd.Sysfd)
+    netfd.setAddr(netfd.addrFunc()(lsa), netfd.addrFunc()(rsa))
+    return netfd, nil
+}
+```
+
+```go
+// Accept wraps the accept network call.
+func (fd *FD) Accept() (int, syscall.Sockaddr, string, error) {
+    if err := fd.readLock(); err != nil {
+        return -1, nil, "", err
+    }
+    defer fd.readUnlock()
+
+    if err := fd.pd.prepareRead(fd.isFile); err != nil {
+        return -1, nil, "", err
+    }
+    for {
+        s, rsa, errcall, err := accept(fd.Sysfd)
+        if err == nil {
+            return s, rsa, "", err
+        }
+        switch err {
+        case syscall.EAGAIN:
+            if fd.pd.pollable() {
+                if err = fd.pd.waitRead(fd.isFile); err == nil {
+                    continue
+                }
+            }
+        case syscall.ECONNABORTED:
+            // This means that a socket on the listen
+            // queue was closed before we Accept()ed it;
+            // it's a silly error, so try again.
+            continue
+        }
+        return -1, nil, errcall, err
+    }
+}
+```
+
+```go
+// Wrapper around the accept system call that marks the returned file
+// descriptor as nonblocking and close-on-exec.
+func accept(s int) (int, syscall.Sockaddr, string, error) {
+    ns, sa, err := Accept4Func(s, syscall.SOCK_NONBLOCK|syscall.SOCK_CLOEXEC)
+    // On Linux the accept4 system call was introduced in 2.6.28
+    // kernel and on FreeBSD it was introduced in 10 kernel. If we
+    // get an ENOSYS error on both Linux and FreeBSD, or EINVAL
+    // error on Linux, fall back to using accept.
+    switch err {
+    case nil:
+        return ns, sa, "", nil
+    default: // errors other than the ones listed
+        return -1, sa, "accept4", err
+    case syscall.ENOSYS: // syscall missing
+    case syscall.EINVAL: // some Linux use this instead of ENOSYS
+    case syscall.EACCES: // some Linux use this instead of ENOSYS
+    case syscall.EFAULT: // some Linux use this instead of ENOSYS
+    }
+
+    // See ../syscall/exec_unix.go for description of ForkLock.
+    // It is probably okay to hold the lock across syscall.Accept
+    // because we have put fd.sysfd into non-blocking mode.
+    // However, a call to the File method will put it back into
+    // blocking mode. We can't take that risk, so no use of ForkLock here.
+    ns, sa, err = AcceptFunc(s)
+    if err == nil {
+        syscall.CloseOnExec(ns)
+    }
+    if err != nil {
+        return -1, nil, "accept", err
+    }
+    if err = syscall.SetNonblock(ns, true); err != nil {
+        CloseFunc(ns)
+        return -1, nil, "setnonblock", err
+    }
+    return ns, sa, "", nil
+}
+
+```
+
+### Read 流程
 
 ```go
 func (c *conn) ok() bool { return c != nil && c.fd != nil }
@@ -554,7 +689,7 @@ func netpollblock(pd *pollDesc, mode int32, waitio bool) bool {
 
 gopark 将当前 g 挂起，等待就绪事件到达之后再继续执行。
 
-#### Write 流程
+### Write 流程
 
 ```go
 // Write implements the Conn Write method.
@@ -635,7 +770,7 @@ func (pd *pollDesc) wait(mode int, isFile bool) error {
 
 后面的流程就和 Read 完全一致了。
 
-#### 就续通知
+### 就续通知
 
 ```go
 // poll 已经就绪的网络连接
@@ -739,7 +874,7 @@ func netpollunblock(pd *pollDesc, mode int32, ioready bool) *g {
 
 netpoll 这个函数是平台相关的，实现在对应的 netpoll_epoll、netpoll_kqueue 文件中。
 
-#### 读写 g 的挂起和恢复
+### 读写 g 的挂起和恢复
 
 在上面读写流程，syscall.Read 或者 syscall.Write 返回 EAGAIN 时，会挂起当前正在进行这个读/写操作的 g，具体是调用 gopark，并执行 netpollblockcommit，并将 gpp 挂起，netpollblockcommit 比较简单:
 
