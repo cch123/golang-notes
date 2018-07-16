@@ -1,5 +1,7 @@
 # Select
 
+select 的实现在目前 Go 的 master 分支已经有所修改，所以本文只针对 1.10 之前的版本。
+
 ## 基本用法
 
 非阻塞 select:
