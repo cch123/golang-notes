@@ -1,5 +1,7 @@
 # Select
 
+select 的实现在目前 Go 的 master 分支已经有所修改，所以本文只针对 1.10 之前的版本。
+
 ## 基本用法
 
 非阻塞 select:
@@ -23,6 +25,82 @@ select {
 
 println("can not be printed")
 ```
+
+for select 组合起来用很常见，不过需要注意，下面的两种场景可能会造成问题:
+
+```go
+for {
+    select {
+        case d := <-ch:
+        default:
+    }
+}
+```
+
+这种写法比较危险，如果 ch 中没有数据就会一直死循环 cpu 爆炸。
+
+```go
+for {
+    select {
+        case d := <-ch:
+    }
+}
+```
+
+你以为这么写就没事了？啊当然，一般情况下还好。但如果 ch 被其它 goroutine close 掉了，那么 d:= <-ch 这种形式就是永远不阻塞，并且会一直返回零值了。如果不想关注这种情况，并且 select 中实际只操作一个 channel，建议写成 for range 形式:
+
+```go
+for d := range ch {
+    // do some happy things with d
+}
+```
+
+这样 ch 关闭的时候 for 循环会自动退出。
+
+如果 select 中需要监听多个 channel，并且这些 channel 可能被关闭，那需要老老实实地写双返回值的 channel 取值表达式:
+
+```go
+outer:
+for {
+    select {
+        case d, ok := <-ch1:
+            if !ok {
+                break outer
+            }
+        case d, ok := <-ch2:
+            if !ok {
+                break outer
+            }
+    }
+}
+```
+
+当然，如果你不确定，可以用下面的 demo 进行验证:
+
+```go
+package main
+
+import "time"
+
+func main() {
+    var ch1 chan int
+    var ch2 = make(chan int)
+    close(ch2)
+    go func() {
+        for {
+            select {
+            case d := <-ch1:
+                println("ch1", d)
+            case d := <-ch2:
+                println("ch2", d)
+            }
+        }
+    }()
+    time.Sleep(time.Hour)
+}
+```
+
+尽管 ch2 已经被关闭，依然会不断地进入 case d:= <-ch2 中。因此在使用 for select 做设计时，请务必考虑当监听的 channel 在外部被正常或意外关闭后会有什么样的后果。
 
 ## 源码分析
 
@@ -147,6 +225,29 @@ func selectsend(sel *hselect, c *hchan, elem unsafe.Pointer) {
 }
 ```
 
+```go
+// compiler implements
+//
+//    select {
+//    case c <- v:
+//        ... foo
+//    default:
+//        ... bar
+//    }
+//
+// as
+//
+//    if selectnbsend(c, v) {
+//        ... foo
+//    } else {
+//        ... bar
+//    }
+//
+func selectnbsend(c *hchan, elem unsafe.Pointer) (selected bool) {
+    return chansend(c, elem, false, getcallerpc())
+}
+```
+
 ### select receive
 
 ```go
@@ -154,7 +255,7 @@ func selectsend(sel *hselect, c *hchan, elem unsafe.Pointer) {
 // case <-ch: ==> 这时候就会调用 selectrecv
 // case ,ok <- ch: 也可以这样写
 // 在 ch 被关闭时，这个 case 每次都可能被轮询到
-//}
+// }
 func selectrecv(sel *hselect, c *hchan, elem unsafe.Pointer, received *bool) {
     pc := getcallerpc()
     i := sel.ncase
@@ -177,6 +278,55 @@ func selectrecv(sel *hselect, c *hchan, elem unsafe.Pointer, received *bool) {
 
 }
 
+```
+
+```go
+// compiler implements
+//
+//    select {
+//    case v = <-c:
+//        ... foo
+//    default:
+//        ... bar
+//    }
+//
+// as
+//
+//    if selectnbrecv(&v, c) {
+//        ... foo
+//    } else {
+//        ... bar
+//    }
+//
+func selectnbrecv(elem unsafe.Pointer, c *hchan) (selected bool) {
+    selected, _ = chanrecv(c, elem, false)
+    return
+}
+```
+
+```go
+// compiler implements
+//
+//    select {
+//    case v, ok = <-c:
+//        ... foo
+//    default:
+//        ... bar
+//    }
+//
+// as
+//
+//    if c != nil && selectnbrecv2(&v, &ok, c) {
+//        ... foo
+//    } else {
+//        ... bar
+//    }
+//
+func selectnbrecv2(elem unsafe.Pointer, received *bool, c *hchan) (selected bool) {
+    // TODO(khr): just return 2 values from this function, now that it is in Go.
+    selected, *received = chanrecv(c, elem, false)
+    return
+}
 ```
 
 ### select default
