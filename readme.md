@@ -8,7 +8,7 @@
 2. [x] Channel
 3. [ ] Interface
 4. [x] Select
-5. [ ] Slice
+5. [x] Slice
 6. [x] Timer
 7. [ ] Defer
 8. [ ] Lock

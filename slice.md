@@ -135,20 +135,11 @@ func slicecopy(to, fm slice, width uintptr) int {
 
 ```go
 func growslice(et *_type, old slice, cap int) slice {
-    if raceenabled {
-        callerpc := getcallerpc()
-        racereadrangepc(old.array, uintptr(old.len*int(et.size)), callerpc, funcPC(growslice))
-    }
-    if msanenabled {
-        msanread(old.array, uintptr(old.len*int(et.size)))
-    }
 
     if et.size == 0 {
         if cap < old.cap {
             panic(errorString("growslice: cap out of range"))
         }
-        // append should not create a slice with nil pointer but non-zero len.
-        // We assume that append doesn't need to preserve old.array in this case.
         return slice{unsafe.Pointer(&zerobase), old.len, cap}
     }
 
@@ -157,6 +148,7 @@ func growslice(et *_type, old slice, cap int) slice {
     if cap > doublecap {
         newcap = cap
     } else {
+        // 注意这里的 1024 阈值
         if old.len < 1024 {
             newcap = doublecap
         } else {
@@ -197,20 +189,6 @@ func growslice(et *_type, old slice, cap int) slice {
         newcap = int(capmem / et.size)
     }
 
-    // The check of overflow (uintptr(newcap) > maxSliceCap(et.size))
-    // in addition to capmem > _MaxMem is needed to prevent an overflow
-    // which can be used to trigger a segfault on 32bit architectures
-    // with this example program:
-    //
-    // type T [1<<27 + 1]int64
-    //
-    // var d T
-    // var s []T
-    //
-    // func main() {
-    //   s = append(s, d, d, d, d)
-    //   print(len(s), "\n")
-    // }
     if cap < old.cap || overflow || capmem > _MaxMem {
         panic(errorString("growslice: cap out of range"))
     }
@@ -238,9 +216,104 @@ func growslice(et *_type, old slice, cap int) slice {
 }
 ```
 
+扩容时会判断 slice 的 cap 是不是已经大于 1024，如果在 1024 之内，会按二倍扩容。超过的话就是 1.25 倍扩容了。
+
+slice 扩容必然会导致内存拷贝，如果是性能敏感的系统中，尽可能地提前分配好 slice 是较好的选择。
+
+```go
+var arr = make([]int, 0, 10)
+```
+
 ## 值还是引用传递
 
 网上有很多鬼扯的结论说 Go 的 slice 是按引用传递的，证据是类似下面这样的代码:
 
 ```go
+func main() {
+    var a = make([]int, 10)
+    fmt.Println(a)
+}
+
+func doSomeHappyThings(sl []int) {
+    if len(sl) > 0 {
+        sl[0] = 1
+    }
+}
+```
+
+把 a 传入到 doSomeHappyThings，然后 a 的第一个元素就被修改了，进而认为在 Go 中，slice 是引用传递的。
+
+但实际上并不是这样的，从汇编层面来讲，Go 的 slice 实际上是把三个参数传到函数内部了，这就类似于我们写一段 c 代码:
+
+```c
+void doSomeHappyThings(int * arr, int len, int cap) {
+    if(len > 0) {
+        arr[0] = 1
+    }
+}
+```
+
+所以如果你在函数内对这个 slice 进行 append 时导致了 slice 的扩容，那理论上外部是不受影响的，哪怕不扩容，也可能只影响底层数组，而不影响传入的 slice。举个例子:
+
+```go
+func main() {
+    var arr = make([]int,0,10)
+    doSomeHappyThings(arr)
+    fmt.Println(arr, len(arr), cap(arr), "after return")
+}
+
+func doSomeHappyThings(arr []int) {
+    arr = append(arr, 1)
+    fmt.println(arr, "after append")
+}
+```
+
+脏活编译器帮你做了一些，但也就导致有些结论不那么直观了。
+
+当然，你可以尝试用汇编来写一个处理 slice 的函数。
+
+a.s:
+
+```go
+#include "textflag.h"
+
+// func sum(sl []int64) int64
+TEXT ·sum(SB),NOSPLIT, $0-32
+    MOVQ $0, SI
+    MOVQ sl+0(FP), BX // &sl[0], addr of the first elem
+    MOVQ sl+8(FP), CX // len(sl)
+  INCQ CX
+
+start:
+    DECQ CX       // CX--
+    JZ   done
+    ADDQ (BX), SI // SI += *BX
+    ADDQ $8, BX   // 指针移动
+    JMP  start
+
+done:
+    // 返回地址是 24 是怎么得来的呢？
+    // 可以通过 go tool compile -S math.go 得知
+    // 在调用 sum1 函数时，会传入三个值，分别为:
+    // slice 的首地址、slice 的 len， slice 的 cap
+    // 不过我们这里的求和只需要 len，但 cap 依然会占用参数的空间
+    // 就是 16(FP)
+    MOVQ SI, ret+24(FP)
+    RET
+```
+
+a.go:
+
+```go
+package main
+
+import "fmt"
+
+func sum(s []int64) int64
+
+func main() {
+    arr := []int64{1, 2, 3, 4, 10}
+    sux := sum(arr)
+    fmt.Println(sux)
+}
 ```
