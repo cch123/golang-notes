@@ -383,7 +383,9 @@ mapassign 有几个变种，是由编译器决定具体用哪一个函数的。�
 
 ```mermaid
 graph TD
-A[key is string] --> |yes|B[mapassign_faststr]
+Z[value size gte 128] --> |yes|G[mapassign]
+Z --> |no| A[key is string]
+A --> |yes|B[mapassign_faststr]
 A --> |no|C[key size is 32]
 C --> |yes|D[mapassign_fast32]
 C --> |no|E[key size is 64]
