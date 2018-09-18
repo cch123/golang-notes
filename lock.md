@@ -31,6 +31,8 @@ lock 指令前缀可以使许多指令操作（ADD, ADC, AND, BTC, BTR, BTS, CMP
 
 atomic.CompareAndSwap 即是使用 lock cmpxchg 来实现的。
 
+在使用 lock 指令时，会导致 CPU 锁总线。
+
 ## futex
 
 ```go
@@ -264,3 +266,9 @@ func checkTimeouts() {}
 
 
 ## sync.Map
+
+# 参考资料
+
+http://www.weixianmanbu.com/article/736.html
+
+https://www.cnblogs.com/gaochundong/p/lock_free_programming.html
