@@ -1,5 +1,36 @@
 # lock
 
+## atomic
+
+```go
+TEXT ·AddUint32(SB),NOSPLIT,$0-20
+    MOVQ    addr+0(FP), BP
+    MOVL    delta+8(FP), AX
+    MOVL    AX, CX
+    LOCK
+    XADDL   AX, 0(BP)
+    ADDL    AX, CX
+    MOVL    CX, new+16(FP)
+    RET
+```
+
+```go
+0x0036 00054 (atomic.go:10)	MOVL	$10, CX
+0x003b 00059 (atomic.go:10)	LOCK
+0x003c 00060 (atomic.go:10)	XADDL	CX, (AX)
+```
+
+在 intel 平台上被翻译为:
+
+```shell
+mov ecx, 0xa
+lock xadd DWORD PTR [rax], ecx
+```
+
+lock 指令前缀可以使许多指令操作（ADD, ADC, AND, BTC, BTR, BTS, CMPXCHG, CMPXCH8B, DEC, INC, NEG, NOT, OR, SBB, SUB, XOR, XADD, and XCHG）变成原子操作。CMPXCHG 指令用来实现 CAS 操作。
+
+atomic.CompareAndSwap 即是使用 lock cmpxchg 来实现的。
+
 ## futex
 
 ```go
@@ -231,6 +262,5 @@ func checkTimeouts() {}
 
 ## sync.RWMutex
 
-## atomic
 
 ## sync.Map
