@@ -43,18 +43,28 @@ type WaitGroup struct {
 
     // state1 的高 32 位是计数器，低 32 位是 waiter 计数
     // 64 位的 atomic 操作需要按 64 位对齐，但是 32 位编译器没法保证这种对齐
-    // 所以分配 12 个字节(多分配了 4 个字节)，以使我们使用的位都在对齐的位置
+    // 所以分配 12 个字节(多分配了 4 个字节)
+    // 当 state 没有按 8 对齐时，我们可以偏 4 个字节来使用
+    // 按 8 对齐时：
     // 0000...0000      0000...0000       0000...0000
     // |- 4 bytes-|    |- 4 bytes -|     |- 4 bytes -|
-    //     使用             不使用             使用
+    //     使用              使用             不使用
+    // 没有按 8 对齐时：
+    // |- 4 bytes-|    |- 4 bytes -|     |- 4 bytes -|
+    //    不使用              使用             使用
+    // |-low->  ---------> ------> -----------> high-|
     state1 [12]byte
     sema   uint32
 }
 
 func (wg *WaitGroup) state() *uint64 {
+    // 判断 state 是否按照 8 字节对齐
     if uintptr(unsafe.Pointer(&wg.state1))%8 == 0 {
+        // 已对齐时，使用低 8 字节即可
         return (*uint64)(unsafe.Pointer(&wg.state1))
     } else {
+        // 未对齐时，使用高 8 字节
+        return (*uint64)(unsafe.Pointer(&wg.state1))
         return (*uint64)(unsafe.Pointer(&wg.state1[4]))
     }
 }
@@ -64,12 +74,10 @@ func (wg *WaitGroup) state() *uint64 {
 // 如果 counter 变成了负数，Add 会直接 panic
 // 当 counter 是 0 且 Add 的 delta 为正的操作必须发生在 Wait 调用之前。
 // 而当 counter > 0 且 Add 的 delta 为负的操作则可以发生在任意时刻。
-
-// Typically this means the calls to Add should execute before the statement
-// creating the goroutine or other event to be waited for.
-// If a WaitGroup is reused to wait for several independent sets of events,
-// new Add calls must happen after all previous Wait calls have returned.
-// See the WaitGroup example.
+// 一般来讲，Add 操作应该在创建 goroutine 或者其它需要等待的事件发生之前调用
+// 如果 wg 被用来等待几组独立的事件集合
+// 新的 Add 调用应该在所有 Wait 调用返回之后再调用
+// 参见 wg 的 example
 func (wg *WaitGroup) Add(delta int) {
     statep := wg.state()
 
