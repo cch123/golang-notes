@@ -15,9 +15,9 @@ TEXT ·AddUint32(SB),NOSPLIT,$0-20
 ```
 
 ```go
-0x0036 00054 (atomic.go:10)	MOVL	$10, CX
-0x003b 00059 (atomic.go:10)	LOCK
-0x003c 00060 (atomic.go:10)	XADDL	CX, (AX)
+0x0036 00054 (atomic.go:10)    MOVL    $10, CX
+0x003b 00059 (atomic.go:10)    LOCK
+0x003c 00060 (atomic.go:10)    XADDL    CX, (AX)
 ```
 
 在 intel 平台上被翻译为:
@@ -32,6 +32,108 @@ lock 指令前缀可以使许多指令操作（ADD, ADC, AND, BTC, BTR, BTS, CMP
 atomic.CompareAndSwap 即是使用 lock cmpxchg 来实现的。
 
 在使用 lock 指令时，会导致 CPU 锁总线。
+
+## waitgroup
+
+```go
+// 在主 goroutine 中 Add 和 Wait，在其它 goroutine 中 Done
+// 在第一次使用之后，不能对 WaitGroup 再进行拷贝
+type WaitGroup struct {
+    noCopy noCopy
+
+    // state1 的高 32 位是计数器，低 32 位是 waiter 计数
+    // 64 位的 atomic 操作需要按 64 位对齐，但是 32 位编译器没法保证这种对齐
+    // 所以分配 12 个字节(多分配了 4 个字节)，以使我们使用的位都在对齐的位置
+    // 0000...0000      0000...0000       0000...0000
+    // |- 4 bytes-|    |- 4 bytes -|     |- 4 bytes -|
+    //     使用             不使用             使用
+    state1 [12]byte
+    sema   uint32
+}
+
+func (wg *WaitGroup) state() *uint64 {
+    if uintptr(unsafe.Pointer(&wg.state1))%8 == 0 {
+        return (*uint64)(unsafe.Pointer(&wg.state1))
+    } else {
+        return (*uint64)(unsafe.Pointer(&wg.state1[4]))
+    }
+}
+
+// Add 一个 delta，delta 可能是负值，在 WaitGroup 的 counter 上增加该值
+// 如果 counter 变成 0，所有阻塞在 Wait 函数上的 goroutine 都会被释放
+// 如果 counter 变成了负数，Add 会直接 panic
+// 当 counter 是 0 且 Add 的 delta 为正的操作必须发生在 Wait 调用之前。
+// 而当 counter > 0 且 Add 的 delta 为负的操作则可以发生在任意时刻。
+
+// Typically this means the calls to Add should execute before the statement
+// creating the goroutine or other event to be waited for.
+// If a WaitGroup is reused to wait for several independent sets of events,
+// new Add calls must happen after all previous Wait calls have returned.
+// See the WaitGroup example.
+func (wg *WaitGroup) Add(delta int) {
+    statep := wg.state()
+
+    state := atomic.AddUint64(statep, uint64(delta)<<32)
+    v := int32(state >> 32)
+    w := uint32(state)
+
+    if v < 0 {
+        panic("sync: negative WaitGroup counter")
+    }
+    if w != 0 && delta > 0 && v == int32(delta) {
+        panic("sync: WaitGroup misuse: Add called concurrently with Wait")
+    }
+    if v > 0 || w == 0 {
+        return
+    }
+    // This goroutine has set counter to 0 when waiters > 0.
+    // Now there can't be concurrent mutations of state:
+    // - Adds must not happen concurrently with Wait,
+    // - Wait does not increment waiters if it sees counter == 0.
+    // Still do a cheap sanity check to detect WaitGroup misuse.
+    if *statep != state {
+        panic("sync: WaitGroup misuse: Add called concurrently with Wait")
+    }
+    // Reset waiters count to 0.
+    *statep = 0
+    for ; w != 0; w-- {
+        runtime_Semrelease(&wg.sema, false)
+    }
+}
+
+// Done decrements the WaitGroup counter by one.
+func (wg *WaitGroup) Done() {
+    wg.Add(-1)
+}
+
+// Wait blocks until the WaitGroup counter is zero.
+func (wg *WaitGroup) Wait() {
+    statep := wg.state()
+
+    for {
+        state := atomic.LoadUint64(statep)
+        v := int32(state >> 32)
+        w := uint32(state)
+        if v == 0 {
+            // Counter is 0, no need to wait.
+            if race.Enabled {
+                race.Enable()
+                race.Acquire(unsafe.Pointer(wg))
+            }
+            return
+        }
+
+        // Increment waiters count.
+        if atomic.CompareAndSwapUint64(statep, state, state+1) {
+            runtime_Semacquire(&wg.sema)
+            if *statep != 0 {
+                panic("sync: WaitGroup is reused before previous Wait has returned")
+            }
+            return
+        }
+    }
+}
+```
 
 ## futex
 
