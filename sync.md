@@ -11,7 +11,9 @@
 5. memory_order_acq_rel	A read-modify-write operation with this memory order is both an acquire operation and a release operation. No memory reads or writes in the current thread can be reordered before or after this store. All writes in other threads that release the same atomic variable are visible before the modification and the modification is visible in other threads that acquire the same atomic variable.
 6. memory_order_seq_cst	A load operation with this memory order performs an acquire operation, a store performs a release operation, and read-modify-write performs both an acquire operation and a release operation, plus a single total order exists in which all threads observe all modifications in the same order (see Sequentially-consistent ordering below)
 
-memory_order_seq_cst
+这里面时序最为严格的是 memory_order_seq_cst。Go 语言的 atomic 类似这个最严格的时序。简单说明一下：
+
+TODO
 
 ## atomic
 
