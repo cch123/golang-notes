@@ -1,4 +1,4 @@
-# lock
+# sync
 
 ## atomic
 
