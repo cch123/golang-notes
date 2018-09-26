@@ -74,8 +74,8 @@ func (wg *WaitGroup) Add(delta int) {
     statep := wg.state()
 
     state := atomic.AddUint64(statep, uint64(delta)<<32)
-    v := int32(state >> 32)
-    w := uint32(state)
+    v := int32(state >> 32) // counter 高位 4 字节
+    w := uint32(state) // waiter counter，截断，取低位 4 个字节
 
     if v < 0 {
         panic("sync: negative WaitGroup counter")
@@ -86,46 +86,46 @@ func (wg *WaitGroup) Add(delta int) {
     if v > 0 || w == 0 {
         return
     }
-    // This goroutine has set counter to 0 when waiters > 0.
-    // Now there can't be concurrent mutations of state:
-    // - Adds must not happen concurrently with Wait,
-    // - Wait does not increment waiters if it sees counter == 0.
-    // Still do a cheap sanity check to detect WaitGroup misuse.
+
+    // 当前 goroutine 已经把 counter 设为 0，且 waiter 数 > 0
+    // 这时候不能有状态的跳变
+    // - Add 不能和 Wait 进行并发调用
+    // - Wait 如果发现 counter 已经等于 0，则不应该对 waiter 数加一了
+    // 这里是对 wg 误用的简单检测
     if *statep != state {
         panic("sync: WaitGroup misuse: Add called concurrently with Wait")
     }
-    // Reset waiters count to 0.
+
+    // 重置 waiter 计数为 0
     *statep = 0
     for ; w != 0; w-- {
         runtime_Semrelease(&wg.sema, false)
     }
 }
 
-// Done decrements the WaitGroup counter by one.
+// Done 其实就是 wg 的 counter - 1
+// 进入 Add 函数后
+// 如果 counter 变为 0 会触发 runtime_Semrelease 通知所有阻塞在 Wait 上的 g
 func (wg *WaitGroup) Done() {
     wg.Add(-1)
 }
 
-// Wait blocks until the WaitGroup counter is zero.
+// Wait 会阻塞直到 wg 的 counter 变为 0
 func (wg *WaitGroup) Wait() {
     statep := wg.state()
 
     for {
         state := atomic.LoadUint64(statep)
-        v := int32(state >> 32)
-        w := uint32(state)
-        if v == 0 {
-            // Counter is 0, no need to wait.
-            if race.Enabled {
-                race.Enable()
-                race.Acquire(unsafe.Pointer(wg))
-            }
+        v := int32(state >> 32) // counter
+        w := uint32(state) // waiter count
+        if v == 0 { // counter
             return
         }
 
-        // Increment waiters count.
+        // 如果没成功，可能有并发，循环再来一次相同流程
+        // 成功直接返回
         if atomic.CompareAndSwapUint64(statep, state, state+1) {
-            runtime_Semacquire(&wg.sema)
+            runtime_Semacquire(&wg.sema) // 和上面的 Add 里的 runtime_Semrelease 是对应的
             if *statep != 0 {
                 panic("sync: WaitGroup is reused before previous Wait has returned")
             }
