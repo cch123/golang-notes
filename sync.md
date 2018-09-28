@@ -4,12 +4,12 @@
 
 从原理上来讲，atomic 操作和非 atomic 操作之间不满足线性一致性模型。这和现代计算机的 CPU 乱序执行，以及 compiler 为优化而进行的指令重排有关。在 C++ 中针对各种场景和性能需求提供了各种 memory order 选项：
 
-1. memory_order_relaxed	Relaxed operation: there are no synchronization or ordering constraints imposed on other reads or writes, only this operation's atomicity is guaranteed (see Relaxed ordering below)
-2. memory_order_consume	A load operation with this memory order performs a consume operation on the affected memory location: no reads or writes in the current thread dependent on the value currently loaded can be reordered before this load. Writes to data-dependent variables in other threads that release the same atomic variable are visible in the current thread. On most platforms, this affects compiler optimizations only (see Release-Consume ordering below)
-3. memory_order_acquire	A load operation with this memory order performs the acquire operation on the affected memory location: no reads or writes in the current thread can be reordered before this load. All writes in other threads that release the same atomic variable are visible in the current thread (see Release-Acquire ordering below)
-4. memory_order_release	A store operation with this memory order performs the release operation: no reads or writes in the current thread can be reordered after this store. All writes in the current thread are visible in other threads that acquire the same atomic variable (see Release-Acquire ordering below) and writes that carry a dependency into the atomic variable become visible in other threads that consume the same atomic (see Release-Consume ordering below).
-5. memory_order_acq_rel	A read-modify-write operation with this memory order is both an acquire operation and a release operation. No memory reads or writes in the current thread can be reordered before or after this store. All writes in other threads that release the same atomic variable are visible before the modification and the modification is visible in other threads that acquire the same atomic variable.
-6. memory_order_seq_cst	A load operation with this memory order performs an acquire operation, a store performs a release operation, and read-modify-write performs both an acquire operation and a release operation, plus a single total order exists in which all threads observe all modifications in the same order (see Sequentially-consistent ordering below)
+1. memory_order_relaxed    Relaxed operation: 只保证当前操作的原子性，不保证其它读写的顺序，也不进行任何多余的同步。就是说 CPU 和编译器可以任意重排其它指令。
+2. memory_order_consume    A load operation with this memory order performs a consume operation on the affected memory location: no reads or writes in the current thread dependent on the value currently loaded can be reordered before this load. Writes to data-dependent variables in other threads that release the same atomic variable are visible in the current thread. On most platforms, this affects compiler optimizations only (see Release-Consume ordering below)
+3. memory_order_acquire    A load operation with this memory order performs the acquire operation on the affected memory location: no reads or writes in the current thread can be reordered before this load. All writes in other threads that release the same atomic variable are visible in the current thread (see Release-Acquire ordering below)
+4. memory_order_release    A store operation with this memory order performs the release operation: no reads or writes in the current thread can be reordered after this store. All writes in the current thread are visible in other threads that acquire the same atomic variable (see Release-Acquire ordering below) and writes that carry a dependency into the atomic variable become visible in other threads that consume the same atomic (see Release-Consume ordering below).
+5. memory_order_acq_rel    A read-modify-write operation with this memory order is both an acquire operation and a release operation. No memory reads or writes in the current thread can be reordered before or after this store. All writes in other threads that release the same atomic variable are visible before the modification and the modification is visible in other threads that acquire the same atomic variable.
+6. memory_order_seq_cst    A load operation with this memory order performs an acquire operation, a store performs a release operation, and read-modify-write performs both an acquire operation and a release operation, plus a single total order exists in which all threads observe all modifications in the same order (see Sequentially-consistent ordering below)
 
 这里面时序最为严格的是 memory_order_seq_cst。Go 语言的 atomic 类似这个最严格的时序。简单说明一下：
 
@@ -157,6 +157,48 @@ func (wg *WaitGroup) Wait() {
     }
 }
 ```
+
+## once
+
+```go
+// 内含一个锁和用来做原子操作的变量
+type Once struct {
+    m    Mutex
+    done uint32
+}
+
+// Do 被用来执行那些只能执行一次的初始化操作
+//     config.once.Do(func() { config.init(filename) })
+//
+// 因为对 Do 的调用直到其中的一个 f 执行之后才会返回，所以
+// f 中不能调用同一个 once 实例的 Do 函数，否则会死锁
+// 如果 f 内 panic 了，Do 也认为已经返回了，未来对 Do 的调用不会再执行 f
+
+// once.Do(f) 被调用多次时，只有第一次调用会真正的执行 f
+// 对于每一个要执行的 f，都需要一个对应的 once 实例
+// 在 done 已经被改成 1 之后
+// 所有进入函数调用的行为会用 atomic 读取值之后直接返回
+func (o *Once) Do(f func()) {
+    // 轻量级的原子变量 load
+    if atomic.LoadUint32(&o.done) == 1 {
+        // 如果原子 load 后发现已经是 1 了，直接返回
+        return
+    }
+
+    // Slow-path.
+    o.m.Lock()
+    defer o.m.Unlock()
+    // 在 atomic load 的时候为 0，不代表进入 lock 之后也是 0
+    // 所以还需要再判断一次
+    // 临界区内的判断和修改是比较稳妥的
+    if o.done == 0 {
+        defer atomic.StoreUint32(&o.done, 1)
+        f()
+    }
+}
+```
+
+once.Do 实际上是一种优化，只要过程被执行过了，那么之后所有判断都走 atomic，不用进入临界区。
 
 ## futex
 
