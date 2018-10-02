@@ -11,10 +11,66 @@
 5. memory_order_acq_rel    提供给 read-modify-write 操作用。这种操作会既执行 acquire 又执行 release。当前线程中的读写不能被 reorder 到该操作之前或之后。其它线程中对同一 atomic 变量执行 rlease 操作的写在当前线程中执行 rmw 之前都可见，并且 rmw 操作结果对其它 acquire 相同 atomic 变量的线程也是可见的。
 6. memory_order_seq_cst    可以在 load、store 和 rmw 操作中使用。load 操作使用时，相当于执行了 acquire，store 相当于执行了 release，rmw 相当于执行了 acquire 和 release。所有线程间观察到的修改顺序都是一致的。
 
-这里面时序最为严格的是 memory_order_seq_cst。Go 语言的 atomic 类似这个最严格的时序。简单说明一下：
+这里面时序最为严格的是 memory_order_seq_cst，这就是我们常说的“线性一致性”。Go 语言的 atomic 类似这个最严格的时序。简单说明即：
 
+1. 当一个 goroutine 中对某个值进行 atomic.Store，在另一个 goroutine 中对同一个变量进行 atomic.Load，那么 Load 之后可以看到 Store 的结果，且可以看到 Store 之前的其它内存写入操作(在 C++ 的文档中可能被称为 side effect)。
+2. atomic.Store 全局有序，即你在任何一个 goroutine 中观察到的全局 atomic 变量们的变化顺序一定是一致的，不会出现有违逻辑顺序的出现次序。这个有一些难理解，看一下下面这个 C++ 的例子：
 
-## atomic
+```c++
+#include <thread>
+#include <atomic>
+#include <cassert>
+ 
+std::atomic<bool> x = {false};
+std::atomic<bool> y = {false};
+std::atomic<int> z = {0};
+ 
+void write_x()
+{
+    x.store(true, std::memory_order_seq_cst);
+}
+ 
+void write_y()
+{
+    y.store(true, std::memory_order_seq_cst);
+}
+ 
+void read_x_then_y()
+{
+    while (!x.load(std::memory_order_seq_cst))
+        ;
+    if (y.load(std::memory_order_seq_cst)) {
+        ++z;
+    }
+}
+ 
+void read_y_then_x()
+{
+    while (!y.load(std::memory_order_seq_cst))
+        ;
+    if (x.load(std::memory_order_seq_cst)) {
+        ++z;
+    }
+}
+ 
+int main()
+{
+    std::thread a(write_x);
+    std::thread b(write_y);
+    std::thread c(read_x_then_y);
+    std::thread d(read_y_then_x);
+    a.join(); b.join(); c.join(); d.join();
+    assert(z.load() != 0);  // will never happen
+}
+```
+
+在非线性一致的场景下，可能会出现线程 c 和线程 d 观察到的 x，y 值分别为 c: true, false; d: false, true。从而导致最终 z 的结果为 0。
+
+而线性一致的场景下，我们可以用全局事件发生的顺序来推断最终的内存状态。但因为这是最严格的时序，所以 compiler 和硬件同步的成本较高。如果我们的 atomic 变量只用来做全局的简单计数，比如 counter，那么在 Go 中就一定会比 C++ 一类提供了 memory order 选项的语言消耗更多的成本。
+
+但如果 atomic.Load 和 atomic.Store 提供像 C++ 一样的 memory_order 选项，那么又会带给程序员一定的心智负担，所以看起来 Go 官方并不打算提供这样的选项。
+
+## atomic 的实现
 
 ```go
 TEXT ·AddUint32(SB),NOSPLIT,$0-20
