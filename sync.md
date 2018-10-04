@@ -617,23 +617,23 @@ func (*noCopy) Lock() {}
 
 ## sync.Map
 
+数据结构:
+
 ```go
 
-// Map is like a Go map[interface{}]interface{} but is safe for concurrent use
-// by multiple goroutines without additional locking or coordination.
-// Loads, stores, and deletes run in amortized constant time.
+// sync.Map 类似 map[interface{}]interface{}，但是是并发安全的。
+// Load，Store 和 delete 是通过延迟操作来均摊成本而达到常数时间返回的
 //
-// The Map type is specialized. Most code should use a plain Go map instead,
-// with separate locking or coordination, for better type safety and to make it
-// easier to maintain other invariants along with the map content.
+// sync.Map 类型是为特殊目的准备的，一般的代码还是应该使用普通的 Go map 类型，
+// 并自己完成加锁和多线程协作，这样能够有更好的类型安全并且更易维护。
 //
-// The Map type is optimized for two common use cases: (1) when the entry for a given
-// key is only ever written once but read many times, as in caches that only grow,
-// or (2) when multiple goroutines read, write, and overwrite entries for disjoint
-// sets of keys. In these two cases, use of a Map may significantly reduce lock
-// contention compared to a Go map paired with a separate Mutex or RWMutex.
+// 这里的 Map 是为了两种用例来优化的:
+// The Map type is optimized for two common use cases: 
+// (1) 当某个指定的 key 只会被写入一次，但是会被读取非常多次，例如像不断增长的 caches。
+// (2) 当多个 goroutine 分别分布读、写和覆盖不同的 key。
+// 这两种场景下，使用 sync.Map，相比普通的 map 配合 Mutex 或 RWMutex，可以大大降低锁的竞争
 //
-// The zero Map is empty and ready for use. A Map must not be copied after first use.
+// Map 的零值是可以使用的空 Map。当 Map 被首次使用之后，就不能再被拷贝了
 type Map struct {
     mu Mutex
 
@@ -702,6 +702,11 @@ type entry struct {
     p unsafe.Pointer // *interface{}
 }
 
+```
+
+Load:
+
+```go
 func newEntry(i interface{}) *entry {
     return &entry{p: unsafe.Pointer(&i)}
 }
@@ -741,6 +746,12 @@ func (e *entry) load() (value interface{}, ok bool) {
     }
     return *(*interface{})(p), true
 }
+
+```
+
+Store:
+
+```go
 
 // Store sets the value for a key.
 func (m *Map) Store(key, value interface{}) {
@@ -806,6 +817,12 @@ func (e *entry) unexpungeLocked() (wasExpunged bool) {
 func (e *entry) storeLocked(i *interface{}) {
     atomic.StorePointer(&e.p, unsafe.Pointer(i))
 }
+
+```
+
+LoadOrStore:
+
+```go
 
 // LoadOrStore returns the existing value for the key if present.
 // Otherwise, it stores and returns the given value.
@@ -877,6 +894,12 @@ func (e *entry) tryLoadOrStore(i interface{}) (actual interface{}, loaded, ok bo
     }
 }
 
+```
+
+Delete:
+
+```go
+
 // Delete deletes the value for a key.
 func (m *Map) Delete(key interface{}) {
     read, _ := m.read.Load().(readOnly)
@@ -906,6 +929,12 @@ func (e *entry) delete() (hadValue bool) {
         }
     }
 }
+
+```
+
+Range 遍历:
+
+```go
 
 // Range calls f sequentially for each key and value present in the map.
 // If f returns false, range stops the iteration.
@@ -949,6 +978,12 @@ func (m *Map) Range(f func(key, value interface{}) bool) {
         }
     }
 }
+
+```
+
+其它小函数:
+
+```go
 
 func (m *Map) missLocked() {
     m.misses++
