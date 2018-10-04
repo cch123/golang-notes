@@ -436,19 +436,22 @@ func (m *Mutex) Unlock() {
 
 ## sync.RWMutex
 
+reader 加解锁过程:
+
 ```go
-// A RWMutex is a reader/writer mutual exclusion lock.
-// The lock can be held by an arbitrary number of readers or a single writer.
-// The zero value for a RWMutex is an unlocked mutex.
+// RWMutex 是 reader/writer 互斥锁
+// 这种锁可以被任意数量的 reader 或者单独的一个 writer 所持有
+// 其零值是遇 unlocked mutex
 //
-// A RWMutex must not be copied after first use.
+// RWMutex 在首次使用后就不应该被拷贝了
 //
-// If a goroutine holds a RWMutex for reading and another goroutine might
-// call Lock, no goroutine should expect to be able to acquire a read lock
-// until the initial read lock is released. In particular, this prohibits
-// recursive read locking. This is to ensure that the lock eventually becomes
-// available; a blocked Lock call excludes new readers from acquiring the
-// lock.
+// 如果一个 goroutine 持有了 RWMutex 用来做读操作
+// 这时候另一个 goroutine 可能会调用 Lock
+// 在这之后，就不会有任何 goroutine 会获得 read lock 了
+// 直到最初的 read lock 被释放。
+// 需要注意，这种锁是禁止递归的 read locking 的。
+// 这是为了保证锁最终一定能够到达可用状态;
+// 一个阻塞的 Lock 的调用会排它地阻止其它 readers 获取到这个锁
 type RWMutex struct {
     w           Mutex  // held if there are pending writers
     writerSem   uint32 // semaphore for writers to wait for completing readers
@@ -459,67 +462,68 @@ type RWMutex struct {
 
 const rwmutexMaxReaders = 1 << 30
 
-// RLock locks rw for reading.
+// RLock 锁住 rw 来进行读操作
 //
-// It should not be used for recursive read locking; a blocked Lock
-// call excludes new readers from acquiring the lock. See the
-// documentation on the RWMutex type.
+// 不能被使用来做递归的 read locking; 一个阻塞的 Lock 调用会阻止其它新 readers 获取当前锁
 func (rw *RWMutex) RLock() {
     if atomic.AddInt32(&rw.readerCount, 1) < 0 {
-        // A writer is pending, wait for it.
+        // 有 writer 挂起，等待其操作完毕。
         runtime_Semacquire(&rw.readerSem)
     }
 }
 
-// RUnlock undoes a single RLock call;
-// it does not affect other simultaneous readers.
-// It is a run-time error if rw is not locked for reading
-// on entry to RUnlock.
+// RUnlock 相当于 RLock 调用的逆向操作;
+// 其不会影响到其它同时持锁的 reader 们
+// 如果当前 rw 不是被锁住读的状态，那么就是一个 bug
 func (rw *RWMutex) RUnlock() {
     if r := atomic.AddInt32(&rw.readerCount, -1); r < 0 {
         if r+1 == 0 || r+1 == -rwmutexMaxReaders {
             throw("sync: RUnlock of unlocked RWMutex")
         }
-        // A writer is pending.
+        // 有 writer 正在挂起
         if atomic.AddInt32(&rw.readerWait, -1) == 0 {
-            // The last reader unblocks the writer.
+            // 最后一个 reader 负责 unblock writer
             runtime_Semrelease(&rw.writerSem, false)
         }
     }
 }
 
-// Lock locks rw for writing.
-// If the lock is already locked for reading or writing,
-// Lock blocks until the lock is available.
+```
+
+writer 加解锁过程:
+
+```go
+// Lock 对 rw 加写锁
+// 如果当前锁已经被锁住进行读或者进行写
+// Lock 会阻塞，直到锁可用
 func (rw *RWMutex) Lock() {
     // First, resolve competition with other writers.
+    // 首先需要解决和其它 writer 进行的竞争，这里是去抢 RWMutex 中的 Mutex 锁
     rw.w.Lock()
-    // Announce to readers there is a pending writer.
+    // 抢到了上面的锁之后，通知所有 reader，现在有一个挂起的 writer 等待写入了
     r := atomic.AddInt32(&rw.readerCount, -rwmutexMaxReaders) + rwmutexMaxReaders
-    // Wait for active readers.
+    // 等待最后的 reader 将其唤醒
     if r != 0 && atomic.AddInt32(&rw.readerWait, r) != 0 {
         runtime_Semacquire(&rw.writerSem)
     }
 }
 
-// Unlock unlocks rw for writing. It is a run-time error if rw is
-// not locked for writing on entry to Unlock.
+// Unlock 将 rw 的读锁解锁。如果当前 rw 没有处于锁定读的状态，那么就是 bug
 //
-// As with Mutexes, a locked RWMutex is not associated with a particular
-// goroutine. One goroutine may RLock (Lock) a RWMutex and then
-// arrange for another goroutine to RUnlock (Unlock) it.
+// 像 Mutex 一样，一个上锁的 RWMutex 并没有和特定的 goroutine 绑定。
+// 可以由一个 goroutine Lock 它，并由其它的 goroutine 解锁
 func (rw *RWMutex) Unlock() {
 
-    // Announce to readers there is no active writer.
+    // 告诉所有 reader 现在没有活跃的 writer 了
     r := atomic.AddInt32(&rw.readerCount, rwmutexMaxReaders)
     if r >= rwmutexMaxReaders {
         throw("sync: Unlock of unlocked RWMutex")
     }
-    // Unblock blocked readers, if any.
+    // Unblock 掉所有正在阻塞的 reader
     for i := 0; i < int(r); i++ {
         runtime_Semrelease(&rw.readerSem, false)
     }
-    // Allow other writers to proceed.
+    // 让其它的 writer 可以继续工作
     rw.w.Unlock()
 }
 
