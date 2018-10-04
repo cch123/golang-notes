@@ -258,22 +258,25 @@ once.Do 实际上是一种优化，只要过程被执行过了，那么之后所
 ## Mutex
 
 ```go
-// A Mutex is a mutual exclusion lock.
-// The zero value for a Mutex is an unlocked mutex.
-//
-// A Mutex must not be copied after first use.
+// Mutex 是互斥锁
+// 其零值是一个 unlocked 的互斥量
+// 在被首次使用之后，Mutex 就不应该发生拷贝动作了
 type Mutex struct {
     state int32
     sema  uint32
 }
 ```
 
+加锁过程:
+
 ```go
-// Lock locks m.
-// If the lock is already in use, the calling goroutine
-// blocks until the mutex is available.
+// 对 m 上锁
+// 如果锁已经在使用中
+// 调用 Lock 的 goroutine 会陷入阻塞
+// 直到 mutex 变为可用
 func (m *Mutex) Lock() {
-    // Fast path: grab unlocked mutex.
+    // 当前直接就是已解锁的 mutex
+    // 直接用 atomic cas，更快
     if atomic.CompareAndSwapInt32(&m.state, 0, mutexLocked) {
         return
     }
@@ -284,71 +287,91 @@ func (m *Mutex) Lock() {
     iter := 0
     old := m.state
     for {
-        // Don't spin in starvation mode, ownership is handed off to waiters
-        // so we won't be able to acquire the mutex anyway.
+        // 这里 if 有 starvation 的判断
+        // 在饥饿模式时不能自旋，因为所有权被移交给等待的 goroutine 了
+        // 所以我们没办法获得 mutex
         if old&(mutexLocked|mutexStarving) == mutexLocked && runtime_canSpin(iter) {
-            // Active spinning makes sense.
-            // Try to set mutexWoken flag to inform Unlock
-            // to not wake other blocked goroutines.
+            // 这里会做积极的自旋
+            // 没有其它饥饿的 goroutine 的话，我们尽量直接就设置 mutexWoken flag
+            // 这样在 Unlock 的时候就不用唤醒其它被阻塞的 goroutine 了
             if !awoke && old&mutexWoken == 0 && old>>mutexWaiterShift != 0 &&
+                // 设置 mutexWoken flag
                 atomic.CompareAndSwapInt32(&m.state, old, old|mutexWoken) {
                 awoke = true
             }
+            // 进 runtime 自旋
             runtime_doSpin()
             iter++
             old = m.state
             continue
         }
         new := old
-        // Don't try to acquire starving mutex, new arriving goroutines must queue.
+
+        // 如果 mutex 处于 starving 状态，就不应该武断地抢锁了
+        // 新来的 goroutine 应该先去排队
         if old&mutexStarving == 0 {
+            // 说明老状态里没有 starving 那一位
+            // 即说明原来的 mutex 不是 starvation 状态
+            // 给新的 state 标上 locked 这位
             new |= mutexLocked
         }
+
         if old&(mutexLocked|mutexStarving) != 0 {
             new += 1 << mutexWaiterShift
         }
-        // The current goroutine switches mutex to starvation mode.
-        // But if the mutex is currently unlocked, don't do the switch.
-        // Unlock expects that starving mutex has waiters, which will not
-        // be true in this case.
+
+        // 当前 goroutine 将 mutex 切换到 starvation 模式
+        // 如果 mutex 当前已经被 unlock 了，就不要做这个切换了
+        // Unlock 的时候会认为一个 starving 的 mutex 一定会有等待的 goroutine，
+        // 这种情况下一定为 true
         if starving && old&mutexLocked != 0 {
             new |= mutexStarving
         }
+
         if awoke {
-            // The goroutine has been woken from sleep,
-            // so we need to reset the flag in either case.
+            // 当前 goroutine 是处于 awoke 状态
+            // 但是从 mutex 里拿到的状态并没有 mutexWoken 这个 flag
+            // 说明这里发生了 bug
+            // PS: 这种情况下应该是没有 waiters 的
+            // PS: 而是当前的加锁的新 goroutine 直接进入唤醒流程
             if new&mutexWoken == 0 {
                 throw("sync: inconsistent mutex state")
             }
+
+            // goroutine 被从 sleep 唤醒
+            // 所以我们需要在两种情况(starving  和非 starving 的)下
+            // :都 reset 掉这个 flag
             new &^= mutexWoken
         }
+
         if atomic.CompareAndSwapInt32(&m.state, old, new) {
             if old&(mutexLocked|mutexStarving) == 0 {
                 break // locked the mutex with CAS
             }
-            // If we were already waiting before, queue at the front of the queue.
+
+            // 如果之前已经等待过了，那么直接插到队列最前面
             queueLifo := waitStartTime != 0
             if waitStartTime == 0 {
                 waitStartTime = runtime_nanotime()
             }
             runtime_SemacquireMutex(&m.sema, queueLifo)
+            // 如果等待时间超过了阈值，那么就进入 starving 状态
             starving = starving || runtime_nanotime()-waitStartTime > starvationThresholdNs
             old = m.state
             if old&mutexStarving != 0 {
-                // If this goroutine was woken and mutex is in starvation mode,
-                // ownership was handed off to us but mutex is in somewhat
-                // inconsistent state: mutexLocked is not set and we are still
-                // accounted as waiter. Fix that.
+                // 如果当前 goroutine 被唤醒，且 mutex 处于 starvation 状态
+                // 这时候控制权被移交到给了我们，但 mutex 不知道怎么回事处于不一致的状态:
+                // mutexLocked 标识位还没有设置，但我们却仍然认为当前 goroutine 正在等待这个 mutex。说明是个 bug，需要修正
                 if old&(mutexLocked|mutexWoken) != 0 || old>>mutexWaiterShift == 0 {
                     throw("sync: inconsistent mutex state")
                 }
                 delta := int32(mutexLocked - 1<<mutexWaiterShift)
                 if !starving || old>>mutexWaiterShift == 1 {
-                    // Exit starvation mode.
-                    // Critical to do it here and consider wait time.
-                    // Starvation mode is so inefficient, that two goroutines
-                    // can go lock-step infinitely once they switch mutex
-                    // to starvation mode.
+                    // 退出饥饿模式
+                    // 必须要在这里退出，且考虑等待时间
+                    // 饥饿模式很低效，一旦两个 goroutine 同时将 mutex 切换到饥饿模式
+                    // 可能会彼此无限地锁下去
+                    // ??
                     delta -= mutexStarving
                 }
                 atomic.AddInt32(&m.state, delta)
@@ -363,33 +386,35 @@ func (m *Mutex) Lock() {
 }
 ```
 
+解锁过程:
+
 ```go
-// Unlock unlocks m.
-// It is a run-time error if m is not locked on entry to Unlock.
-//
-// A locked Mutex is not associated with a particular goroutine.
-// It is allowed for one goroutine to lock a Mutex and then
-// arrange for another goroutine to unlock it.
+// 解锁 m，对未加锁的 mutex 解锁会引起错误
+// 被加锁的 mutex 并不是和具体的某个 goroutine 绑定的
+// 完全可以在一个 goroutine 中加锁并在另外的 goroutine 中解锁
 func (m *Mutex) Unlock() {
 
-    // Fast path: drop lock bit.
+    // 干掉 mutexLocked 的标识位
     new := atomic.AddInt32(&m.state, -mutexLocked)
     if (new+mutexLocked)&mutexLocked == 0 {
         throw("sync: unlock of unlocked mutex")
     }
+
+    // 如果新的状态表示 mutex 之前没有处于饥饿状态
     if new&mutexStarving == 0 {
         old := new
         for {
-            // If there are no waiters or a goroutine has already
-            // been woken or grabbed the lock, no need to wake anyone.
-            // In starvation mode ownership is directly handed off from unlocking
-            // goroutine to the next waiter. We are not part of this chain,
-            // since we did not observe mutexStarving when we unlocked the mutex above.
-            // So get off the way.
+            // 如果当前没有处于饥饿模式等待中的 goroutine，或者当前这个 goroutine 已经
+            // 被唤醒或抢到了锁，没有必要再唤醒其它 goroutine 了
+            // 饥饿模式中，管理权会直接会被直接从 unlocking goroutine 移交给下一个 waiter
+            // 当前 goroutine 并不在这个链条中，
+            // 因为我们在 unlock 上面的 mutex 时，没有观察到 mutexStarving 的标识位
+            // 所以直接 return 让路
             if old>>mutexWaiterShift == 0 || old&(mutexLocked|mutexWoken|mutexStarving) != 0 {
                 return
             }
-            // Grab the right to wake someone.
+
+            // 获取唤醒其它人的权力
             new = (old - 1<<mutexWaiterShift) | mutexWoken
             if atomic.CompareAndSwapInt32(&m.state, old, new) {
                 runtime_Semrelease(&m.sema, false)
@@ -398,10 +423,10 @@ func (m *Mutex) Unlock() {
             old = m.state
         }
     } else {
-        // Starving mode: handoff mutex ownership to the next waiter.
-        // Note: mutexLocked is not set, the waiter will set it after wakeup.
-        // But mutex is still considered locked if mutexStarving is set,
-        // so new coming goroutines won't acquire it.
+        // 饥饿模式: 将 mutex 的所有权移交给下一个 waiter
+        // 注意: mutexLocked 没有设置，waiter 被唤醒后会设置这个标识
+        // 但是 mutex 在 waiter 被唤醒后，如果 mutexStarving 位是 1 的话
+        // 仍然会被认为是上锁的，所以新来的 goroutine 是没法获取这个锁的
         runtime_Semrelease(&m.sema, true)
     }
 }
