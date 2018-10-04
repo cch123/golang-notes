@@ -531,46 +531,43 @@ func (rw *RWMutex) Unlock() {
 
 ## sync.Cond
 
+sync.Cond 本质上就是利用 Mutex 或 RWMutex 的 Lock 会阻塞，来实现了一套事件通知机制。
+
 ```go
 
-// Cond implements a condition variable, a rendezvous point
-// for goroutines waiting for or announcing the occurrence
-// of an event.
+// Cond 实现了一种条件变量，可以让 goroutine 都等待、或宣布一个事件的发生
 //
-// Each Cond has an associated Locker L (often a *Mutex or *RWMutex),
-// which must be held when changing the condition and
-// when calling the Wait method.
+// 每一个 Cond 都有一个对应的 Locker L，可以是一个 *Mutex 或者 *RWMutex
+// 当条件发生变化及调用 Wait 方法时，必须持有该锁
 //
-// A Cond must not be copied after first use.
+// Cond 在首次使用之后同样不能被拷贝
 type Cond struct {
     noCopy noCopy
 
-    // L is held while observing or changing the condition
+    // 在观测或修改条件时，必须持有 L
     L Locker
 
     notify  notifyList
     checker copyChecker
 }
 
-// NewCond returns a new Cond with Locker l.
 func NewCond(l Locker) *Cond {
     return &Cond{L: l}
 }
 
-// Wait atomically unlocks c.L and suspends execution
-// of the calling goroutine. After later resuming execution,
-// Wait locks c.L before returning. Unlike in other systems,
-// Wait cannot return unless awoken by Broadcast or Signal.
+// Wait 会原子地解锁 c.L，并挂起当前调用 Wait 的 goroutine
+// 之后恢复执行时，Wait 在返回之前对 c.L 加锁。和其它系统不一样
+// Wait 在被 Broadcast 或 Signal 唤醒之前，是不能返回的
 //
-// Because c.L is not locked when Wait first resumes, the caller
-// typically cannot assume that the condition is true when
-// Wait returns. Instead, the caller should Wait in a loop:
+// 因为 c.L 在 Wait 第一次恢复执行之后是没有被锁住的，调用方
+// 在 Wait 返回之后没办法假定 condition 为 true。
+// 因此，调用方应该在循环中调用 Wait
 //
 //    c.L.Lock()
 //    for !condition() {
 //        c.Wait()
 //    }
-//    ... make use of condition ...
+//    .. 这时候 condition 一定为 true..
 //    c.L.Unlock()
 //
 func (c *Cond) Wait() {
@@ -581,25 +578,22 @@ func (c *Cond) Wait() {
     c.L.Lock()
 }
 
-// Signal wakes one goroutine waiting on c, if there is any.
-//
-// It is allowed but not required for the caller to hold c.L
-// during the call.
+// Signal 只唤醒等待在 c 上的一个 goroutine。
+// 对于 caller 来说在调用 Signal 时持有 c.L 也是允许的，不过没有必要
 func (c *Cond) Signal() {
     c.checker.check()
     runtime_notifyListNotifyOne(&c.notify)
 }
 
-// Broadcast wakes all goroutines waiting on c.
-//
-// It is allowed but not required for the caller to hold c.L
-// during the call.
+// Broadcast 唤醒所有在 c 上等待的 goroutine
+// 同样在调用 Broadcast 时，可以持有 c.L，但没必要
 func (c *Cond) Broadcast() {
     c.checker.check()
     runtime_notifyListNotifyAll(&c.notify)
 }
 
-// copyChecker holds back pointer to itself to detect object copying.
+// 检查结构体是否被拷贝过，因为其持有指向自身的指针
+// 指针值和实际地址不一致时，即说明发生了拷贝
 type copyChecker uintptr
 
 func (c *copyChecker) check() {
