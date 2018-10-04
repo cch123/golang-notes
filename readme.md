@@ -11,7 +11,7 @@
 5. [x] Slice
 6. [x] Timer
 7. [ ] Defer
-8. [ ] Sync
+8. [x] Sync
 9. [x] Netpoll
 10. [ ] Reflect
 11. [ ] Panic

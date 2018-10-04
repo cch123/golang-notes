@@ -628,7 +628,6 @@ func (*noCopy) Lock() {}
 // 并自己完成加锁和多线程协作，这样能够有更好的类型安全并且更易维护。
 //
 // 这里的 Map 是为了两种用例来优化的:
-// The Map type is optimized for two common use cases: 
 // (1) 当某个指定的 key 只会被写入一次，但是会被读取非常多次，例如像不断增长的 caches。
 // (2) 当多个 goroutine 分别分布读、写和覆盖不同的 key。
 // 这两种场景下，使用 sync.Map，相比普通的 map 配合 Mutex 或 RWMutex，可以大大降低锁的竞争
