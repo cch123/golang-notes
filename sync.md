@@ -101,7 +101,11 @@ lock 指令前缀可以使许多指令操作（ADD, ADC, AND, BTC, BTR, BTS, CMP
 
 atomic.CompareAndSwap 即是使用 lock cmpxchg 来实现的。
 
-在使用 lock 指令时，会导致 CPU 锁总线。
+在使用 lock 指令时，~~会导致 CPU 锁总线。~~
+
+订正:
+
+> Actually modern Intel CPUs (since the Pentium pro) only lock the bus in very rare exceptions. Generally they use cache locking which is much, much more efficient and basically just follows from the usual cache coherence protocol (e.g. exclusive state in MESI). 
 
 ## waitgroup
 
