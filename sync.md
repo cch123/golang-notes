@@ -4,12 +4,12 @@
 
 从原理上来讲，atomic 操作和非 atomic 操作之间不满足线性一致性模型。这和现代计算机的 CPU 乱序执行，以及 compiler 为优化而进行的指令重排有关。在 C++ 中针对各种场景和性能需求提供了各种 memory order 选项：
 
-1. memory_order_relaxed    Relaxed operation: 只保证当前操作的原子性，不保证其它读写的顺序，也不进行任何多余的同步。就是说 CPU 和编译器可以任意重排其它指令。
-2. memory_order_consume    和 load 搭配使用时，相当于执行了一个 consume 操作，当前线程依赖 loaded 的值的读写都不能被 reorder 到 load 操作之前。其它线程中对依赖的变量的写操作如果 release 了同一个 atomic 变量，在当前线程中马上可见。
-3. memory_order_acquire    只能用在 load 操作中，当前线程中在该 load 之后发生的所有读写，都不能被 reorder 到 load 之前。其它线程中所有写入操作，如果对该 atomic 变量执行了 release 操作，那么其之前的所有写操作在当前线程都看得到。
-4. memory_order_release    只能用在 store 操作中，当前线程中发生在 store 之前的所有读写都不能被 reorder 到 store 操作之后。当前线程在 store 之前发生的所有写操作在其它线程执行同一个 atomic 变量的获取操作之后便都是可见的了。所有对原子变量的写入都会在 consume 相同原子变量的线程中可见。
+1. memory_order_relaxed    Relaxed operation: 只保证当前操作的原子性，不保证其它原子变量和非原子变量读写的顺序，也不进行任何同步。就是说 CPU 和编译器可以任意重排其它指令。
+2. memory_order_consume    和 load 搭配使用时，相当于执行了一个 consume 操作，当前线程依赖 loaded 的值的读写都不能被 reorder 到 load 操作之前。其它线程中对依赖的变量的写操作如果 release 了同一个 atomic 变量，在当前线程中马上可见(release-consume 语义)。
+3. memory_order_acquire    只能用在 load 操作中，当前线程中在该 load 之后发生的所有读写，都不能被 reorder 到 load 之前。其它线程中所有写入操作，如果对该 atomic 变量执行了 release 操作，那么其之前的所有写操作在当前线程都看得到(release-acquire 语义)。
+4. memory_order_release    只能和 store 操作搭配使用，当前线程中发生在 store 之前的所有读写都不能被 reorder 到 store 操作之后。当前线程在 store 之前发生的所有写操作在其它线程执行同一个 atomic 变量的 load 操作之后，便对其可见(release-acquire 语义)。在 store 时依赖的那些变量(可能为非原子变量)，在其它线程执行 consume 操作之后也会变为可见(release-consume 语义)。
 5. memory_order_acq_rel    提供给 read-modify-write 操作用。这种操作会既执行 acquire 又执行 release。当前线程中的读写不能被 reorder 到该操作之前或之后。其它线程中对同一 atomic 变量执行 rlease 操作的写在当前线程中执行 rmw 之前都可见，并且 rmw 操作结果对其它 acquire 相同 atomic 变量的线程也是可见的。
-6. memory_order_seq_cst    可以在 load、store 和 rmw 操作中使用。该内存序前提下，load 操作会执行 acquire 操作，store 时会执行 release 操作，rmw 会同时执行 acquire 和 release 操作。所有线程间观察到的 atomic 变量修改顺序都是一致的。
+6. memory_order_seq_cst    可以在 load、store 和 rmw 操作中使用。该内存序前提下，和 load 操作搭配使用会执行 acquire 操作，和 store 搭配时会执行 release 操作，和 rmw 搭配会同时执行 acquire 和 release 操作。所有线程观察到的 atomic 变量修改顺序都是一致的。
 
 这里面时序最为严格的是 memory_order_seq_cst，这就是我们常说的“线性一致性”。Go 语言的 atomic 类似这个最严格的时序。简单说明即：
 
