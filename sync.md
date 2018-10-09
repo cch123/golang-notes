@@ -9,7 +9,7 @@
 3. memory_order_acquire    只能用在 load 操作中，当前线程中在该 load 之后发生的所有读写，都不能被 reorder 到 load 之前。其它线程中所有写入操作，如果对该 atomic 变量执行了 release 操作，那么其之前的所有写操作在当前线程都看得到。
 4. memory_order_release    只能用在 store 操作中，当前线程中发生在 store 之前的所有读写都不能被 reorder 到 store 操作之后。当前线程在 store 之前发生的所有写操作在其它线程执行同一个 atomic 变量的获取操作之后便都是可见的了。所有对原子变量的写入都会在 consume 相同原子变量的线程中可见。
 5. memory_order_acq_rel    提供给 read-modify-write 操作用。这种操作会既执行 acquire 又执行 release。当前线程中的读写不能被 reorder 到该操作之前或之后。其它线程中对同一 atomic 变量执行 rlease 操作的写在当前线程中执行 rmw 之前都可见，并且 rmw 操作结果对其它 acquire 相同 atomic 变量的线程也是可见的。
-6. memory_order_seq_cst    可以在 load、store 和 rmw 操作中使用。load 操作使用时，相当于执行了 acquire，store 相当于执行了 release，rmw 相当于执行了 acquire 和 release。所有线程间观察到的修改顺序都是一致的。
+6. memory_order_seq_cst    可以在 load、store 和 rmw 操作中使用。该内存序前提下，load 操作会执行 acquire 操作，store 时会执行 release 操作，rmw 会同时执行 acquire 和 release 操作。所有线程间观察到的 atomic 变量修改顺序都是一致的。
 
 这里面时序最为严格的是 memory_order_seq_cst，这就是我们常说的“线性一致性”。Go 语言的 atomic 类似这个最严格的时序。简单说明即：
 
