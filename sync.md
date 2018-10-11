@@ -142,7 +142,6 @@ func (wg *WaitGroup) state() *uint64 {
         return (*uint64)(unsafe.Pointer(&wg.state1))
     } else {
         // 未对齐时，使用高 8 字节
-        return (*uint64)(unsafe.Pointer(&wg.state1))
         return (*uint64)(unsafe.Pointer(&wg.state1[4]))
     }
 }
