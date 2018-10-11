@@ -68,7 +68,11 @@ int main()
 
 而线性一致的场景下，我们可以用全局事件发生的顺序来推断最终的内存状态。但因为这是最严格的时序，所以硬件同步的成本较高。如果我们的 atomic 变量只用来做全局的简单计数，比如 counter，那么在 Go 中就一定会比 C++ 一类提供了 memory order 选项的语言消耗更多的成本。
 
-但如果 atomic.Load 和 atomic.Store 提供像 C++ 一样的 memory_order 选项，那么又会带给程序员一定的心智负担，所以看起来 Go 官方并不打算提供这样的选项。
+但如果 atomic.Load 和 atomic.Store 提供像 C++ 一样的 memory_order 选项，那么又会带给程序员一定的心智负担，所以看起来 Go 官方并不打算提供这样的选项，比如官方组成员是这么说的：
+
+> To be honest, I don't think that people who need to worry about the slow down inherent in using sequential consistency for atomic operations are going to choose Go as their programming language.
+
+关于 atomic 和 memory order 的讨论可以参见: [这里](https://github.com/golang/go/issues/5045)
 
 ## atomic 的实现
 
