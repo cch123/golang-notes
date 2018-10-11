@@ -2,14 +2,14 @@
 
 ## 数据结构
 
-// The main allocator works in runs of pages.
-// Small allocation sizes (up to and including 32 kB) are
-// rounded to one of about 70 size classes, each of which
-// has its own free set of objects of exactly that size.
-// Any free page of memory can be split into a set of objects
-// of one size class, which are then managed using a free bitmap.
+```go
+// 内存分配器基于页工作。
+// 小内存分配 (最多到 32 kB，且包含 32 kB) 会被四舍五入到 70 个大小类型
+// 这 70 个大小类型，每一种都有相应的 free 内存块集合
+// 任意空闲的内存页都可以被 split 为某一种大小类型的一系列对象集合
+// 这些集合使用一个 bitmap 来进行管理
 //
-// The allocator's data structures are:
+// 分配器的数据结构:
 //
 //    fixalloc: a free-list allocator for fixed-size off-heap objects,
 //        used to manage storage used by the allocator.
@@ -19,6 +19,7 @@
 //    mcache: a per-P cache of mspans with free space.
 //    mstats: allocation statistics.
 //
+```
 
 ```
 PICTURE
