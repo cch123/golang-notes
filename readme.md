@@ -7,12 +7,12 @@
 1. [x] Bootstrap
 2. [x] Channel
 3. [ ] Interface
-4. [ ] Select
-5. [ ] Slice
+4. [x] Select
+5. [x] Slice
 6. [x] Timer
 7. [ ] Defer
-8. [ ] Lock
-9. [ ] Netpoll
+8. [x] Sync
+9. [x] Netpoll
 10. [ ] Reflect
 11. [ ] Panic
 12. [ ] Goroutine
@@ -22,4 +22,3 @@
 16. [x] Map
 17. [x] Syscall
 18. [ ] Memory
-
