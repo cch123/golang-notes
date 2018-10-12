@@ -343,7 +343,7 @@ func mallocinit() {
 ```
 
 ```go
-// Allocating a small object proceeds up a hierarchy of caches:
+// 分配一个小对象会穿过几个层次的 cache:
 //
 //    1. Round the size up to one of the small size classes
 //       and look in the corresponding mspan in this P's mcache.
@@ -421,36 +421,27 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
         return unsafe.Pointer(&zerobase)
     }
 
-    if debug.sbrk != 0 {
-        align := uintptr(16)
-        if typ != nil {
-            align = uintptr(typ.align)
-        }
-        return persistentalloc(size, align, &memstats.other_sys)
-    }
-
-    // assistG is the G to charge for this allocation, or nil if
-    // GC is not currently active.
+    // 如果正在执行 GC，那么需要有一个 assistG 负责这次内存分配
+    // 如果没有在执行 GC，那么这个 G 可以是 nil
     var assistG *g
     if gcBlackenEnabled != 0 {
-        // Charge the current user G for this allocation.
+        // 要求当前的用户 G 负责这次分配
         assistG = getg()
         if assistG.m.curg != nil {
             assistG = assistG.m.curg
         }
-        // Charge the allocation against the G. We'll account
-        // for internal fragmentation at the end of mallocgc.
+
+        // 向当前的 G 要求付款。在 mallocgc 的最后阶段需要对这笔“债务”负责
         assistG.gcAssistBytes -= int64(size)
 
         if assistG.gcAssistBytes < 0 {
-            // This G is in debt. Assist the GC to correct
-            // this before allocating. This must happen
-            // before disabling preemption.
+            // 当前的 G 还处于欠债状态。协助 GC，在分配内存前先还上这笔账
+            // 这个动作必须发生在关闭抢占之前
             gcAssistAlloc(assistG)
         }
     }
 
-    // Set mp.mallocing to keep from being preempted by GC.
+    // 设置 mp.mallocing 状态，以使其避免被 GC 抢占
     mp := acquirem()
     if mp.mallocing != 0 {
         throw("malloc deadlock")
@@ -602,20 +593,8 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
         gcmarknewobject(uintptr(x), size, scanSize)
     }
 
-    if raceenabled {
-        racemalloc(x, size)
-    }
-
-    if msanenabled {
-        msanmalloc(x, size)
-    }
-
     mp.mallocing = 0
     releasem(mp)
-
-    if debug.allocfreetrace != 0 {
-        tracealloc(x, size, typ)
-    }
 
     if rate := MemProfileRate; rate > 0 {
         if size < uintptr(rate) && int32(size) < c.next_sample {
