@@ -345,57 +345,47 @@ func mallocinit() {
 ```go
 // 分配一个小对象会穿过几个层次的 cache:
 //
-//    1. Round the size up to one of the small size classes
-//       and look in the corresponding mspan in this P's mcache.
-//       Scan the mspan's free bitmap to find a free slot.
-//       If there is a free slot, allocate it.
-//       This can all be done without acquiring a lock.
+//    1. 四舍五入 size 到合适的 size class 之一
+//       然后在当前 P 的 mcache 中查找对应的 mspan。
+//       扫描 mspan 的 free bitmap 寻找空闲的 slot。
+//       如果有空闲 slot，分配之。
+//       这个过程全程无需获取锁。
 //
-//    2. If the mspan has no free slots, obtain a new mspan
-//       from the mcentral's list of mspans of the required size
-//       class that have free space.
-//       Obtaining a whole span amortizes the cost of locking
-//       the mcentral.
+//    2. 如果 mspan 没有空闲 slot。从 mcentral 的 mspan 列表中
+//       获取一个大小至少为所需 size class 大小的新 mspan。
+//       作为获取一个完整的 span 的代价会对 mcentral 加锁。
 //
-//    3. If the mcentral's mspan list is empty, obtain a run
-//       of pages from the mheap to use for the mspan.
+//    3. 如果 mcentral 的 mspan 列表为空，从 mheap 中获取一系列
+//       页，来为 mspan 服务。
 //
-//    4. If the mheap is empty or has no page runs large enough,
-//       allocate a new group of pages (at least 1MB) from the
-//       operating system. Allocating a large run of pages
-//       amortizes the cost of talking to the operating system.
+//    4. 如果 mheap 是空，或者没有足够大的页，
+//       向操作系统要求分配一组新的页(至少 1MB)。
+//       分配一大笔页的成本主要在于和操作系统交互。
 //
-// Sweeping an mspan and freeing objects on it proceeds up a similar
-// hierarchy:
+// Sweeping 一个 mspan 并释放空闲对象走的是类似的逻辑层次:
 //
-//    1. If the mspan is being swept in response to allocation, it
-//       is returned to the mcache to satisfy the allocation.
+//    1. 如果 mspan 由于响应分配动作，而正在被 swept，该 mspan 会被返回到 mcache
+//       以满足内存分配的需求。
 //
-//    2. Otherwise, if the mspan still has allocated objects in it,
-//       it is placed on the mcentral free list for the mspan's size
-//       class.
+//    2. 否则的话，如果 mspan 中仍然有分配过的内存对象，
+//       则该 mspan 会被放进 mcentral 的对应 mspan size class 大小的空闲列表。
 //
-//    3. Otherwise, if all objects in the mspan are free, the mspan
-//       is now "idle", so it is returned to the mheap and no longer
-//       has a size class.
-//       This may coalesce it with adjacent idle mspans.
+//    3. 否则的话，如果 mspan 中所有对象均为空，mspan 则为 "idle" 状态，
+//       这时候会把 mspan 返回给 mheap 并不再对应任何 size class。
+//       这一步可能会把该 mspan 和其相邻的空闲 mspan 进行合并。
 //
-//    4. If an mspan remains idle for long enough, return its pages
-//       to the operating system.
+//    4. 如果一个 mspan 抽象 idle 了很长一段时间的话，会将其所包含的页返还给操作系统。
 //
-// Allocating and freeing a large object uses the mheap
-// directly, bypassing the mcache and mcentral.
+// 分配和释放大对象会越过 mcache 和 mcentral，直接使用全局 mheap，
 //
-// Free object slots in an mspan are zeroed only if mspan.needzero is
-// false. If needzero is true, objects are zeroed as they are
-// allocated. There are various benefits to delaying zeroing this way:
+// mspan 中的空闲对象槽只有在 mspan.needzero 为 false 时才会被置零。
+// 如果 needzero 是 true，则会在分配对象时再将其置零。延迟置零的操作有很多好处:
 //
-//    1. Stack frame allocation can avoid zeroing altogether.
+//    1. 栈帧分配能够避免一次性全置零。
 //
-//    2. It exhibits better temporal locality, since the program is
-//       probably about to write to the memory.
+//    2. 在空间局部性上更合理，因为程序很可能马上就要对置零的内存进行写入操作。
 //
-//    3. We don't zero pages that never get reused.
+//    3. 如果内存页不被复用，那么我们永远不需要清零操作。
 ```
 
 ```go
