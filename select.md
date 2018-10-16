@@ -812,3 +812,9 @@ sclose:
 }
 
 ```
+
+## 一些问题
+
+Q: 如果select多个channel，有一个channel触发了，其他channel的waitlist需要不要主动去除？还是一直在那等着？
+
+A: TODO
