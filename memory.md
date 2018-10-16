@@ -689,9 +689,216 @@ func largeAlloc(size uintptr, needzero bool, noscan bool) *mspan {
 }
 ```
 
+### mheap 分配流程
+
+alloc:
+
+```go
+func (h *mheap) alloc(npage uintptr, spanclass spanClass, large bool, needzero bool) *mspan {
+    // Don't do any operations that lock the heap on the G stack.
+    // It might trigger stack growth, and the stack growth code needs
+    // to be able to allocate heap.
+    var s *mspan
+    systemstack(func() {
+        s = h.alloc_m(npage, spanclass, large)
+    })
+
+    if s != nil {
+        if needzero && s.needzero != 0 {
+            memclrNoHeapPointers(unsafe.Pointer(s.base()), s.npages<<_PageShift)
+        }
+        s.needzero = 0
+    }
+    return s
+}
+
+```
+
+alloc_m:
+
+```go
+// Allocate a new span of npage pages from the heap for GC'd memory
+// and record its size class in the HeapMap and HeapMapCache.
+func (h *mheap) alloc_m(npage uintptr, spanclass spanClass, large bool) *mspan {
+    _g_ := getg()
+    if _g_ != _g_.m.g0 {
+        throw("_mheap_alloc not on g0 stack")
+    }
+    lock(&h.lock)
+
+    // To prevent excessive heap growth, before allocating n pages
+    // we need to sweep and reclaim at least n pages.
+    if h.sweepdone == 0 {
+        // TODO(austin): This tends to sweep a large number of
+        // spans in order to find a few completely free spans
+        // (for example, in the garbage benchmark, this sweeps
+        // ~30x the number of pages its trying to allocate).
+        // If GC kept a bit for whether there were any marks
+        // in a span, we could release these free spans
+        // at the end of GC and eliminate this entirely.
+        if trace.enabled {
+            traceGCSweepStart()
+        }
+        h.reclaim(npage)
+        if trace.enabled {
+            traceGCSweepDone()
+        }
+    }
+
+    // transfer stats from cache to global
+    memstats.heap_scan += uint64(_g_.m.mcache.local_scan)
+    _g_.m.mcache.local_scan = 0
+    memstats.tinyallocs += uint64(_g_.m.mcache.local_tinyallocs)
+    _g_.m.mcache.local_tinyallocs = 0
+
+    s := h.allocSpanLocked(npage, &memstats.heap_inuse)
+    if s != nil {
+        // Record span info, because gc needs to be
+        // able to map interior pointer to containing span.
+        atomic.Store(&s.sweepgen, h.sweepgen)
+        h.sweepSpans[h.sweepgen/2%2].push(s) // Add to swept in-use list.
+        s.state = _MSpanInUse
+        s.allocCount = 0
+        s.spanclass = spanclass
+        if sizeclass := spanclass.sizeclass(); sizeclass == 0 {
+            s.elemsize = s.npages << _PageShift
+            s.divShift = 0
+            s.divMul = 0
+            s.divShift2 = 0
+            s.baseMask = 0
+        } else {
+            s.elemsize = uintptr(class_to_size[sizeclass])
+            m := &class_to_divmagic[sizeclass]
+            s.divShift = m.shift
+            s.divMul = m.mul
+            s.divShift2 = m.shift2
+            s.baseMask = m.baseMask
+        }
+
+        // update stats, sweep lists
+        h.pagesInUse += uint64(npage)
+        if large {
+            memstats.heap_objects++
+            mheap_.largealloc += uint64(s.elemsize)
+            mheap_.nlargealloc++
+            atomic.Xadd64(&memstats.heap_live, int64(npage<<_PageShift))
+            // Swept spans are at the end of lists.
+            if s.npages < uintptr(len(h.busy)) {
+                h.busy[s.npages].insertBack(s)
+            } else {
+                h.busylarge.insertBack(s)
+            }
+        }
+    }
+    // heap_scan and heap_live were updated.
+    if gcBlackenEnabled != 0 {
+        gcController.revise()
+    }
+
+    if trace.enabled {
+        traceHeapAlloc()
+    }
+
+    // h.spans is accessed concurrently without synchronization
+    // from other threads. Hence, there must be a store/store
+    // barrier here to ensure the writes to h.spans above happen
+    // before the caller can publish a pointer p to an object
+    // allocated from s. As soon as this happens, the garbage
+    // collector running on another processor could read p and
+    // look up s in h.spans. The unlock acts as the barrier to
+    // order these writes. On the read side, the data dependency
+    // between p and the index in h.spans orders the reads.
+    unlock(&h.lock)
+    return s
+}
+```
+
+allocSpanLocked:
+
+```go
+// Allocates a span of the given size.  h must be locked.
+// The returned span has been removed from the
+// free list, but its state is still MSpanFree.
+func (h *mheap) allocSpanLocked(npage uintptr, stat *uint64) *mspan {
+    var list *mSpanList
+    var s *mspan
+
+    // Try in fixed-size lists up to max.
+    for i := int(npage); i < len(h.free); i++ {
+        list = &h.free[i]
+        if !list.isEmpty() {
+            s = list.first
+            list.remove(s)
+            goto HaveSpan
+        }
+    }
+    // Best fit in list of large spans.
+    s = h.allocLarge(npage) // allocLarge removed s from h.freelarge for us
+    if s == nil {
+        if !h.grow(npage) {
+            return nil
+        }
+        s = h.allocLarge(npage)
+        if s == nil {
+            return nil
+        }
+    }
+
+HaveSpan:
+    // Mark span in use.
+    if s.state != _MSpanFree {
+        throw("MHeap_AllocLocked - MSpan not free")
+    }
+    if s.npages < npage {
+        throw("MHeap_AllocLocked - bad npages")
+    }
+    if s.npreleased > 0 {
+        sysUsed(unsafe.Pointer(s.base()), s.npages<<_PageShift)
+        memstats.heap_released -= uint64(s.npreleased << _PageShift)
+        s.npreleased = 0
+    }
+
+    if s.npages > npage {
+        // Trim extra and put it back in the heap.
+        t := (*mspan)(h.spanalloc.alloc())
+        t.init(s.base()+npage<<_PageShift, s.npages-npage)
+        s.npages = npage
+        p := (t.base() - h.arena_start) >> _PageShift
+        if p > 0 {
+            h.spans[p-1] = s
+        }
+        h.spans[p] = t
+        h.spans[p+t.npages-1] = t
+        t.needzero = s.needzero
+        s.state = _MSpanManual // prevent coalescing with s
+        t.state = _MSpanManual
+        h.freeSpanLocked(t, false, false, s.unusedsince)
+        s.state = _MSpanFree
+    }
+    s.unusedsince = 0
+
+    p := (s.base() - h.arena_start) >> _PageShift
+    for n := uintptr(0); n < npage; n++ {
+        h.spans[p+n] = s
+    }
+
+    *stat += uint64(npage << _PageShift)
+    memstats.heap_idle -= uint64(npage << _PageShift)
+
+    //println("spanalloc", hex(s.start<<_PageShift))
+    if s.inList() {
+        throw("still in list")
+    }
+    return s
+}
+
+```
+
 ## 栈内存分配流程
 
-TODO
+```go
+SUB SP, $10
+```
 
 ## 堆外内存
 
