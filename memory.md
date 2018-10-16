@@ -479,7 +479,7 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
                 off = round(off, 2)
             }
             if off+size <= maxTinySize && c.tiny != 0 {
-                // The object fits into existing tiny block.
+                // 将对象适配到已存在的 tiny 块
                 x = unsafe.Pointer(c.tiny + off)
                 c.tinyoffset = off + size
                 c.local_tinyallocs++
@@ -487,7 +487,7 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
                 releasem(mp)
                 return x
             }
-            // Allocate a new maxTinySize block.
+            // 分配一个新的 maxTinySize 大小的块
             span := c.alloc[tinySpanClass]
             v := nextFreeFast(span)
             if v == 0 {
@@ -496,8 +496,7 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
             x = unsafe.Pointer(v)
             (*[2]uint64)(x)[0] = 0
             (*[2]uint64)(x)[1] = 0
-            // See if we need to replace the existing tiny block with the new one
-            // based on amount of remaining free space.
+            // 根据剩余的空闲空间，来看看我们是否需要将已有的 tiny 块替换为新块
             if size < c.tinyoffset || c.tiny == 0 {
                 c.tiny = uintptr(x)
                 c.tinyoffset = size
@@ -524,7 +523,7 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
             }
         }
     } else {
-        // Small allocator.
+        // Large allocator.
         var s *mspan
         shouldhelpgc = true
         systemstack(func() {
@@ -593,6 +592,100 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
     }
 
     return x
+}
+```
+
+nextFreeFast:
+
+```go
+// nextFreeFast returns the next free object if one is quickly available.
+// Otherwise it returns 0.
+func nextFreeFast(s *mspan) gclinkptr {
+    theBit := sys.Ctz64(s.allocCache) // Is there a free object in the allocCache?
+    if theBit < 64 {
+        result := s.freeindex + uintptr(theBit)
+        if result < s.nelems {
+            freeidx := result + 1
+            if freeidx%64 == 0 && freeidx != s.nelems {
+                return 0
+            }
+            s.allocCache >>= uint(theBit + 1)
+            s.freeindex = freeidx
+            s.allocCount++
+            return gclinkptr(result*s.elemsize + s.base())
+        }
+    }
+    return 0
+}
+```
+
+nextFree:
+
+```go
+// nextFree returns the next free object from the cached span if one is available.
+// Otherwise it refills the cache with a span with an available object and
+// returns that object along with a flag indicating that this was a heavy
+// weight allocation. If it is a heavy weight allocation the caller must
+// determine whether a new GC cycle needs to be started or if the GC is active
+// whether this goroutine needs to assist the GC.
+func (c *mcache) nextFree(spc spanClass) (v gclinkptr, s *mspan, shouldhelpgc bool) {
+    s = c.alloc[spc]
+    shouldhelpgc = false
+    freeIndex := s.nextFreeIndex()
+    if freeIndex == s.nelems {
+        // The span is full.
+        if uintptr(s.allocCount) != s.nelems {
+            println("runtime: s.allocCount=", s.allocCount, "s.nelems=", s.nelems)
+            throw("s.allocCount != s.nelems && freeIndex == s.nelems")
+        }
+        systemstack(func() {
+            c.refill(spc)
+        })
+        shouldhelpgc = true
+        s = c.alloc[spc]
+
+        freeIndex = s.nextFreeIndex()
+    }
+
+    if freeIndex >= s.nelems {
+        throw("freeIndex is not valid")
+    }
+
+    v = gclinkptr(freeIndex*s.elemsize + s.base())
+    s.allocCount++
+    if uintptr(s.allocCount) > s.nelems {
+        println("s.allocCount=", s.allocCount, "s.nelems=", s.nelems)
+        throw("s.allocCount > s.nelems")
+    }
+    return
+}
+```
+
+largeAlloc:
+
+```go
+func largeAlloc(size uintptr, needzero bool, noscan bool) *mspan {
+
+    if size+_PageSize < size {
+        throw("out of memory")
+    }
+    npages := size >> _PageShift
+    if size&_PageMask != 0 {
+        npages++
+    }
+
+    // Deduct credit for this span allocation and sweep if
+    // necessary. mHeap_Alloc will also sweep npages, so this only
+    // pays the debt down to npage pages.
+    deductSweepCredit(npages*_PageSize, npages)
+
+    s := mheap_.alloc(npages, makeSpanClass(0, noscan), true, needzero)
+    if s == nil {
+        throw("out of memory")
+    }
+    s.limit = s.base() + size
+    heapBitsForSpan(s.base()).initSpan(s)
+    return s
 }
 ```
 
