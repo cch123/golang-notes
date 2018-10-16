@@ -114,18 +114,15 @@
 └─────────────────────────────────────────────────┘                                                                                                                
 ```
 
-## 内存分配器初始化
+## 准备工作: 平台相关函数封装
 
 ```go
 
 // OS-defined helpers:
 //
-// sysAlloc obtains a large chunk of zeroed memory from the
-// operating system, typically on the order of a hundred kilobytes
-// or a megabyte.
-// NOTE: sysAlloc returns OS-aligned memory, but the heap allocator
-// may use larger alignment, so the caller must be careful to realign the
-// memory obtained by sysAlloc.
+// sysAlloc 从操作系统获取一大块已清零的内存，一般是 100 KB 或 1MB
+// NOTE: sysAlloc 返回 OS 对齐的内存，但是对于堆分配器来说可能需要以更大的单位进行对齐。
+// 因此 caller 需要小心地将 sysAlloc 获取到的内存重新进行对齐。
 //
 // SysUnused notifies the operating system that the contents
 // of the memory region are no longer needed and can be reused
@@ -156,6 +153,173 @@
 // SysFault marks a (already sysAlloc'd) region to fault
 // if accessed. Used only for debugging the runtime.
 
+// Copyright 2010 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package runtime
+
+import (
+	"runtime/internal/sys"
+	"unsafe"
+)
+
+const (
+	_EACCES = 13
+	_EINVAL = 22
+)
+
+// Don't split the stack as this method may be invoked without a valid G, which
+// prevents us from allocating more stack.
+//go:nosplit
+func sysAlloc(n uintptr, sysStat *uint64) unsafe.Pointer {
+	p, err := mmap(nil, n, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_PRIVATE, -1, 0)
+	if err != 0 {
+		if err == _EACCES {
+			print("runtime: mmap: access denied\n")
+			exit(2)
+		}
+		if err == _EAGAIN {
+			print("runtime: mmap: too much locked memory (check 'ulimit -l').\n")
+			exit(2)
+		}
+		return nil
+	}
+	mSysStatInc(sysStat, n)
+	return p
+}
+
+func sysUnused(v unsafe.Pointer, n uintptr) {
+	// By default, Linux's "transparent huge page" support will
+	// merge pages into a huge page if there's even a single
+	// present regular page, undoing the effects of the DONTNEED
+	// below. On amd64, that means khugepaged can turn a single
+	// 4KB page to 2MB, bloating the process's RSS by as much as
+	// 512X. (See issue #8832 and Linux kernel bug
+	// https://bugzilla.kernel.org/show_bug.cgi?id=93111)
+	//
+	// To work around this, we explicitly disable transparent huge
+	// pages when we release pages of the heap. However, we have
+	// to do this carefully because changing this flag tends to
+	// split the VMA (memory mapping) containing v in to three
+	// VMAs in order to track the different values of the
+	// MADV_NOHUGEPAGE flag in the different regions. There's a
+	// default limit of 65530 VMAs per address space (sysctl
+	// vm.max_map_count), so we must be careful not to create too
+	// many VMAs (see issue #12233).
+	//
+	// Since huge pages are huge, there's little use in adjusting
+	// the MADV_NOHUGEPAGE flag on a fine granularity, so we avoid
+	// exploding the number of VMAs by only adjusting the
+	// MADV_NOHUGEPAGE flag on a large granularity. This still
+	// gets most of the benefit of huge pages while keeping the
+	// number of VMAs under control. With hugePageSize = 2MB, even
+	// a pessimal heap can reach 128GB before running out of VMAs.
+	if sys.HugePageSize != 0 {
+		var s uintptr = sys.HugePageSize // division by constant 0 is a compile-time error :(
+
+		// If it's a large allocation, we want to leave huge
+		// pages enabled. Hence, we only adjust the huge page
+		// flag on the huge pages containing v and v+n-1, and
+		// only if those aren't aligned.
+		var head, tail uintptr
+		if uintptr(v)%s != 0 {
+			// Compute huge page containing v.
+			head = uintptr(v) &^ (s - 1)
+		}
+		if (uintptr(v)+n)%s != 0 {
+			// Compute huge page containing v+n-1.
+			tail = (uintptr(v) + n - 1) &^ (s - 1)
+		}
+
+		// Note that madvise will return EINVAL if the flag is
+		// already set, which is quite likely. We ignore
+		// errors.
+		if head != 0 && head+sys.HugePageSize == tail {
+			// head and tail are different but adjacent,
+			// so do this in one call.
+			madvise(unsafe.Pointer(head), 2*sys.HugePageSize, _MADV_NOHUGEPAGE)
+		} else {
+			// Advise the huge pages containing v and v+n-1.
+			if head != 0 {
+				madvise(unsafe.Pointer(head), sys.HugePageSize, _MADV_NOHUGEPAGE)
+			}
+			if tail != 0 && tail != head {
+				madvise(unsafe.Pointer(tail), sys.HugePageSize, _MADV_NOHUGEPAGE)
+			}
+		}
+	}
+
+	if uintptr(v)&(physPageSize-1) != 0 || n&(physPageSize-1) != 0 {
+		// madvise will round this to any physical page
+		// *covered* by this range, so an unaligned madvise
+		// will release more memory than intended.
+		throw("unaligned sysUnused")
+	}
+
+	madvise(v, n, _MADV_DONTNEED)
+}
+
+func sysUsed(v unsafe.Pointer, n uintptr) {
+	if sys.HugePageSize != 0 {
+		// Partially undo the NOHUGEPAGE marks from sysUnused
+		// for whole huge pages between v and v+n. This may
+		// leave huge pages off at the end points v and v+n
+		// even though allocations may cover these entire huge
+		// pages. We could detect this and undo NOHUGEPAGE on
+		// the end points as well, but it's probably not worth
+		// the cost because when neighboring allocations are
+		// freed sysUnused will just set NOHUGEPAGE again.
+		var s uintptr = sys.HugePageSize
+
+		// Round v up to a huge page boundary.
+		beg := (uintptr(v) + (s - 1)) &^ (s - 1)
+		// Round v+n down to a huge page boundary.
+		end := (uintptr(v) + n) &^ (s - 1)
+
+		if beg < end {
+			madvise(unsafe.Pointer(beg), end-beg, _MADV_HUGEPAGE)
+		}
+	}
+}
+
+// Don't split the stack as this function may be invoked without a valid G,
+// which prevents us from allocating more stack.
+//go:nosplit
+func sysFree(v unsafe.Pointer, n uintptr, sysStat *uint64) {
+	mSysStatDec(sysStat, n)
+	munmap(v, n)
+}
+
+func sysFault(v unsafe.Pointer, n uintptr) {
+	mmap(v, n, _PROT_NONE, _MAP_ANON|_MAP_PRIVATE|_MAP_FIXED, -1, 0)
+}
+
+func sysReserve(v unsafe.Pointer, n uintptr) unsafe.Pointer {
+	p, err := mmap(v, n, _PROT_NONE, _MAP_ANON|_MAP_PRIVATE, -1, 0)
+	if err != 0 {
+		return nil
+	}
+	return p
+}
+
+func sysMap(v unsafe.Pointer, n uintptr, sysStat *uint64) {
+	mSysStatInc(sysStat, n)
+
+	p, err := mmap(v, n, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_FIXED|_MAP_PRIVATE, -1, 0)
+	if err == _ENOMEM {
+		throw("runtime: out of memory")
+	}
+	if p != v || err != 0 {
+		throw("runtime: cannot map pages in arena address space")
+	}
+}
+
+```
+
+## 内存分配器初始化
+
+```go
 func mallocinit() {
     if class_to_size[_TinySizeClass] != _TinySize {
         throw("bad TinySizeClass")
@@ -548,9 +712,8 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
         }
         heapBitsSetType(uintptr(x), size, dataSize, typ)
         if dataSize > typ.size {
-            // Array allocation. If there are any
-            // pointers, GC has to scan to the last
-            // element.
+            // 说明是分配 Array 的空间。
+            // 如果其中有指针，GC 需要扫描最后一个元素
             if typ.ptrdata != 0 {
                 scanSize = dataSize - typ.size + typ.ptrdata
             }
@@ -560,18 +723,16 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
         c.local_scan += scanSize
     }
 
-    // Ensure that the stores above that initialize x to
-    // type-safe memory and set the heap bits occur before
-    // the caller can make x observable to the garbage
-    // collector. Otherwise, on weakly ordered machines,
-    // the garbage collector could follow a pointer to x,
-    // but see uninitialized memory or stale heap bits.
+    // 确保上面初始化 x 并设置 heap 对应的 bits 之类的存储操作发生
+    // 在 caller 使 x 对垃圾收集器可见之前。否则的话，在那些 weakly ordered
+    // 的平台上，垃圾收集器可能会跟踪一个指向 x 的指针，
+    // 但是看到的内存却是未初始化或者 heap bits 是过期的数据
     publicationBarrier()
 
-    // Allocate black during GC.
-    // All slots hold nil so no scanning is needed.
-    // This may be racing with GC so do it atomically if there can be
-    // a race marking the bit.
+    // GC 期间分配的黑色对象。
+    // 所有持有 nil 对象的槽都无需扫描。
+    // 这里可能会和 GC 发生 racing，如果正在标记 bit 时
+    // 需要原子地来执行这个动作
     if gcphase != _GCoff {
         gcmarknewobject(uintptr(x), size, scanSize)
     }
@@ -580,8 +741,7 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
     releasem(mp)
 
     if assistG != nil {
-        // Account for internal fragmentation in the assist
-        // debt now that we know it.
+        // 为内部的碎片进行统计，以帮助我们记账。
         assistG.gcAssistBytes -= int64(size - dataSize)
     }
 
