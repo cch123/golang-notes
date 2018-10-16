@@ -450,33 +450,25 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
         if noscan && size < maxTinySize {
             // Tiny allocator.
             //
-            // Tiny allocator combines several tiny allocation requests
-            // into a single memory block. The resulting memory block
-            // is freed when all subobjects are unreachable. The subobjects
-            // must be noscan (don't have pointers), this ensures that
-            // the amount of potentially wasted memory is bounded.
+            // Tiny allocator 会将几个 tiny 的内存分配请求组合为单个内存块。
+            // 当该内存块中所有子对象都不可达时，便会释放这部分内存块。
+            // 子对象必须是 noscan 类型(不包含指针)，这样可以确保浪费的内存是可控的。
             //
-            // Size of the memory block used for combining (maxTinySize) is tunable.
-            // Current setting is 16 bytes, which relates to 2x worst case memory
-            // wastage (when all but one subobjects are unreachable).
-            // 8 bytes would result in no wastage at all, but provides less
-            // opportunities for combining.
-            // 32 bytes provides more opportunities for combining,
-            // but can lead to 4x worst case wastage.
-            // The best case winning is 8x regardless of block size.
+            // 用来组合小对象的内存块的大小是可调(tuning)的。
+            // 当前的设置是 16 bytes，最坏情况下会浪费 2x 内存(当所有子对象中只有一个对象是可达状态时)。
+            // 如果修改为 8 bytes ，虽然完全没有浪费，但是却不太可能进行组合操作。
+            // 32 bytes 能够提高合并的可能性，但是最坏情况下会造成 4x 浪费。
+            // 不考虑 block 大小的话，最好的情况下是 8x。 // The best case winning is 8x regardless of block size. ??
             //
-            // Objects obtained from tiny allocator must not be freed explicitly.
-            // So when an object will be freed explicitly, we ensure that
-            // its size >= maxTinySize.
+            // 从 tiny allocator 中获得的内存不能被显式释放。
+            // 因此当一个对象需要被显式释放时，我们要确保它的 size >= maxTinySize
             //
-            // SetFinalizer has a special case for objects potentially coming
-            // from tiny allocator, it such case it allows to set finalizers
-            // for an inner byte of a memory block.
+            // 当对象都是由 tiny allocator 分配时，会形成 SetFinalizer 有一种特殊 case，
+            // 这种情况下会允许在一个内存块中设置内部字节的 finalizers
             //
-            // The main targets of tiny allocator are small strings and
-            // standalone escaping variables. On a json benchmark
-            // the allocator reduces number of allocations by ~12% and
-            // reduces heap size by ~20%.
+            // 实现 tiny allocator 的主要目标是对那些小字符串和独立的逃逸变量。
+            // 在一个 json benchmark 中，这个 allocator 会将其性能提升 ~12%
+            // 并且使堆大小降低了 ~20%。
             off := c.tinyoffset
             // Align tiny pointer for required (conservative) alignment.
             if size&7 == 0 {
@@ -512,6 +504,7 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
             }
             size = maxTinySize
         } else {
+            // Small allocator.
             var sizeclass uint8
             if size <= smallSizeMax-8 {
                 sizeclass = size_to_class8[(size+smallSizeDiv-1)/smallSizeDiv]
@@ -531,6 +524,7 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
             }
         }
     } else {
+        // Small allocator.
         var s *mspan
         shouldhelpgc = true
         systemstack(func() {
@@ -585,16 +579,6 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 
     mp.mallocing = 0
     releasem(mp)
-
-    if rate := MemProfileRate; rate > 0 {
-        if size < uintptr(rate) && int32(size) < c.next_sample {
-            c.next_sample -= int32(size)
-        } else {
-            mp := acquirem()
-            profilealloc(mp, x, size)
-            releasem(mp)
-        }
-    }
 
     if assistG != nil {
         // Account for internal fragmentation in the assist
