@@ -116,6 +116,8 @@
 
 ## 准备工作: 平台相关函数封装
 
+分配、释放内存在不同的平台 (linux/win/bsd) 有差异，所以 Go 先对这些基础函数进行了封装，我们只把 linux 相关的(mem_linux.go)的摘出来:
+
 ```go
 
 // OS-defined helpers:
@@ -124,53 +126,32 @@
 // NOTE: sysAlloc 返回 OS 对齐的内存，但是对于堆分配器来说可能需要以更大的单位进行对齐。
 // 因此 caller 需要小心地将 sysAlloc 获取到的内存重新进行对齐。
 //
-// SysUnused notifies the operating system that the contents
-// of the memory region are no longer needed and can be reused
-// for other purposes.
-// SysUsed notifies the operating system that the contents
-// of the memory region are needed again.
+// sysUnused 通知操作系统内存区域的内容已经没用了，可以移作它用。
+// sysUsed 通知操作系统内存区域的内容又需要用了。
 //
-// SysFree returns it unconditionally; this is only used if
-// an out-of-memory error has been detected midway through
-// an allocation. It is okay if SysFree is a no-op.
+// sysFree 无条件返回内存；只有当分配内存途中发生了 out-of-memory 错误
+// 时才会使用。如果 sysFree 本身啥也没干成(no-op)也是 ok 的。
 //
-// SysReserve reserves address space without allocating memory.
-// If the pointer passed to it is non-nil, the caller wants the
-// reservation there, but SysReserve can still choose another
-// location if that one is unavailable. On some systems and in some
-// cases SysReserve will simply check that the address space is
-// available and not actually reserve it. If SysReserve returns
-// non-nil, it sets *reserved to true if the address space is
-// reserved, false if it has merely been checked.
-// NOTE: SysReserve returns OS-aligned memory, but the heap allocator
-// may use larger alignment, so the caller must be careful to realign the
-// memory obtained by sysAlloc.
+// sysReserve 会在不分配内存的情况下，保留一段地址空间。
+// 如果传给它的指针是非 nil，意思是 caller 想保留这段地址，
+// 但这种情况下，如果该段地址不可用时，sysReserve 依然可以选择另外的地址。
+// 在一些操作系统的某些 case 下，sysReserve 化合简单地检查这段地址空间是否可用
+// 同时并不会真地保留它。sysReserve 返回非空指针时，如果地址空间保留成功了
+// 会将 *reserved 设置为 true，只是检查而未保留的话会设置为 false。
+// NOTE: sysReserve 返回 系统对齐的内存，没有按堆分配器的更大对齐单位进行对齐，
+// 所以 caller 需要将通过 sysAlloc 获取到的内存进行重对齐。
 //
-// SysMap maps previously reserved address space for use.
-// The reserved argument is true if the address space was really
-// reserved, not merely checked.
+// sysMap 将之前保留的地址空间映射好以进行使用。
+// 如果地址空间确实被保留的话，reserved 参数会为 true。只 check 的话是 false。
 //
-// SysFault marks a (already sysAlloc'd) region to fault
-// if accessed. Used only for debugging the runtime.
+// sysFault 当一块内存已经被 sysAlloc 时，标记其为 fault。只在 debug runtime 的时候用用。
 
-// Copyright 2010 The Go Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style
-// license that can be found in the LICENSE file.
+```
 
-package runtime
+sysAlloc:
 
-import (
-	"runtime/internal/sys"
-	"unsafe"
-)
-
-const (
-	_EACCES = 13
-	_EINVAL = 22
-)
-
-// Don't split the stack as this method may be invoked without a valid G, which
-// prevents us from allocating more stack.
+```go
+// 不要栈 split，因为这个方法在调用的时候可能都没有合法的 G，没有合法的 G 的情况下不应该 morestack
 //go:nosplit
 func sysAlloc(n uintptr, sysStat *uint64) unsafe.Pointer {
 	p, err := mmap(nil, n, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_PRIVATE, -1, 0)
@@ -188,7 +169,11 @@ func sysAlloc(n uintptr, sysStat *uint64) unsafe.Pointer {
 	mSysStatInc(sysStat, n)
 	return p
 }
+```
 
+sysUnused:
+
+```go
 func sysUnused(v unsafe.Pointer, n uintptr) {
 	// By default, Linux's "transparent huge page" support will
 	// merge pages into a huge page if there's even a single
@@ -259,7 +244,11 @@ func sysUnused(v unsafe.Pointer, n uintptr) {
 
 	madvise(v, n, _MADV_DONTNEED)
 }
+```
 
+sysUsed:
+
+```go
 func sysUsed(v unsafe.Pointer, n uintptr) {
 	if sys.HugePageSize != 0 {
 		// Partially undo the NOHUGEPAGE marks from sysUnused
@@ -282,7 +271,11 @@ func sysUsed(v unsafe.Pointer, n uintptr) {
 		}
 	}
 }
+```
 
+sysFree:
+
+```go
 // Don't split the stack as this function may be invoked without a valid G,
 // which prevents us from allocating more stack.
 //go:nosplit
@@ -290,11 +283,19 @@ func sysFree(v unsafe.Pointer, n uintptr, sysStat *uint64) {
 	mSysStatDec(sysStat, n)
 	munmap(v, n)
 }
+```
 
+sysFault:
+
+```go
 func sysFault(v unsafe.Pointer, n uintptr) {
 	mmap(v, n, _PROT_NONE, _MAP_ANON|_MAP_PRIVATE|_MAP_FIXED, -1, 0)
 }
+```
 
+sysReserve:
+
+```go
 func sysReserve(v unsafe.Pointer, n uintptr) unsafe.Pointer {
 	p, err := mmap(v, n, _PROT_NONE, _MAP_ANON|_MAP_PRIVATE, -1, 0)
 	if err != 0 {
@@ -302,7 +303,11 @@ func sysReserve(v unsafe.Pointer, n uintptr) unsafe.Pointer {
 	}
 	return p
 }
+```
 
+sysMap:
+
+```go
 func sysMap(v unsafe.Pointer, n uintptr, sysStat *uint64) {
 	mSysStatInc(sysStat, n)
 
@@ -314,7 +319,6 @@ func sysMap(v unsafe.Pointer, n uintptr, sysStat *uint64) {
 		throw("runtime: cannot map pages in arena address space")
 	}
 }
-
 ```
 
 ## 内存分配器初始化
