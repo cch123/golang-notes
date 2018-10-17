@@ -154,20 +154,20 @@ sysAlloc:
 // 不要栈 split，因为这个方法在调用的时候可能都没有合法的 G，没有合法的 G 的情况下不应该 morestack
 //go:nosplit
 func sysAlloc(n uintptr, sysStat *uint64) unsafe.Pointer {
-	p, err := mmap(nil, n, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_PRIVATE, -1, 0)
-	if err != 0 {
-		if err == _EACCES {
-			print("runtime: mmap: access denied\n")
-			exit(2)
-		}
-		if err == _EAGAIN {
-			print("runtime: mmap: too much locked memory (check 'ulimit -l').\n")
-			exit(2)
-		}
-		return nil
-	}
-	mSysStatInc(sysStat, n)
-	return p
+    p, err := mmap(nil, n, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_PRIVATE, -1, 0)
+    if err != 0 {
+        if err == _EACCES {
+            print("runtime: mmap: access denied\n")
+            exit(2)
+        }
+        if err == _EAGAIN {
+            print("runtime: mmap: too much locked memory (check 'ulimit -l').\n")
+            exit(2)
+        }
+        return nil
+    }
+    mSysStatInc(sysStat, n)
+    return p
 }
 ```
 
@@ -175,74 +175,74 @@ sysUnused:
 
 ```go
 func sysUnused(v unsafe.Pointer, n uintptr) {
-	// By default, Linux's "transparent huge page" support will
-	// merge pages into a huge page if there's even a single
-	// present regular page, undoing the effects of the DONTNEED
-	// below. On amd64, that means khugepaged can turn a single
-	// 4KB page to 2MB, bloating the process's RSS by as much as
-	// 512X. (See issue #8832 and Linux kernel bug
-	// https://bugzilla.kernel.org/show_bug.cgi?id=93111)
-	//
-	// To work around this, we explicitly disable transparent huge
-	// pages when we release pages of the heap. However, we have
-	// to do this carefully because changing this flag tends to
-	// split the VMA (memory mapping) containing v in to three
-	// VMAs in order to track the different values of the
-	// MADV_NOHUGEPAGE flag in the different regions. There's a
-	// default limit of 65530 VMAs per address space (sysctl
-	// vm.max_map_count), so we must be careful not to create too
-	// many VMAs (see issue #12233).
-	//
-	// Since huge pages are huge, there's little use in adjusting
-	// the MADV_NOHUGEPAGE flag on a fine granularity, so we avoid
-	// exploding the number of VMAs by only adjusting the
-	// MADV_NOHUGEPAGE flag on a large granularity. This still
-	// gets most of the benefit of huge pages while keeping the
-	// number of VMAs under control. With hugePageSize = 2MB, even
-	// a pessimal heap can reach 128GB before running out of VMAs.
-	if sys.HugePageSize != 0 {
-		var s uintptr = sys.HugePageSize // division by constant 0 is a compile-time error :(
+    // By default, Linux's "transparent huge page" support will
+    // merge pages into a huge page if there's even a single
+    // present regular page, undoing the effects of the DONTNEED
+    // below. On amd64, that means khugepaged can turn a single
+    // 4KB page to 2MB, bloating the process's RSS by as much as
+    // 512X. (See issue #8832 and Linux kernel bug
+    // https://bugzilla.kernel.org/show_bug.cgi?id=93111)
+    //
+    // To work around this, we explicitly disable transparent huge
+    // pages when we release pages of the heap. However, we have
+    // to do this carefully because changing this flag tends to
+    // split the VMA (memory mapping) containing v in to three
+    // VMAs in order to track the different values of the
+    // MADV_NOHUGEPAGE flag in the different regions. There's a
+    // default limit of 65530 VMAs per address space (sysctl
+    // vm.max_map_count), so we must be careful not to create too
+    // many VMAs (see issue #12233).
+    //
+    // Since huge pages are huge, there's little use in adjusting
+    // the MADV_NOHUGEPAGE flag on a fine granularity, so we avoid
+    // exploding the number of VMAs by only adjusting the
+    // MADV_NOHUGEPAGE flag on a large granularity. This still
+    // gets most of the benefit of huge pages while keeping the
+    // number of VMAs under control. With hugePageSize = 2MB, even
+    // a pessimal heap can reach 128GB before running out of VMAs.
+    if sys.HugePageSize != 0 {
+        var s uintptr = sys.HugePageSize // division by constant 0 is a compile-time error :(
 
-		// If it's a large allocation, we want to leave huge
-		// pages enabled. Hence, we only adjust the huge page
-		// flag on the huge pages containing v and v+n-1, and
-		// only if those aren't aligned.
-		var head, tail uintptr
-		if uintptr(v)%s != 0 {
-			// Compute huge page containing v.
-			head = uintptr(v) &^ (s - 1)
-		}
-		if (uintptr(v)+n)%s != 0 {
-			// Compute huge page containing v+n-1.
-			tail = (uintptr(v) + n - 1) &^ (s - 1)
-		}
+        // If it's a large allocation, we want to leave huge
+        // pages enabled. Hence, we only adjust the huge page
+        // flag on the huge pages containing v and v+n-1, and
+        // only if those aren't aligned.
+        var head, tail uintptr
+        if uintptr(v)%s != 0 {
+            // Compute huge page containing v.
+            head = uintptr(v) &^ (s - 1)
+        }
+        if (uintptr(v)+n)%s != 0 {
+            // Compute huge page containing v+n-1.
+            tail = (uintptr(v) + n - 1) &^ (s - 1)
+        }
 
-		// Note that madvise will return EINVAL if the flag is
-		// already set, which is quite likely. We ignore
-		// errors.
-		if head != 0 && head+sys.HugePageSize == tail {
-			// head and tail are different but adjacent,
-			// so do this in one call.
-			madvise(unsafe.Pointer(head), 2*sys.HugePageSize, _MADV_NOHUGEPAGE)
-		} else {
-			// Advise the huge pages containing v and v+n-1.
-			if head != 0 {
-				madvise(unsafe.Pointer(head), sys.HugePageSize, _MADV_NOHUGEPAGE)
-			}
-			if tail != 0 && tail != head {
-				madvise(unsafe.Pointer(tail), sys.HugePageSize, _MADV_NOHUGEPAGE)
-			}
-		}
-	}
+        // Note that madvise will return EINVAL if the flag is
+        // already set, which is quite likely. We ignore
+        // errors.
+        if head != 0 && head+sys.HugePageSize == tail {
+            // head and tail are different but adjacent,
+            // so do this in one call.
+            madvise(unsafe.Pointer(head), 2*sys.HugePageSize, _MADV_NOHUGEPAGE)
+        } else {
+            // Advise the huge pages containing v and v+n-1.
+            if head != 0 {
+                madvise(unsafe.Pointer(head), sys.HugePageSize, _MADV_NOHUGEPAGE)
+            }
+            if tail != 0 && tail != head {
+                madvise(unsafe.Pointer(tail), sys.HugePageSize, _MADV_NOHUGEPAGE)
+            }
+        }
+    }
 
-	if uintptr(v)&(physPageSize-1) != 0 || n&(physPageSize-1) != 0 {
-		// madvise will round this to any physical page
-		// *covered* by this range, so an unaligned madvise
-		// will release more memory than intended.
-		throw("unaligned sysUnused")
-	}
+    if uintptr(v)&(physPageSize-1) != 0 || n&(physPageSize-1) != 0 {
+        // madvise will round this to any physical page
+        // *covered* by this range, so an unaligned madvise
+        // will release more memory than intended.
+        throw("unaligned sysUnused")
+    }
 
-	madvise(v, n, _MADV_DONTNEED)
+    madvise(v, n, _MADV_DONTNEED)
 }
 ```
 
@@ -250,38 +250,37 @@ sysUsed:
 
 ```go
 func sysUsed(v unsafe.Pointer, n uintptr) {
-	if sys.HugePageSize != 0 {
-		// Partially undo the NOHUGEPAGE marks from sysUnused
-		// for whole huge pages between v and v+n. This may
-		// leave huge pages off at the end points v and v+n
-		// even though allocations may cover these entire huge
-		// pages. We could detect this and undo NOHUGEPAGE on
-		// the end points as well, but it's probably not worth
-		// the cost because when neighboring allocations are
-		// freed sysUnused will just set NOHUGEPAGE again.
-		var s uintptr = sys.HugePageSize
+    if sys.HugePageSize != 0 {
+        // Partially undo the NOHUGEPAGE marks from sysUnused
+        // for whole huge pages between v and v+n. This may
+        // leave huge pages off at the end points v and v+n
+        // even though allocations may cover these entire huge
+        // pages. We could detect this and undo NOHUGEPAGE on
+        // the end points as well, but it's probably not worth
+        // the cost because when neighboring allocations are
+        // freed sysUnused will just set NOHUGEPAGE again.
+        var s uintptr = sys.HugePageSize
 
-		// Round v up to a huge page boundary.
-		beg := (uintptr(v) + (s - 1)) &^ (s - 1)
-		// Round v+n down to a huge page boundary.
-		end := (uintptr(v) + n) &^ (s - 1)
+        // Round v up to a huge page boundary.
+        beg := (uintptr(v) + (s - 1)) &^ (s - 1)
+        // Round v+n down to a huge page boundary.
+        end := (uintptr(v) + n) &^ (s - 1)
 
-		if beg < end {
-			madvise(unsafe.Pointer(beg), end-beg, _MADV_HUGEPAGE)
-		}
-	}
+        if beg < end {
+            madvise(unsafe.Pointer(beg), end-beg, _MADV_HUGEPAGE)
+        }
+    }
 }
 ```
 
 sysFree:
 
 ```go
-// Don't split the stack as this function may be invoked without a valid G,
-// which prevents us from allocating more stack.
+// 不要 split stack，因为调用时可能没有合法的 G
 //go:nosplit
 func sysFree(v unsafe.Pointer, n uintptr, sysStat *uint64) {
-	mSysStatDec(sysStat, n)
-	munmap(v, n)
+    mSysStatDec(sysStat, n)
+    munmap(v, n)
 }
 ```
 
@@ -289,7 +288,7 @@ sysFault:
 
 ```go
 func sysFault(v unsafe.Pointer, n uintptr) {
-	mmap(v, n, _PROT_NONE, _MAP_ANON|_MAP_PRIVATE|_MAP_FIXED, -1, 0)
+    mmap(v, n, _PROT_NONE, _MAP_ANON|_MAP_PRIVATE|_MAP_FIXED, -1, 0)
 }
 ```
 
@@ -297,11 +296,11 @@ sysReserve:
 
 ```go
 func sysReserve(v unsafe.Pointer, n uintptr) unsafe.Pointer {
-	p, err := mmap(v, n, _PROT_NONE, _MAP_ANON|_MAP_PRIVATE, -1, 0)
-	if err != 0 {
-		return nil
-	}
-	return p
+    p, err := mmap(v, n, _PROT_NONE, _MAP_ANON|_MAP_PRIVATE, -1, 0)
+    if err != 0 {
+        return nil
+    }
+    return p
 }
 ```
 
@@ -309,15 +308,15 @@ sysMap:
 
 ```go
 func sysMap(v unsafe.Pointer, n uintptr, sysStat *uint64) {
-	mSysStatInc(sysStat, n)
+    mSysStatInc(sysStat, n)
 
-	p, err := mmap(v, n, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_FIXED|_MAP_PRIVATE, -1, 0)
-	if err == _ENOMEM {
-		throw("runtime: out of memory")
-	}
-	if p != v || err != 0 {
-		throw("runtime: cannot map pages in arena address space")
-	}
+    p, err := mmap(v, n, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_FIXED|_MAP_PRIVATE, -1, 0)
+    if err == _ENOMEM {
+        throw("runtime: out of memory")
+    }
+    if p != v || err != 0 {
+        throw("runtime: cannot map pages in arena address space")
+    }
 }
 ```
 
@@ -331,14 +330,9 @@ func mallocinit() {
 
     testdefersizes()
 
-    // Copy class sizes out for statistics table.
-    for i := range class_to_size {
-        memstats.by_size[i].size = uint32(class_to_size[i])
-    }
-
-    // Check physPageSize.
+    // 检查物理页大小
     if physPageSize == 0 {
-        // The OS init code failed to fetch the physical page size.
+        // 操作系统初始化代码获取物理页大小失败
         throw("failed to get system page size")
     }
     if physPageSize < minPhysPageSize {
@@ -350,20 +344,20 @@ func mallocinit() {
         throw("bad system page size")
     }
 
-    // The auxiliary regions start at p and are laid out in the
-    // following order: spans, bitmap, arena.
+    // 内存区域从 p 开始，在内存中以: span, bitmap, arena 的顺序排列
     var p, pSize uintptr
     var reserved bool
 
-    // The spans array holds one *mspan per _PageSize of arena.
+    // span 数组中，对每一块 _PageSize 的 arena 内存都持有一个 *mspan
     var spansSize uintptr = (_MaxMem + 1) / _PageSize * sys.PtrSize
     spansSize = round(spansSize, _PageSize)
-    // The bitmap holds 2 bits per word of arena.
+    // 每一个 word 的 arena 区域都在 bitmap 中占用 2 bits
     var bitmapSize uintptr = (_MaxMem + 1) / (sys.PtrSize * 8 / 2)
     bitmapSize = round(bitmapSize, _PageSize)
 
     // Set up the allocation arena, a contiguous area of memory where
     // allocated data will be found.
+    // 初始化内存分配 arena，arena 是一段连续的内存，负责数据的内存分配。
     if sys.PtrSize == 8 {
         // On a 64-bit machine, allocate from a single contiguous reservation.
         // 512 GB (MaxMem) should be big enough for now.
@@ -762,8 +756,8 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 nextFreeFast:
 
 ```go
-// nextFreeFast returns the next free object if one is quickly available.
-// Otherwise it returns 0.
+// nextFreeFast 是从 allocCache 中查找空闲的对象，执行较快。
+// 如果未找到会返回 0
 func nextFreeFast(s *mspan) gclinkptr {
     theBit := sys.Ctz64(s.allocCache) // Is there a free object in the allocCache?
     if theBit < 64 {
@@ -786,12 +780,10 @@ func nextFreeFast(s *mspan) gclinkptr {
 nextFree:
 
 ```go
-// nextFree returns the next free object from the cached span if one is available.
-// Otherwise it refills the cache with a span with an available object and
-// returns that object along with a flag indicating that this was a heavy
-// weight allocation. If it is a heavy weight allocation the caller must
-// determine whether a new GC cycle needs to be started or if the GC is active
-// whether this goroutine needs to assist the GC.
+// nextFree 会从 cached span 中寻找下一个空闲对象
+// 如果未找到，会用一个持有可用对象的 span 来填充 cache 并将该对象返回，同时携带一个 flag
+// 该 flag 会标志此次分配是否是重量级的内存分配操作。如果是重量级分配，那么 caller 必须
+// 确定是否需要启动一次新的 GC 循环，如果 GC 当前活跃的话，该 goroutine 可能需要协助进行 GC
 func (c *mcache) nextFree(spc spanClass) (v gclinkptr, s *mspan, shouldhelpgc bool) {
     s = c.alloc[spc]
     shouldhelpgc = false
@@ -1067,14 +1059,10 @@ SUB SP, $10
 ## 堆外内存
 
 ```go
-// notInHeap is off-heap memory allocated by a lower-level allocator
-// like sysAlloc or persistentAlloc.
+// notInHeap 是用更底层的分配器，比如 sysAlloc 或者 persistentAlloc 分配的堆外内存
 //
-// In general, it's better to use real types marked as go:notinheap,
-// but this serves as a generic type for situations where that isn't
-// possible (like in the allocators).
-//
-// TODO: Use this as the return type of sysAlloc, persistentAlloc, etc?
+// 一般情况下，最好将具体的类型标记为 go:notinheap
+// 在不可能的情况下，也会直接使用 notInHeap 这个结构(比如在 allocator 内部)。
 //
 //go:notinheap
 type notInHeap struct{}
@@ -1085,3 +1073,5 @@ func (p *notInHeap) add(bytes uintptr) *notInHeap {
 ```
 
 ### 堆外内存用法
+
+嗯，堆外内存只是 runtime 自己玩的东西，用户态是使用不了的，属于 runtime 专用的 directive。
