@@ -237,14 +237,10 @@ sysUsed:
 ```go
 func sysUsed(v unsafe.Pointer, n uintptr) {
     if sys.HugePageSize != 0 {
-        // Partially undo the NOHUGEPAGE marks from sysUnused
-        // for whole huge pages between v and v+n. This may
-        // leave huge pages off at the end points v and v+n
-        // even though allocations may cover these entire huge
-        // pages. We could detect this and undo NOHUGEPAGE on
-        // the end points as well, but it's probably not worth
-        // the cost because when neighboring allocations are
-        // freed sysUnused will just set NOHUGEPAGE again.
+        // 部分 undo 掉 sysUnused 中，在 v 和 v + n 上打的 NOHUGEPAGE 标记
+        // 尽管分配动作会覆盖到这些 huge page，但可能使 huge page 被排除在 v 和 v+n 之外，
+        // 我们可以检测到这种情况并在结束的地方回滚 NOHUGEPAGE，但可能这样做不太值得
+        // 因为相邻的 sysUnused 调用会释放掉分配的内存，并重新设置 NOHUGEPAGE
         var s uintptr = sys.HugePageSize
 
         // 向上 round v 到 huge page 边界
@@ -810,9 +806,8 @@ alloc:
 
 ```go
 func (h *mheap) alloc(npage uintptr, spanclass spanClass, large bool, needzero bool) *mspan {
-    // Don't do any operations that lock the heap on the G stack.
-    // It might trigger stack growth, and the stack growth code needs
-    // to be able to allocate heap.
+    // 这样可能会触发栈增长，而栈增长时，需要能在 heap 上分配空间(死锁)
+    // 不要在 G 栈上，做任何锁 heap 的操作。
     var s *mspan
     systemstack(func() {
         s = h.alloc_m(npage, spanclass, large)
@@ -832,8 +827,8 @@ func (h *mheap) alloc(npage uintptr, spanclass spanClass, large bool, needzero b
 alloc_m:
 
 ```go
-// Allocate a new span of npage pages from the heap for GC'd memory
-// and record its size class in the HeapMap and HeapMapCache.
+// 从 heap 上为 GC 掉的内存空间分配一个 npage 个页的新 span
+// 并将其 size class 记录到 HeapMap 和 HeapMapCache
 func (h *mheap) alloc_m(npage uintptr, spanclass spanClass, large bool) *mspan {
     _g_ := getg()
     if _g_ != _g_.m.g0 {
@@ -841,8 +836,7 @@ func (h *mheap) alloc_m(npage uintptr, spanclass spanClass, large bool) *mspan {
     }
     lock(&h.lock)
 
-    // To prevent excessive heap growth, before allocating n pages
-    // we need to sweep and reclaim at least n pages.
+    // 为了防止过度的 heap 增长，在分配 n 页之前，需要 sweep 并取回至少 n 个页
     if h.sweepdone == 0 {
         // TODO(austin): This tends to sweep a large number of
         // spans in order to find a few completely free spans
@@ -860,7 +854,7 @@ func (h *mheap) alloc_m(npage uintptr, spanclass spanClass, large bool) *mspan {
         }
     }
 
-    // transfer stats from cache to global
+    // 将状态值从 cache 扩散到全局
     memstats.heap_scan += uint64(_g_.m.mcache.local_scan)
     _g_.m.mcache.local_scan = 0
     memstats.tinyallocs += uint64(_g_.m.mcache.local_tinyallocs)
@@ -868,8 +862,7 @@ func (h *mheap) alloc_m(npage uintptr, spanclass spanClass, large bool) *mspan {
 
     s := h.allocSpanLocked(npage, &memstats.heap_inuse)
     if s != nil {
-        // Record span info, because gc needs to be
-        // able to map interior pointer to containing span.
+        // 记录 span 信息，因为 gc 需要能将内部指针映射到相应的 span
         atomic.Store(&s.sweepgen, h.sweepgen)
         h.sweepSpans[h.sweepgen/2%2].push(s) // Add to swept in-use list.
         s.state = _MSpanInUse
@@ -890,14 +883,14 @@ func (h *mheap) alloc_m(npage uintptr, spanclass spanClass, large bool) *mspan {
             s.baseMask = m.baseMask
         }
 
-        // update stats, sweep lists
+        // 更新状态值，sweep 列表
         h.pagesInUse += uint64(npage)
         if large {
             memstats.heap_objects++
             mheap_.largealloc += uint64(s.elemsize)
             mheap_.nlargealloc++
             atomic.Xadd64(&memstats.heap_live, int64(npage<<_PageShift))
-            // Swept spans are at the end of lists.
+            // 已经被 sweep 过的 span 在整个列表的末端
             if s.npages < uintptr(len(h.busy)) {
                 h.busy[s.npages].insertBack(s)
             } else {
@@ -905,7 +898,7 @@ func (h *mheap) alloc_m(npage uintptr, spanclass spanClass, large bool) *mspan {
             }
         }
     }
-    // heap_scan and heap_live were updated.
+    // heap_scan 和 heap_live 已被更新
     if gcBlackenEnabled != 0 {
         gcController.revise()
     }
@@ -914,15 +907,12 @@ func (h *mheap) alloc_m(npage uintptr, spanclass spanClass, large bool) *mspan {
         traceHeapAlloc()
     }
 
-    // h.spans is accessed concurrently without synchronization
-    // from other threads. Hence, there must be a store/store
-    // barrier here to ensure the writes to h.spans above happen
-    // before the caller can publish a pointer p to an object
-    // allocated from s. As soon as this happens, the garbage
-    // collector running on another processor could read p and
-    // look up s in h.spans. The unlock acts as the barrier to
-    // order these writes. On the read side, the data dependency
-    // between p and the index in h.spans orders the reads.
+    // h.spans 会从多个线程中不同步的前提下进行并发访问。因此，必须使用
+    // store/store barrier 来确保上面代码对 h.spans 的写入都发生在
+    // caller 能宣布从 s 中分配的对象的指针 p 之前。
+    // store 一旦完成，在另一个处理器上运行的垃圾收集器能马上 read 到 p
+    // 并能在 h.spans 中找到 s。unlock 操作即当作这个 barrier 来排序这些写入操作
+    // 在 read 侧，因为其数据依赖远 p 和 h.spans 中的索引，所以也会使读取操作有序
     unlock(&h.lock)
     return s
 }
@@ -931,9 +921,8 @@ func (h *mheap) alloc_m(npage uintptr, spanclass spanClass, large bool) *mspan {
 allocSpanLocked:
 
 ```go
-// Allocates a span of the given size.  h must be locked.
-// The returned span has been removed from the
-// free list, but its state is still MSpanFree.
+// 分配一个对应给定 size 大小的 span，h 必须上锁
+// 返回的 span 会从 free 列表中移除，但其状态依然是 MSpanFree
 func (h *mheap) allocSpanLocked(npage uintptr, stat *uint64) *mspan {
     var list *mSpanList
     var s *mspan
@@ -947,7 +936,7 @@ func (h *mheap) allocSpanLocked(npage uintptr, stat *uint64) *mspan {
             goto HaveSpan
         }
     }
-    // Best fit in list of large spans.
+    // 在 large span 列表中寻找最合适的一个
     s = h.allocLarge(npage) // allocLarge removed s from h.freelarge for us
     if s == nil {
         if !h.grow(npage) {
@@ -960,7 +949,7 @@ func (h *mheap) allocSpanLocked(npage uintptr, stat *uint64) *mspan {
     }
 
 HaveSpan:
-    // Mark span in use.
+    // 标记 span 为使用中
     if s.state != _MSpanFree {
         throw("MHeap_AllocLocked - MSpan not free")
     }
