@@ -355,39 +355,28 @@ func mallocinit() {
     var bitmapSize uintptr = (_MaxMem + 1) / (sys.PtrSize * 8 / 2)
     bitmapSize = round(bitmapSize, _PageSize)
 
-    // Set up the allocation arena, a contiguous area of memory where
-    // allocated data will be found.
     // 初始化内存分配 arena，arena 是一段连续的内存，负责数据的内存分配。
     if sys.PtrSize == 8 {
-        // On a 64-bit machine, allocate from a single contiguous reservation.
-        // 512 GB (MaxMem) should be big enough for now.
+        // 在 64 位机器上，分配一段连续的内存区域 512 GB(MaxMem) 现在应该是足够了。
         //
-        // The code will work with the reservation at any address, but ask
-        // SysReserve to use 0x0000XXc000000000 if possible (XX=00...7f).
-        // Allocating a 512 GB region takes away 39 bits, and the amd64
-        // doesn't let us choose the top 17 bits, so that leaves the 9 bits
-        // in the middle of 0x00c0 for us to choose. Choosing 0x00c0 means
-        // that the valid memory addresses will begin 0x00c0, 0x00c1, ..., 0x00df.
-        // In little-endian, that's c0 00, c1 00, ..., df 00. None of those are valid
-        // UTF-8 sequences, and they are otherwise as far away from
-        // ff (likely a common byte) as possible. If that fails, we try other 0xXXc0
-        // addresses. An earlier attempt to use 0x11f8 caused out of memory errors
-        // on OS X during thread allocations.  0x00c0 causes conflicts with
-        // AddressSanitizer which reserves all memory up to 0x0100.
-        // These choices are both for debuggability and to reduce the
-        // odds of a conservative garbage collector (as is still used in gccgo)
-        // not collecting memory because some non-pointer block of memory
-        // had a bit pattern that matched a memory address.
+        // 代码应该能够用任意地址进行工作，但可能的情况下尽量让 sysReserve 使用 0x0000XXc000000000  (xx=00...7f)。
+        // 分配 512 GB 的地址需要用掉 39 bits 来进行地址表达，amd64 平台不允许用户使用高位 17 bits
+        // 所以只剩下中间的 0x00c0 中的 9 bits 能让我们用了。选择 0x00c0 表示合法的内存地址是从
+        // 0x00c0, 0x00c1, ..., 0x00df 开始
+        // 在小端系统上，即 c0 00, c1 00, ..., df 00。这些都不是合法的 UTF-8 序列，且距离 ff(常用的单字节) 足够远。
+        // 如果分配失败，会尝试其它 0xXXc0 地址。
+        // 之前使用 0x11f8 地址在 OS X 系统上会在线程分配的时候导致 out of memory 错误。
+        // 0x00c0 会导致和 AddressSanitizer 的冲突，AddressSanitizer 会将 0x0100 以下的地址都进行保留
+        // 这种选择是为了可调试性，且可以限制垃圾收集器(gccgo 中的版本)的保守性，以使其不要收集那些符合一定模式的内存地址中的内存。
         //
-        // Actually we reserve 544 GB (because the bitmap ends up being 32 GB)
-        // but it hardly matters: e0 00 is not valid UTF-8 either.
+        // 实际上我们会保留 544 GB(因为 bitmap 需要用 32 GB)
+        // 不过这不重要: e0 00 也不是合法的 UTF-* 字符
         //
-        // If this fails we fall back to the 32 bit memory mechanism
+        // 如果失败，会回退到 32 位内存策略
         //
-        // However, on arm64, we ignore all this advice above and slam the
-        // allocation at 0x40 << 32 because when using 4k pages with 3-level
-        // translation buffers, the user address space is limited to 39 bits
-        // On darwin/arm64, the address space is even smaller.
+        // 然而在 arm64 平台我们会忽略上面所有的建议，直接梭哈分配到 0x40 << 32，因为
+        // 使用 4k 页搭配 3级 TLB 时，用户地址空间会被限制在 39 位能表达的范围之内，
+        // 在 darwin/arm64 上，地址空间就更小了。
         arenaSize := round(_MaxMem, _PageSize)
         pSize = bitmapSize + spansSize + arenaSize + _PageSize
         for i := 0; i <= 0x7f; i++ {
@@ -407,22 +396,16 @@ func mallocinit() {
     }
 
     if p == 0 {
-        // On a 32-bit machine, we can't typically get away
-        // with a giant virtual address space reservation.
-        // Instead we map the memory information bitmap
-        // immediately after the data segment, large enough
-        // to handle the entire 4GB address space (256 MB),
-        // along with a reservation for an initial arena.
-        // When that gets used up, we'll start asking the kernel
-        // for any memory anywhere.
+        // 在 32 位机器上，我们没法简单粗暴地获得一段巨大的虚拟地址空间，并保留内存。
+        // 取而代之，我们将内存信息的 bitmap 紧跟在 data segment 之后，
+        // 这样做足够处理整个 4GB 的内存空间了(256 MB 的 bitmap 消耗)
+        // 初始化阶段会保留一小段地址
+        // 用完之后，我们再和 kernel 申请其它位置的内存。
 
-        // We want to start the arena low, but if we're linked
-        // against C code, it's possible global constructors
-        // have called malloc and adjusted the process' brk.
-        // Query the brk so we can avoid trying to map the
-        // arena over it (which will cause the kernel to put
-        // the arena somewhere else, likely at a high
-        // address).
+        // 我们想要让 arena 区域从低地址开始，但是我们的代码可能和 C 代码进行链接，
+        // 全局的构造器可能已经调用过 malloc，并且调整过进程的 brk 位置。
+        // 所以需要查询一次 brk，以避免将我们的 arena 区域覆盖掉 brk 位置，
+        // 这会导致 kernel 把 arena 放在其它地方，比如放在高地址。
         procBrk := sbrk0()
 
         // If we fail to allocate, try again with a smaller arena.
@@ -465,9 +448,9 @@ func mallocinit() {
         }
     }
 
-    // PageSize can be larger than OS definition of page size,
-    // so SysReserve can give us a PageSize-unaligned pointer.
-    // To overcome this we ask for PageSize more and round up the pointer.
+    // PageSize 可能被 OS 定义的 page size 更大
+    // 所以 sysReserve 会返回给我们一个未 PageSize-对齐的指针。
+    // 我们需要对其进行 round up，以使其按我们的 PageSize 要求对齐
     p1 := round(p, _PageSize)
     pSize -= p1 - p
 
@@ -476,8 +459,7 @@ func mallocinit() {
     mheap_.bitmap = p1 + bitmapSize
     p1 += bitmapSize
     if sys.PtrSize == 4 {
-        // Set arena_start such that we can accept memory
-        // reservations located anywhere in the 4GB virtual space.
+        // 赋值 arena_start 这样我们相当于接受了 4GB 虚拟空间中的保留内存
         mheap_.arena_start = 0
     } else {
         mheap_.arena_start = p1
@@ -492,7 +474,7 @@ func mallocinit() {
         throw("misrounded allocation in mallocinit")
     }
 
-    // Initialize the rest of the allocator.
+    // 初始化分配器的剩余部分
     mheap_.init(spansStart, spansSize)
     _g_ := getg()
     _g_.m.mcache = allocmcache()
