@@ -408,11 +408,11 @@ func mallocinit() {
         // 这会导致 kernel 把 arena 放在其它地方，比如放在高地址。
         procBrk := sbrk0()
 
-        // If we fail to allocate, try again with a smaller arena.
-        // This is necessary on Android L where we share a process
-        // with ART, which reserves virtual memory aggressively.
-        // In the worst case, fall back to a 0-sized initial arena,
-        // in the hope that subsequent reservations will succeed.
+        // 如果分配失败，那么尝试用更小一些的 arena 区域。
+        // 对于像 Android L 这样的系统是需要的，因为我们和 ART 更新同一个进程，
+        // 其会更激进地保留内存。
+        // 最差的情况下，会退化为 0 大小的初始 arena
+        // 这种情况下希望之后紧跟着的内存保留操作能够成功。
         arenaSizes := []uintptr{
             512 << 20,
             256 << 20,
@@ -421,21 +421,14 @@ func mallocinit() {
         }
 
         for _, arenaSize := range arenaSizes {
-            // SysReserve treats the address we ask for, end, as a hint,
-            // not as an absolute requirement. If we ask for the end
-            // of the data segment but the operating system requires
-            // a little more space before we can start allocating, it will
-            // give out a slightly higher pointer. Except QEMU, which
-            // is buggy, as usual: it won't adjust the pointer upward.
-            // So adjust it upward a little bit ourselves: 1/4 MB to get
-            // away from the running binary image and then round up
-            // to a MB boundary.
+            // sysReserve 会把我们要求保留的地址的末尾作为一种 hint，而不一定会满足
+            // 这种情况下需要我们自己对指针进行 roundup，先是 1/4 MB，以使其离开运行的二进制
+            // 镜像位置，然后在 roundup 到 MB 的边界位置
+
             p = round(firstmoduledata.end+(1<<18), 1<<20)
             pSize = bitmapSize + spansSize + arenaSize + _PageSize
             if p <= procBrk && procBrk < p+pSize {
-                // Move the start above the brk,
-                // leaving some room for future brk
-                // expansion.
+                // 将 start 移动到 brk 之上，给未来的 brk 扩展保留一些空间
                 p = round(procBrk+(1<<20), 1<<20)
             }
             p = uintptr(sysReserve(unsafe.Pointer(p), pSize, &reserved))
