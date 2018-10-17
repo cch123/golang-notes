@@ -304,6 +304,16 @@ func sysMap(v unsafe.Pointer, n uintptr, sysStat *uint64) {
 
 ## 内存分配器初始化
 
+初始化时，会直接要三个区域。
+
+```
+┌─────────────────┬──────────────────┬────────────────────────────────┐
+│                 │                  │                                │
+│  span (512 MB)  │  bitmap (16 GB)  │         arena (512 GB)         │
+│                 │                  │                                │
+└─────────────────┴──────────────────┴────────────────────────────────┘
+```
+
 ```go
 func mallocinit() {
     if class_to_size[_TinySizeClass] != _TinySize {
@@ -454,6 +464,35 @@ func mallocinit() {
     _g_ := getg()
     _g_.m.mcache = allocmcache()
 }
+```
+
+```go
+	// initialize new P's
+	for i := int32(0); i < nprocs; i++ {
+		pp := allp[i]
+		if pp == nil {
+			pp = new(p)
+			pp.id = i
+			pp.status = _Pgcstop
+			pp.sudogcache = pp.sudogbuf[:0]
+			for i := range pp.deferpool {
+				pp.deferpool[i] = pp.deferpoolbuf[i][:0]
+			}
+			pp.wbBuf.reset()
+			atomicstorep(unsafe.Pointer(&allp[i]), unsafe.Pointer(pp))
+		}
+		if pp.mcache == nil {
+			if old == 0 && i == 0 {
+				if getg().m.mcache == nil {
+					throw("missing mcache?")
+				}
+				pp.mcache = getg().m.mcache // bootstrap
+			} else {
+				pp.mcache = allocmcache()
+			}
+		}
+	}
+
 ```
 
 ## 堆内存分配流程
