@@ -309,7 +309,7 @@ func sysMap(v unsafe.Pointer, n uintptr, sysStat *uint64) {
 ```
 ┌─────────────────┬──────────────────┬────────────────────────────────┐
 │                 │                  │                                │
-│  span (512 MB)  │  bitmap (16 GB)  │         arena (512 GB)         │
+│  span (512 MB)  │  bitmap (32 GB)  │         arena (512 GB)         │
 │                 │                  │                                │
 └─────────────────┴──────────────────┴────────────────────────────────┘
 ```
@@ -466,34 +466,152 @@ func mallocinit() {
 }
 ```
 
-```go
-	// initialize new P's
-	for i := int32(0); i < nprocs; i++ {
-		pp := allp[i]
-		if pp == nil {
-			pp = new(p)
-			pp.id = i
-			pp.status = _Pgcstop
-			pp.sudogcache = pp.sudogbuf[:0]
-			for i := range pp.deferpool {
-				pp.deferpool[i] = pp.deferpoolbuf[i][:0]
-			}
-			pp.wbBuf.reset()
-			atomicstorep(unsafe.Pointer(&allp[i]), unsafe.Pointer(pp))
-		}
-		if pp.mcache == nil {
-			if old == 0 && i == 0 {
-				if getg().m.mcache == nil {
-					throw("missing mcache?")
-				}
-				pp.mcache = getg().m.mcache // bootstrap
-			} else {
-				pp.mcache = allocmcache()
-			}
-		}
-	}
+跟系统要完内存之后，最后几步是:
 
+```go
+    // 初始化分配器的剩余部分
+    mheap_.init(spansStart, spansSize)
+    _g_ := getg()
+    _g_.m.mcache = allocmcache()
 ```
+
+这里是初始化全局的 mheap 内部的其它结构，比如 treapalloc，spanalloc，mcentral。全局三大主要部分其中的 mcentral 就是在这里分配的。
+
+```go
+// Initialize the heap.
+func (h *mheap) init(spansStart, spansBytes uintptr) {
+    h.treapalloc.init(unsafe.Sizeof(treapNode{}), nil, nil, &memstats.other_sys)
+    h.spanalloc.init(unsafe.Sizeof(mspan{}), recordspan, unsafe.Pointer(h), &memstats.mspan_sys)
+    h.cachealloc.init(unsafe.Sizeof(mcache{}), nil, nil, &memstats.mcache_sys)
+    h.specialfinalizeralloc.init(unsafe.Sizeof(specialfinalizer{}), nil, nil, &memstats.other_sys)
+    h.specialprofilealloc.init(unsafe.Sizeof(specialprofile{}), nil, nil, &memstats.other_sys)
+
+    // Don't zero mspan allocations. Background sweeping can
+    // inspect a span concurrently with allocating it, so it's
+    // important that the span's sweepgen survive across freeing
+    // and re-allocating a span to prevent background sweeping
+    // from improperly cas'ing it from 0.
+    //
+    // This is safe because mspan contains no heap pointers.
+    h.spanalloc.zero = false
+
+    // h->mapcache needs no init
+    for i := range h.free {
+        h.free[i].init()
+        h.busy[i].init()
+    }
+
+    h.busylarge.init()
+    for i := range h.central {
+        h.central[i].mcentral.init(spanClass(i))
+    }
+
+    sp := (*slice)(unsafe.Pointer(&h.spans))
+    sp.array = unsafe.Pointer(spansStart)
+    sp.len = 0
+    sp.cap = int(spansBytes / sys.PtrSize)
+
+    // Map metadata structures. But don't map race detector memory
+    // since we're not actually growing the arena here (and TSAN
+    // gets mad if you map 0 bytes).
+    h.setArenaUsed(h.arena_used, false)
+}
+
+// setArenaUsed extends the usable arena to address arena_used and
+// maps auxiliary VM regions for any newly usable arena space.
+//
+// racemap indicates that this memory should be managed by the race
+// detector. racemap should be true unless this is covering a VM hole.
+func (h *mheap) setArenaUsed(arena_used uintptr, racemap bool) {
+    // Map auxiliary structures *before* h.arena_used is updated.
+    // Waiting to update arena_used until after the memory has been mapped
+    // avoids faults when other threads try access these regions immediately
+    // after observing the change to arena_used.
+
+    // Map the bitmap.
+    h.mapBits(arena_used)
+
+    // Map spans array.
+    h.mapSpans(arena_used)
+
+    h.arena_used = arena_used
+}
+
+// mapBits maps any additional bitmap memory needed for the new arena memory.
+//
+// Don't call this directly. Call mheap.setArenaUsed.
+//
+//go:nowritebarrier
+func (h *mheap) mapBits(arena_used uintptr) {
+    // Caller has added extra mappings to the arena.
+    // Add extra mappings of bitmap words as needed.
+    // We allocate extra bitmap pieces in chunks of bitmapChunk.
+    const bitmapChunk = 8192
+
+    n := (arena_used - mheap_.arena_start) / heapBitmapScale
+    n = round(n, bitmapChunk)
+    n = round(n, physPageSize)
+    if h.bitmap_mapped >= n {
+        return
+    }
+
+    sysMap(unsafe.Pointer(h.bitmap-n), n-h.bitmap_mapped, h.arena_reserved, &memstats.gc_sys)
+    h.bitmap_mapped = n
+}
+
+// mapSpans makes sure that the spans are mapped
+// up to the new value of arena_used.
+//
+// Don't call this directly. Call mheap.setArenaUsed.
+func (h *mheap) mapSpans(arena_used uintptr) {
+    // Map spans array, PageSize at a time.
+    n := arena_used
+    n -= h.arena_start
+    n = n / _PageSize * sys.PtrSize
+    n = round(n, physPageSize)
+    need := n / unsafe.Sizeof(h.spans[0])
+    have := uintptr(len(h.spans))
+    if have >= need {
+        return
+    }
+    h.spans = h.spans[:need]
+    sysMap(unsafe.Pointer(&h.spans[have]), (need-have)*unsafe.Sizeof(h.spans[0]), h.arena_reserved, &memstats.other_sys)
+}
+```
+
+mcache 是个 per-P 结构，在程序启动时，会初始化化 p，并且分配对应的 mcache。实际执行是在 procresize 中:
+
+```go
+func procresize() {
+    // initialize new P's
+    for i := int32(0); i < nprocs; i++ {
+        pp := allp[i]
+        if pp == nil {
+            pp = new(p)
+            pp.id = i
+            pp.status = _Pgcstop
+            pp.sudogcache = pp.sudogbuf[:0]
+            for i := range pp.deferpool {
+                pp.deferpool[i] = pp.deferpoolbuf[i][:0]
+            }
+            pp.wbBuf.reset()
+            atomicstorep(unsafe.Pointer(&allp[i]), unsafe.Pointer(pp))
+        }
+        if pp.mcache == nil {
+            if old == 0 && i == 0 {
+                if getg().m.mcache == nil {
+                    throw("missing mcache?")
+                }
+                pp.mcache = getg().m.mcache // bootstrap
+            } else {
+                pp.mcache = allocmcache()
+            }
+        }
+    }
+}
+```
+
+这下 mcache、mcentral 和 mheap 便全部初始化完成了。
 
 ## 堆内存分配流程
 
