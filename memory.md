@@ -1265,10 +1265,27 @@ HaveSpan:
 
 mheap 中超过 128 个页的内存会在 freeLarge 中分配，freeLarge 是一个 treap 结构，其英文为 tree 和 heap 的合成词，中文一般叫“树堆”。
 
-该结构引入的目的是为了解决当用户使用的堆大小超过 100 GB 时的分配效率问题。如果使用 mSpanList 的话，需要遍历整个列表来寻找合适的 mspan，但使用 treap，可将期望时间复杂度控制在 log(n) 以内。
+该结构引入的目的是为了解决当用户使用的堆大小超过 100 GB 时的分配效率问题。如果使用 mSpanList 的话，需要遍历整个列表来寻找合适的 mspan，但使用 treap，可将期望时间复杂度控制在 log(n) 以内(二叉查找树性质)。
 
+treap 本身是一棵二叉搜索树，但在其中一般会有一个额外字段来保证二叉搜索树的结构同时满足小顶堆的性质。
+
+```go
+type treapNode struct {
+    right     *treapNode // all treapNodes > this treap node
+    left      *treapNode // all treapNodes < this treap node
+    parent    *treapNode // direct parent of this node, nil if root
+    npagesKey uintptr    // number of pages in spanKey, used as primary sort key
+    spanKey   *mspan     // span of size npagesKey, used as secondary sort key
+    priority  uint32     // random number used by treap algorithm keep tree probablistically balanced
+}
 ```
-```
+
+几个字段的含义都比较简单:
+
+- right/left/parent 表示当前节点和树中其它节点的关系
+- npagesKey 表示该 mspan 中含有的内存页数，作为二叉搜索树的排序依据
+- spanKey 是 mspan 指针，其地址的值作为二叉搜索树的第二个排序依据，即页数相同的情况下，spanKey 大的会在当前节点的右边
+- priority 是随机生成的权重值，该权重值会被作为小顶堆的排序依据
 
 ## 栈内存分配流程
 
