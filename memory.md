@@ -1329,6 +1329,10 @@ type treapNode struct {
 
 可以看到，把 npagesKey 和 spanKey 当作数据的话，treap 就是二叉搜索树。把 priority 当作数据，treap 就是小顶堆。
 
+需要另外注意的是，treap 本身是一种时间复杂度随机的数据结构。我们这里说的 log(n) 是“期望”时间复杂度。因为 priority 这个字段本身是用 fastrand 随机生成的。
+
+和这种思路类似的还有 skiplist，其层数理论上也是随机的，但在实际应用中，因为这些数据结构采用的是伪随机数生成器，所以理论上极端情况基本上是不会出现的。
+
 ## 栈内存分配流程
 
 ```go
