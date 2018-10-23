@@ -22,3 +22,4 @@
 16. [x] Map
 17. [x] Syscall
 18. [x] Memory
+19. [ ] Semaphore
