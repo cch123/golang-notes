@@ -722,6 +722,31 @@ func procresize() {
 ## 堆内存分配流程
 
 ```mermaid
+graph TD
+mallocgc --> A[size == 0]
+A --> |yes|B[return unsafe.Pointer point to zerobase]
+A --> |no|C[size < 32KB]
+C --> |yes|D[size < 16bytes and noscan]
+D --> |yes|E[tiny alloc]
+D --> |no|K[small alloc]
+C --> |no|Q[large alloc]
+E --> F[fits into the existing tiny block]
+F --> |yes|G[adjust offset return success]
+F --> |no|H[nextFreeFast]
+H --> |success|G[adjust offset]
+G --> P
+H --> |fail|J[nextFree]
+J --> P
+K --> L[makeSpanClass]
+L --> M[nextFreeFast]
+M --> |success|P[return]
+M --> |failed|O[nextFree]
+O --> P
+Q --> R[largeAlloc]
+R --> S[mheap_.alloc]
+S --> T[mheap.alloc_m]
+T --> U[heapBitsForSpan]
+U --> P
 ```
 
 ```go
