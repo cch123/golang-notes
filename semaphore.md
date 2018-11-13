@@ -1,17 +1,16 @@
 # Semaphore
 
 ```go
-// Semaphore implementation exposed to Go.
-// Intended use is provide a sleep and wakeup
-// primitive that can be used in the contended case
-// of other synchronization primitives.
-// Thus it targets the same goal as Linux's futex,
-// but it has much simpler semantics.
+// Go 语言中暴露的 semaphore 实现
+// 具体的用法是提供 sleep 和 wakeup 原语
+// 以使其能够在其它同步原语中的竞争情况下使用
+// 因此这里的 semaphore 和 Linux 中的 futex 目标是一致的
+// 只不过语义上更简单一些
 //
-// That is, don't think of these as semaphores.
-// Think of them as a way to implement sleep and wakeup
-// such that every sleep is paired with a single wakeup,
-// even if, due to races, the wakeup happens before the sleep.
+// 也就是说，不要认为这些是信号量
+// 把这里的东西看作 sleep 和 wakeup 实现的一种方式
+// 每一个 sleep 都会和一个 wakeup 配对
+// 即使在发生 race 时，wakeup 在 sleep 之前时也是如此
 //
 // See Mullender and Cox, ``Semaphores in Plan 9,''
 // http://swtch.com/semaphore.pdf
@@ -24,18 +23,14 @@ import (
     "unsafe"
 )
 
-// Asynchronous semaphore for sync.Mutex.
+// 为 sync.Mutex 准备的异步信号量
 
-// A semaRoot holds a balanced tree of sudog with distinct addresses (s.elem).
-// Each of those sudog may in turn point (through s.waitlink) to a list
-// of other sudogs waiting on the same address.
-// The operations on the inner lists of sudogs with the same address
-// are all O(1). The scanning of the top-level semaRoot list is O(log n),
-// where n is the number of distinct addresses with goroutines blocked
-// on them that hash to the given semaRoot.
-// See golang.org/issue/17953 for a program that worked badly
-// before we introduced the second level of list, and test/locklinear.go
-// for a test that exercises this.
+// semaRoot 持有一棵 地址各不相同的 sudog(s.elem) 的平衡树
+// 每一个 sudog 都反过来指向(通过 s.waitlink)一个在同一个地址上等待的其它 sudog 们
+// 同一地址的 sudog 的内部列表上的操作时间复杂度都是 O(1)。顶层 semaRoot 列表的扫描
+// 的时间复杂度是 O(log n)，n 是被哈希到同一个 semaRoot 的不同地址的总数，每一个地址上都会有一些 goroutine 被阻塞。
+// 访问 golang.org/issue/17953 来查看一个在引入二级列表之前性能较差的程序样例，test/locklinear.go
+// 中有一个复现这个样例的测试
 type semaRoot struct {
     lock  mutex
     treap *sudog // root of balanced tree of unique waiters.
@@ -439,6 +434,10 @@ func (root *semaRoot) rotateRight(y *sudog) {
     }
 }
 
+```
+
+
+```go
 // notifyList is a ticket-based notification list used to implement sync.Cond.
 //
 // It must be kept in sync with the sync package.
@@ -611,5 +610,4 @@ func notifyListCheck(sz uintptr) {
 func sync_nanotime() int64 {
     return nanotime()
 }
-
 ```
