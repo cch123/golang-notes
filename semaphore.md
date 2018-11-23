@@ -454,6 +454,8 @@ func (root *semaRoot) rotateRight(y *sudog) {
 
 ### notifyList 结构
 
+notifyList 结构提供给 sync.Cond 使用，用来做条件变量进行通知和唤醒，比较简单。
+
 ```go
 // notifyList is a ticket-based notification list used to implement sync.Cond.
 //
