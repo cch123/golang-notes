@@ -1,5 +1,7 @@
 # Semaphore
 
+## 数据结构
+
 ```go
 // Go 语言中暴露的 semaphore 实现
 // 具体的用法是提供 sleep 和 wakeup 原语
@@ -14,14 +16,6 @@
 //
 // See Mullender and Cox, ``Semaphores in Plan 9,''
 // http://swtch.com/semaphore.pdf
-
-package runtime
-
-import (
-    "runtime/internal/atomic"
-    "runtime/internal/sys"
-    "unsafe"
-)
 
 // 为 sync.Mutex 准备的异步信号量
 
@@ -44,7 +38,13 @@ var semtable [semTabSize]struct {
     root semaRoot
     pad  [sys.CacheLineSize - unsafe.Sizeof(semaRoot{})]byte
 }
+```
 
+## 对外封装
+
+在 sema.go 里实现的内容，用 `go:linkname` 导出给 sync、poll 库来使用，也是在链接期做了些手脚:
+
+```go
 //go:linkname sync_runtime_Semacquire sync.runtime_Semacquire
 func sync_runtime_Semacquire(addr *uint32) {
     semacquire1(addr, false, semaBlockProfile)
@@ -69,7 +69,15 @@ func sync_runtime_SemacquireMutex(addr *uint32, lifo bool) {
 func poll_runtime_Semrelease(addr *uint32) {
     semrelease(addr)
 }
+```
 
+## 实现
+
+sem 本身支持 acquire 和 release，其实就是 OS 里常说的 P 操作和 V 操作。
+
+### acquire 过程
+
+```go
 func readyWithTime(s *sudog, traceskip int) {
     if s.releasetime != 0 {
         s.releasetime = cputicks()
@@ -145,7 +153,11 @@ func semacquire1(addr *uint32, lifo bool, profile semaProfileFlags) {
     }
     releaseSudog(s)
 }
+```
 
+### release 过程
+
+```go
 func semrelease(addr *uint32) {
     semrelease1(addr, false)
 }
@@ -204,7 +216,11 @@ func cansemacquire(addr *uint32) bool {
         }
     }
 }
+```
 
+### treap 结构
+
+```go
 // queue adds s to the blocked goroutines in semaRoot.
 func (root *semaRoot) queue(addr *uint32, s *sudog, lifo bool) {
     s.g = getg()
@@ -436,6 +452,7 @@ func (root *semaRoot) rotateRight(y *sudog) {
 
 ```
 
+### notifyList 结构
 
 ```go
 // notifyList is a ticket-based notification list used to implement sync.Cond.
