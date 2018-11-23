@@ -278,22 +278,21 @@ func (root *semaRoot) queue(addr *uint32, s *sudog, lifo bool) {
         }
     }
 
-    // Add s as new leaf in tree of unique addrs.
-    // The balanced tree is a treap using ticket as the random heap priority.
-    // That is, it is a binary tree ordered according to the elem addresses,
-    // but then among the space of possible binary trees respecting those
-    // addresses, it is kept balanced on average by maintaining a heap ordering
-    // on the ticket: s.ticket <= both s.prev.ticket and s.next.ticket.
+    // 把 s 作为树的新的叶子插入进去
+    // 平衡树使用 ticket 作为堆的权重值，这个 ticket 是随机生成的
+    // 也就是说，这个结构以元素地址来看的话，是一个二叉搜索树
+    // 同时用 ticket 值使其同时又是一个小顶堆，满足
+    // s.ticket <= both s.prev.ticket and s.next.ticket.
     // https://en.wikipedia.org/wiki/Treap
     // http://faculty.washington.edu/aragon/pubs/rst89.pdf
     //
-    // s.ticket compared with zero in couple of places, therefore set lowest bit.
-    // It will not affect treap's quality noticeably.
+    // s.ticket 会在一些地方和 0 相比，因此只设置最低位的 bit
+    // 这样不会明显地影响 treap 的质量?
     s.ticket = fastrand() | 1
     s.parent = last
     *pt = s
 
-    // Rotate up into tree according to ticket (priority).
+    // 按照 ticket 来进行旋转，以满足 treap 的性质
     for s.parent != nil && s.parent.ticket > s.ticket {
         if s.parent.prev == s {
             root.rotateRight(s.parent)
@@ -306,10 +305,8 @@ func (root *semaRoot) queue(addr *uint32, s *sudog, lifo bool) {
     }
 }
 
-// dequeue searches for and finds the first goroutine
-// in semaRoot blocked on addr.
-// If the sudog was being profiled, dequeue returns the time
-// at which it was woken up as now. Otherwise now is 0.
+// dequeue 会搜索到阻塞在 addr 地址的 semaRoot 中的第一个 goroutine
+// 如果这个 sudog 需要进行 profile，dequeue 会返回它被唤醒的时间(now)，否则的话 now 为 0
 func (root *semaRoot) dequeue(addr *uint32) (found *sudog, now int64) {
     ps := &root.treap
     s := *ps

@@ -22,4 +22,4 @@
 16. [x] [Map](map.md)
 17. [x] [Syscall](syscall.md)
 18. [x] [Memory](memory.md)
-19. [ ] [Semaphore](semaphore.md)
+19. [x] [Semaphore](semaphore.md)
