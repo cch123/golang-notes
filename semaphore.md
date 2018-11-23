@@ -38,6 +38,10 @@ var semtable [semTabSize]struct {
     root semaRoot
     pad  [sys.CacheLineSize - unsafe.Sizeof(semaRoot{})]byte
 }
+
+func semroot(addr *uint32) *semaRoot {
+    return &semtable[(uintptr(unsafe.Pointer(addr))>>3)%semTabSize].root
+}
 ```
 
 ## 对外封装
@@ -75,16 +79,25 @@ func poll_runtime_Semrelease(addr *uint32) {
 
 sem 本身支持 acquire 和 release，其实就是 OS 里常说的 P 操作和 V 操作。
 
+### 公共部分
+
+```go
+func cansemacquire(addr *uint32) bool {
+    for {
+        v := atomic.Load(addr)
+        if v == 0 {
+            return false
+        }
+        if atomic.Cas(addr, v, v-1) {
+            return true
+        }
+    }
+}
+```
+
 ### acquire 过程
 
 ```go
-func readyWithTime(s *sudog, traceskip int) {
-    if s.releasetime != 0 {
-        s.releasetime = cputicks()
-    }
-    goready(s.g, traceskip)
-}
-
 type semaProfileFlags int
 
 const (
@@ -103,45 +116,37 @@ func semacquire1(addr *uint32, lifo bool, profile semaProfileFlags) {
         throw("semacquire not on the G stack")
     }
 
-    // Easy case.
+    // 低成本的情况
     if cansemacquire(addr) {
         return
     }
 
-    // Harder case:
-    //    increment waiter count
-    //    try cansemacquire one more time, return if succeeded
-    //    enqueue itself as a waiter
+    // 高成本的情况:
+    //    增加 waiter count 的值
+    //    再尝试调用一次 cansemacquire，成本了就直接返回
+    //    没成功就把自己作为一个 waiter 入队
     //    sleep
-    //    (waiter descriptor is dequeued by signaler)
+    //    (之后 waiter 的 descriptor 被 signaler 用 dequeue 踢出)
     s := acquireSudog()
     root := semroot(addr)
     t0 := int64(0)
     s.releasetime = 0
     s.acquiretime = 0
     s.ticket = 0
-    if profile&semaBlockProfile != 0 && blockprofilerate > 0 {
-        t0 = cputicks()
-        s.releasetime = -1
-    }
-    if profile&semaMutexProfile != 0 && mutexprofilerate > 0 {
-        if t0 == 0 {
-            t0 = cputicks()
-        }
-        s.acquiretime = t0
-    }
+
     for {
         lock(&root.lock)
-        // Add ourselves to nwait to disable "easy case" in semrelease.
+        // 给 nwait 加一，这样后来的就不会在 semrelease 中进低成本的路径了
         atomic.Xadd(&root.nwait, 1)
-        // Check cansemacquire to avoid missed wakeup.
+        // 检查 cansemacquire 避免错过了唤醒
         if cansemacquire(addr) {
             atomic.Xadd(&root.nwait, -1)
             unlock(&root.lock)
             break
         }
-        // Any semrelease after the cansemacquire knows we're waiting
-        // (we set nwait above), so go to sleep.
+        // 在 cansemacquire 之后的 semrelease 都可以知道我们正在等待
+        // (上面设置了 nwait)，所以会直接进入 sleep
+        // 注: 这里说的 sleep 其实就是 goparkunlock
         root.queue(addr, s, lifo)
         goparkunlock(&root.lock, "semacquire", traceEvGoBlockSync, 4)
         if s.ticket != 0 || cansemacquire(addr) {
@@ -166,18 +171,18 @@ func semrelease1(addr *uint32, handoff bool) {
     root := semroot(addr)
     atomic.Xadd(addr, 1)
 
-    // Easy case: no waiters?
-    // This check must happen after the xadd, to avoid a missed wakeup
-    // (see loop in semacquire).
+    // 低成本情况: 没有 waiter?
+    // 这个 atomic 的检查必须发生在 xadd 之前，以避免错误唤醒
+    // (具体参见 semacquire 中的循环)
     if atomic.Load(&root.nwait) == 0 {
         return
     }
 
-    // Harder case: search for a waiter and wake it.
+    // 高成本情况: 搜索 waiter 并唤醒它
     lock(&root.lock)
     if atomic.Load(&root.nwait) == 0 {
-        // The count is already consumed by another goroutine,
-        // so no need to wake up another goroutine.
+        // count 值已经被另一个 goroutine 消费了
+        // 所以我们不需要唤醒其它 goroutine 了
         unlock(&root.lock)
         return
     }
@@ -186,7 +191,7 @@ func semrelease1(addr *uint32, handoff bool) {
         atomic.Xadd(&root.nwait, -1)
     }
     unlock(&root.lock)
-    if s != nil { // May be slow, so unlock first
+    if s != nil { // 可能会很慢，所以先解锁
         acquiretime := s.acquiretime
         if acquiretime != 0 {
             mutexevent(t0-acquiretime, 3)
@@ -201,27 +206,19 @@ func semrelease1(addr *uint32, handoff bool) {
     }
 }
 
-func semroot(addr *uint32) *semaRoot {
-    return &semtable[(uintptr(unsafe.Pointer(addr))>>3)%semTabSize].root
-}
-
-func cansemacquire(addr *uint32) bool {
-    for {
-        v := atomic.Load(addr)
-        if v == 0 {
-            return false
-        }
-        if atomic.Cas(addr, v, v-1) {
-            return true
-        }
+func readyWithTime(s *sudog, traceskip int) {
+    if s.releasetime != 0 {
+        s.releasetime = cputicks()
     }
+    goready(s.g, traceskip)
 }
 ```
 
 ### treap 结构
 
 ```go
-// queue adds s to the blocked goroutines in semaRoot.
+// queue 函数会把 s 添加到 semaRoot 上阻塞的 goroutine 们中
+// 实际上就是把 s 添加到其地址对应的 treap 上
 func (root *semaRoot) queue(addr *uint32, s *sudog, lifo bool) {
     s.g = getg()
     s.elem = unsafe.Pointer(addr)
@@ -234,7 +231,7 @@ func (root *semaRoot) queue(addr *uint32, s *sudog, lifo bool) {
         if t.elem == unsafe.Pointer(addr) {
             // Already have addr in list.
             if lifo {
-                // Substitute s in t's place in treap.
+                // treap 中在 t 的位置用 s 覆盖掉 t
                 *pt = s
                 s.ticket = t.ticket
                 s.acquiretime = t.acquiretime
@@ -247,7 +244,7 @@ func (root *semaRoot) queue(addr *uint32, s *sudog, lifo bool) {
                 if s.next != nil {
                     s.next.parent = s
                 }
-                // Add t first in s's wait list.
+                // 把 t 放在 s 的 wait list 的第一个位置
                 s.waitlink = t
                 s.waittail = t.waittail
                 if s.waittail == nil {
@@ -258,7 +255,7 @@ func (root *semaRoot) queue(addr *uint32, s *sudog, lifo bool) {
                 t.next = nil
                 t.waittail = nil
             } else {
-                // Add s to end of t's wait list.
+                // 把 s 添加到 t 的等待列表的末尾
                 if t.waittail == nil {
                     t.waitlink = s
                 } else {
@@ -514,10 +511,7 @@ func notifyListWait(l *notifyList, t uint32) {
     s.ticket = t
     s.releasetime = 0
     t0 := int64(0)
-    if blockprofilerate > 0 {
-        t0 = cputicks()
-        s.releasetime = -1
-    }
+
     if l.tail == nil {
         l.head = s
     } else {
