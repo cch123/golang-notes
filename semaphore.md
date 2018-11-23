@@ -216,6 +216,10 @@ func readyWithTime(s *sudog, traceskip int) {
 
 ### treap 结构
 
+sudog 按照地址 hash 到 251 个 bucket 中的其中一个，每一个 bucket 都是一棵 treap。而相同 addr 上的 sudog 会形成一个链表。
+
+为啥同一个地址的 sudog 不需要展开放在 treap 中呢？显然，sudog 唤醒的时候，block 在同一个 addr 上的 goroutine，说明都是加的同一把锁，这些 goroutine 被唤醒肯定是一起被唤醒的，相同地址的 g 并不需要查找才能找到，只要决定是先进队列的被唤醒(fifo)还是后进队列的被唤醒(lifo)就可以了。
+
 ```go
 // queue 函数会把 s 添加到 semaRoot 上阻塞的 goroutine 们中
 // 实际上就是把 s 添加到其地址对应的 treap 上
