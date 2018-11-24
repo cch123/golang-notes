@@ -115,6 +115,12 @@ treap 结构:
 └───────────────────────┘                               └───────────────────────┘
 ```
 
+在这个 treap 结构里，从 elem 的视角(其实就是 lock 的 addr)来看，这个结构是个二叉搜索树。从 ticket 的角度来看，整个结构就是一个小顶堆。
+
+所以才叫树堆(treap)。
+
+相同 addr，即对同一个 mutex 上锁的 g，会阻塞在同一个地址上。这些阻塞在同一个地址上的 goroutine 会被打包成 sudog，组成一个链表。用 sudog 的 waitlink 相连:
+
 ```
 ┌──────────┐                         ┌──────────┐                          ┌──────────┐             
 │  sudog   │                  ┌─────▶│  sudog   │                   ┌─────▶│  sudog   │             
@@ -124,6 +130,8 @@ treap 结构:
 │    waittail *sudog    │            │    waittail *sudog    │             │    waittail *sudog    │
 └───────────────────────┘            └───────────────────────┘             └───────────────────────┘
 ```
+
+中间的元素的 waittail 都会指向最后一个元素:
 
 ```
 ┌──────────┐                                                                                           
@@ -433,7 +441,7 @@ Found:
         now = cputicks()
     }
     if t := s.waitlink; t != nil {
-        // Substitute t, also waiting on addr, for s in root tree of unique addrs.
+        // 替换掉同样在 addr 上等待的 t。
         *ps = t
         t.ticket = s.ticket
         t.parent = s.parent
@@ -454,7 +462,7 @@ Found:
         s.waitlink = nil
         s.waittail = nil
     } else {
-        // Rotate s down to be leaf of tree for removal, respecting priorities.
+        // 向下旋转 s 到叶节点，以进行删除，同时要考虑优先级
         for s.next != nil || s.prev != nil {
             if s.next == nil || s.prev != nil && s.prev.ticket < s.next.ticket {
                 root.rotateRight(s)
@@ -463,6 +471,7 @@ Found:
             }
         }
         // Remove s, now a leaf.
+        // 删除 s，现在是叶子节点了
         if s.parent != nil {
             if s.parent.prev == s {
                 s.parent.prev = nil
