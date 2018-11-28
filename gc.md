@@ -101,7 +101,11 @@ init --> forcegchelper
 forcegchelper --> gcStart
 ```
 
-其实就是 mallocgc，shouldhelpgc，runtime.GC 这三个入口。
+其实就是 mallocgc，forcegchelper，runtime.GC 这三个入口。
+
+* mallocgc，分配堆内存时触发，会检查当前是否满足触发 gc 的条件，如果触发，那么进入 gcStart。
+* forcegchelper，在 forcegchelper 中会把 forcegc.g 这个全局对象的运行 g 挂起。sysmon 会调用 test 检查上次触发 gc 的时间到当前时间是否已经经过了 forcegcperiod 长的时间，如果已经超过，那么就会将 forcegc.g 注入到 globrunq。这样会在该 g 被调度到的时候触发 gc。
+* runtime.GC 是由用户主动触发的。
 
 ## runtime.GC
 
