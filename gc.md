@@ -85,6 +85,24 @@ func setGCPercent(in int32) (out int32) {
 }
 ```
 
+## gcStart
+
+整个 gc 流程的入口是 gcStart，gcStart 的调用方为:
+
+```mermaid
+graph LR
+mallocgc --> shouldhelpgc
+shouldhelpgc --> |no|return
+shouldhelpgc --> |yes|gc_condition_satisfied
+gc_condition_satisfied --> |no|return
+gc_condition_satisfied --> |yes|gcStart
+runtime.GC --> gcStart
+init --> forcegchelper
+forcegchelper --> gcStart
+```
+
+其实就是 mallocgc，shouldhelpgc，runtime.GC 这三个入口。
+
 ## runtime.GC
 
 ```go
