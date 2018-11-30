@@ -85,7 +85,7 @@ func setGCPercent(in int32) (out int32) {
 }
 ```
 
-## gcStart
+## gc 的调用时机
 
 整个 gc 流程的入口是 gcStart，gcStart 的调用方为:
 
@@ -105,7 +105,286 @@ forcegchelper --> gcStart
 
 * mallocgc，分配堆内存时触发，会检查当前是否满足触发 gc 的条件，如果触发，那么进入 gcStart。
 * forcegchelper，在 forcegchelper 中会把 forcegc.g 这个全局对象的运行 g 挂起。sysmon 会调用 test 检查上次触发 gc 的时间到当前时间是否已经经过了 forcegcperiod 长的时间，如果已经超过，那么就会将 forcegc.g 注入到 globrunq。这样会在该 g 被调度到的时候触发 gc。
-* runtime.GC 是由用户主动触发的。
+* runtime.GC 是由用户主动触发的，相当于强制触发 GC。
+
+## gcTrigger 和 gc 条件检查
+
+```go
+// A gcTrigger is a predicate for starting a GC cycle. Specifically,
+// it is an exit condition for the _GCoff phase.
+type gcTrigger struct {
+    kind gcTriggerKind
+    now  int64  // gcTriggerTime: current time
+    n    uint32 // gcTriggerCycle: cycle number to start
+}
+
+type gcTriggerKind int
+
+const (
+    // gcTriggerAlways indicates that a cycle should be started
+    // unconditionally, even if GOGC is off or we're in a cycle
+    // right now. This cannot be consolidated with other cycles.
+    gcTriggerAlways gcTriggerKind = iota
+
+    // gcTriggerHeap indicates that a cycle should be started when
+    // the heap size reaches the trigger heap size computed by the
+    // controller.
+    gcTriggerHeap
+
+    // gcTriggerTime indicates that a cycle should be started when
+    // it's been more than forcegcperiod nanoseconds since the
+    // previous GC cycle.
+    gcTriggerTime
+
+    // gcTriggerCycle indicates that a cycle should be started if
+    // we have not yet started cycle number gcTrigger.n (relative
+    // to work.cycles).
+    gcTriggerCycle
+)
+```
+
+### mallocgc 中的 trigger 类型是 gcTriggerHeap;
+
+```go
+
+    if shouldhelpgc {
+        if t := (gcTrigger{kind: gcTriggerHeap}); t.test() {
+            gcStart(gcBackgroundMode, t)
+        }
+    }
+```
+
+### runtime.GC 中使用的是 gcTriggerCycle;
+
+```go
+    // We're now in sweep N or later. Trigger GC cycle N+1, which
+    // will first finish sweep N if necessary and then enter sweep
+    // termination N+1.
+    gcStart(gcBackgroundMode, gcTrigger{kind: gcTriggerCycle, n: n + 1})
+```
+
+### forcegchelper 中使用的是 gcTriggerTime;
+
+```go
+    // Time-triggered, fully concurrent.
+    gcStart(gcBackgroundMode, gcTrigger{kind: gcTriggerTime, now: nanotime()})
+```
+
+### sysmon 中检查时使用的也是 gcTriggerTime
+
+这里和前面三条不一样的是，这种情况下如果 trigger.test 返回 true，会使用 forcegchelper 所在的 g 来执行 gcStart，具体做法就是上面提到的把 forcegc.g 注入到全局 runq;
+
+```go
+    // check if we need to force a GC
+    if t := (gcTrigger{kind: gcTriggerTime, now: now}); t.test() && atomic.Load(&forcegc.idle) != 0 {
+        lock(&forcegc.lock)
+        forcegc.idle = 0
+        forcegc.g.schedlink = 0
+        injectglist(forcegc.g)
+        unlock(&forcegc.lock)
+    }
+```
+
+### trigger.test, gc 条件检查
+
+```go
+// test returns true if the trigger condition is satisfied, meaning
+// that the exit condition for the _GCoff phase has been met. The exit
+// condition should be tested when allocating.
+func (t gcTrigger) test() bool {
+    if !memstats.enablegc || panicking != 0 {
+        return false
+    }
+    if t.kind == gcTriggerAlways {
+        return true
+    }
+    if gcphase != _GCoff {
+        return false
+    }
+    switch t.kind {
+    case gcTriggerHeap:
+        // Non-atomic access to heap_live for performance. If
+        // we are going to trigger on this, this thread just
+        // atomically wrote heap_live anyway and we'll see our
+        // own write.
+        return memstats.heap_live >= memstats.gc_trigger
+    case gcTriggerTime:
+        if gcpercent < 0 {
+            return false
+        }
+        lastgc := int64(atomic.Load64(&memstats.last_gc_nanotime))
+        return lastgc != 0 && t.now-lastgc > forcegcperiod
+    case gcTriggerCycle:
+        // t.n > work.cycles, but accounting for wraparound.
+        return int32(t.n-work.cycles) > 0
+    }
+    return true
+}
+```
+
+## gcStart
+
+```go
+// gcStart transitions the GC from _GCoff to _GCmark (if
+// !mode.stwMark) or _GCmarktermination (if mode.stwMark) by
+// performing sweep termination and GC initialization.
+//
+// This may return without performing this transition in some cases,
+// such as when called on a system stack or with locks held.
+func gcStart(mode gcMode, trigger gcTrigger) {
+    // Since this is called from malloc and malloc is called in
+    // the guts of a number of libraries that might be holding
+    // locks, don't attempt to start GC in non-preemptible or
+    // potentially unstable situations.
+    mp := acquirem()
+    if gp := getg(); gp == mp.g0 || mp.locks > 1 || mp.preemptoff != "" {
+        releasem(mp)
+        return
+    }
+    releasem(mp)
+    mp = nil
+
+    // Pick up the remaining unswept/not being swept spans concurrently
+    //
+    // This shouldn't happen if we're being invoked in background
+    // mode since proportional sweep should have just finished
+    // sweeping everything, but rounding errors, etc, may leave a
+    // few spans unswept. In forced mode, this is necessary since
+    // GC can be forced at any point in the sweeping cycle.
+    //
+    // We check the transition condition continuously here in case
+    // this G gets delayed in to the next GC cycle.
+    for trigger.test() && gosweepone() != ^uintptr(0) {
+        sweep.nbgsweep++
+    }
+
+    // Perform GC initialization and the sweep termination
+    // transition.
+    semacquire(&work.startSema)
+    // Re-check transition condition under transition lock.
+    if !trigger.test() {
+        semrelease(&work.startSema)
+        return
+    }
+
+    // For stats, check if this GC was forced by the user.
+    work.userForced = trigger.kind == gcTriggerAlways || trigger.kind == gcTriggerCycle
+
+    // In gcstoptheworld debug mode, upgrade the mode accordingly.
+    // We do this after re-checking the transition condition so
+    // that multiple goroutines that detect the heap trigger don't
+    // start multiple STW GCs.
+    if mode == gcBackgroundMode {
+        if debug.gcstoptheworld == 1 {
+            mode = gcForceMode
+        } else if debug.gcstoptheworld == 2 {
+            mode = gcForceBlockMode
+        }
+    }
+
+    // Ok, we're doing it! Stop everybody else
+    semacquire(&worldsema)
+
+    if trace.enabled {
+        traceGCStart()
+    }
+
+    if mode == gcBackgroundMode {
+        gcBgMarkStartWorkers()
+    }
+
+    gcResetMarkState()
+
+    work.stwprocs, work.maxprocs = gomaxprocs, gomaxprocs
+    if work.stwprocs > ncpu {
+        // This is used to compute CPU time of the STW phases,
+        // so it can't be more than ncpu, even if GOMAXPROCS is.
+        work.stwprocs = ncpu
+    }
+    work.heap0 = atomic.Load64(&memstats.heap_live)
+    work.pauseNS = 0
+    work.mode = mode
+
+    now := nanotime()
+    work.tSweepTerm = now
+    work.pauseStart = now
+    if trace.enabled {
+        traceGCSTWStart(1)
+    }
+    systemstack(stopTheWorldWithSema)
+    // Finish sweep before we start concurrent scan.
+    systemstack(func() {
+        finishsweep_m()
+    })
+    // clearpools before we start the GC. If we wait they memory will not be
+    // reclaimed until the next GC cycle.
+    clearpools()
+
+    work.cycles++
+    if mode == gcBackgroundMode { // Do as much work concurrently as possible
+        gcController.startCycle()
+        work.heapGoal = memstats.next_gc
+
+        // Enter concurrent mark phase and enable
+        // write barriers.
+        //
+        // Because the world is stopped, all Ps will
+        // observe that write barriers are enabled by
+        // the time we start the world and begin
+        // scanning.
+        //
+        // Write barriers must be enabled before assists are
+        // enabled because they must be enabled before
+        // any non-leaf heap objects are marked. Since
+        // allocations are blocked until assists can
+        // happen, we want enable assists as early as
+        // possible.
+        setGCPhase(_GCmark)
+
+        gcBgMarkPrepare() // Must happen before assist enable.
+        gcMarkRootPrepare()
+
+        // Mark all active tinyalloc blocks. Since we're
+        // allocating from these, they need to be black like
+        // other allocations. The alternative is to blacken
+        // the tiny block on every allocation from it, which
+        // would slow down the tiny allocator.
+        gcMarkTinyAllocs()
+
+        // At this point all Ps have enabled the write
+        // barrier, thus maintaining the no white to
+        // black invariant. Enable mutator assists to
+        // put back-pressure on fast allocating
+        // mutators.
+        atomic.Store(&gcBlackenEnabled, 1)
+
+        // Assists and workers can start the moment we start
+        // the world.
+        gcController.markStartTime = now
+
+        // Concurrent mark.
+        systemstack(func() {
+            now = startTheWorldWithSema(trace.enabled)
+        })
+        work.pauseNS += now - work.pauseStart
+        work.tMark = now
+    } else {
+        if trace.enabled {
+            // Switch to mark termination STW.
+            traceGCSTWDone()
+            traceGCSTWStart(0)
+        }
+        t := nanotime()
+        work.tMark, work.tMarkTerm = t, t
+        work.heapGoal = work.heap0
+
+        // Perform mark termination. This will restart the world.
+        gcMarkTermination(memstats.triggerRatio)
+    }
+
+    semrelease(&work.startSema)
+}
+```
 
 ## runtime.GC
 
@@ -204,3 +483,7 @@ func GC() {
     releasem(mp)
 }
 ```
+
+## FAQ
+
+为什么需要 debug.FreeOsMemory 才能释放堆空间。
