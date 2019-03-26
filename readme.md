@@ -10,7 +10,7 @@
 4. [x] [Select](select.md)
 5. [x] [Slice](slice.md)
 6. [x] [Timer](timer.md)
-7. [ ] [Defer](defer.md)
+7. [x] [Defer](defer.md)
 8. [x] [Sync](sync.md)
 9. [x] [Netpoll](netpoll.md)
 10. [ ] [Reflect](reflect.md)

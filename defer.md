@@ -139,3 +139,4 @@ TEXT runtime·jmpdefer(SB), NOSPLIT, $0-16
     JMP    BX    // 调用被 defer 的函数
 ```
 
+在 jmpdefer 所调用的函数返回时，会回到调用 deferreturn 的函数，并重新执行 deferreturn，每次执行都会使 g 的 defer 链表表头被消耗掉，直到进入 deferreturn 时 `d == nil` 并返回。至此便完成了整个 defer 的流程。
