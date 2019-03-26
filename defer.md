@@ -140,3 +140,9 @@ TEXT runtime·jmpdefer(SB), NOSPLIT, $0-16
 ```
 
 在 jmpdefer 所调用的函数返回时，会回到调用 deferreturn 的函数，并重新执行 deferreturn，每次执行都会使 g 的 defer 链表表头被消耗掉，直到进入 deferreturn 时 `d == nil` 并返回。至此便完成了整个 defer 的流程。
+
+Q && A:
+
+1. deferreturn + jmpdefer 就可以使 _defer 链表被消耗完毕，为什么还需要编译出多次 deferreturn 调用？
+
+TODO
