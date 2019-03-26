@@ -95,23 +95,23 @@ type _defer struct {
 
 //go:nosplit
 func deferreturn(arg0 uintptr) {
-	gp := getg()
-	d := gp._defer
-	if d == nil {
-		return
-	}
-	sp := getcallersp(unsafe.Pointer(&arg0))
-	if d.sp != sp {
-		return
-	}
+    gp := getg()
+    d := gp._defer
+    if d == nil {
+        return
+    }
+    sp := getcallersp(unsafe.Pointer(&arg0))
+    if d.sp != sp {
+        return
+    }
 
-	switch d.siz {
-	case 0:
-		// Do nothing.
-	case sys.PtrSize:
-		*(*uintptr)(unsafe.Pointer(&arg0)) = *(*uintptr)(deferArgs(d))
-	default:
-		memmove(unsafe.Pointer(&arg0), deferArgs(d), uintptr(d.siz))
+    switch d.siz {
+    case 0:
+        // Do nothing.
+    case sys.PtrSize:
+        *(*uintptr)(unsafe.Pointer(&arg0)) = *(*uintptr)(deferArgs(d))
+    default:
+        memmove(unsafe.Pointer(&arg0), deferArgs(d), uintptr(d.siz))
     }
 
     // 把 defer 中的函数信息提取出来，清空链表上的该 _defer 节点
@@ -122,24 +122,20 @@ func deferreturn(arg0 uintptr) {
     // 清空 defer 结构体信息，并将该结构体存储到 p 的 deferpool 中
     freedefer(d)
     // 跳转
-	jmpdefer(fn, uintptr(unsafe.Pointer(&arg0)))
+    jmpdefer(fn, uintptr(unsafe.Pointer(&arg0)))
 }
 ```
 
 对链表的持续遍历是用 jmpdefer 实现的，看看 jmpdefer 的代码:
 
 ```go
-// void jmpdefer(fn, sp);
-// called from deferreturn.
-// 1. pop the caller
-// 2. sub 5 bytes from the callers return
-// 3. jmp to the argument
 TEXT runtime·jmpdefer(SB), NOSPLIT, $0-16
-	MOVQ	fv+0(FP), DX	// fn
-	MOVQ	argp+8(FP), BX	// caller sp
-	LEAQ	-8(BX), SP	// caller sp after CALL
-	MOVQ	-8(SP), BP	// restore BP as if deferreturn returned (harmless if framepointers not in use)
-	SUBQ	$5, (SP)	// return to CALL again
-	MOVQ	0(DX), BX
-	JMP	BX	// but first run the deferred function
+    MOVQ    fv+0(FP), DX    // defer 的函数的地址
+    MOVQ    argp+8(FP), BX    // caller sp
+    LEAQ    -8(BX), SP    // caller sp after CALL
+    MOVQ    -8(SP), BP    // 在 framepointer enable 的时候，不影响函数栈的结构
+    SUBQ    $5, (SP)    // call 指令长度为 5，因此通过将 ret addr 减 5，能够使 deferreturn 自动被反复调用
+    MOVQ    0(DX), BX
+    JMP    BX    // 调用被 defer 的函数
 ```
+
