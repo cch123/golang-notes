@@ -26,19 +26,6 @@ func gopanic(e interface{}) {
             break
         }
 
-        // If defer was started by earlier panic or Goexit (and, since we're back here, that triggered a new panic),
-        // take defer off list. The earlier panic or Goexit will not continue running.
-        if d.started {
-            if d._panic != nil {
-                d._panic.aborted = true
-            }
-            d._panic = nil
-            d.fn = nil
-            gp._defer = d.link
-            freedefer(d)
-            continue
-        }
-
         // 标记 defer 为已启动，暂时保持在链表上
         // 这样 traceback 在栈增长或者 GC 的时候，能够找到并更新 defer 的参数栈帧
         // 并用 reflectcall 执行 d.fn
@@ -64,6 +51,7 @@ func gopanic(e interface{}) {
         pc := d.pc
         sp := unsafe.Pointer(d.sp) // must be pointer so it gets adjusted during stack copy
         freedefer(d)
+        // p.recovered 字段在 gorecover 函数中已经修改为 true 了
         if p.recovered {
             atomic.Xadd(&runningPanicDefers, -1)
 
@@ -83,25 +71,27 @@ func gopanic(e interface{}) {
             throw("recovery failed") // mcall 永远不会返回
         }
     }
-
-    // ran out of deferred calls - old-school panic now
-    // Because it is unsafe to call arbitrary user code after freezing
-    // the world, we call preprintpanics to invoke all necessary Error
-    // and String methods to prepare the panic strings before startpanic.
-    preprintpanics(gp._panic)
-    startpanic()
-
-    // startpanic set panicking, which will block main from exiting,
-    // so now OK to decrement runningPanicDefers.
-    atomic.Xadd(&runningPanicDefers, -1)
-
-    printpanics(gp._panic)
-    dopanic(0)       // 永远不会返回
 }
 
 ```
 
-可见这里面的 panic 也是一个链表，用 link 指针相连接:
+gopanic 会把当前函数的 defer 一直执行完，其中碰到 recover 的话就会调用 gorecover 函数:
+
+```go
+func gorecover(argp uintptr) interface{} {
+	gp := getg()
+	p := gp._panic
+	if p != nil && !p.recovered && argp == uintptr(p.argp) {
+		p.recovered = true
+		return p.arg
+	}
+	return nil
+}
+```
+
+很简单，就是改改 recovered 字段。
+
+gopanic 里生成的 panic 对象是带指针的结构体，串成一个链表，用 link 指针相连接，并挂在 g 结构体上:
 
 ```go
 // panics
