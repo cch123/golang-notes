@@ -188,3 +188,19 @@ func recovery(gp *g) {
 和刚注册 defer 结构体链表时的情况不同，panic 时，我们没有调用 deferproc，而是直接跳到了 deferproc 的下一条指令的地址上，并且检查 AX 的值，这里已经被改成 1 了。
 
 所以会直接跳转到函数最后对应该 deferproc 的 deferreturn 位置去。
+
+最后确认一次，runtime.gogo 会把 sched.ret 搬到 AX 寄存器:
+
+```go
+TEXT runtime·gogo(SB), NOSPLIT, $16-8
+	MOVQ	buf+0(FP), BX		// gobuf
+	MOVQ	gobuf_g(BX), DX
+	MOVQ	0(DX), CX		// make sure g != nil
+	get_tls(CX)
+	MOVQ	DX, g(CX)
+	MOVQ	gobuf_sp(BX), SP	// restore SP
+	MOVQ	gobuf_ret(BX), AX  // ----------> 重点在这里
+	MOVQ	gobuf_ctxt(BX), DX
+```
+
+这样所有流程就都打通了。
