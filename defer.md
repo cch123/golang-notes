@@ -16,7 +16,7 @@ func f() int {
 func deferproc(siz int32, fn *funcval) { // arguments of fn follow fn
     sp := getcallersp(unsafe.Pointer(&siz))
     argp := uintptr(unsafe.Pointer(&fn)) + unsafe.Sizeof(fn)
-    callerpc := getcallerpc()
+    callerpc := getcallerpc() // 存储的是 caller 中，call deferproc 的下一条指令的地址
 
     d := newdefer(siz)
     if d._panic != nil {
@@ -77,8 +77,8 @@ func newdefer(siz int32) *_defer {
 type _defer struct {
     siz     int32 // 函数的参数总大小
     started bool  // TODO defer 是否已开始执行?
-    sp      uintptr // sp at time of defer
-    pc      uintptr
+    sp      uintptr // 存储调用 defer 函数的函数的 sp 寄存器值
+    pc      uintptr  // 存储 call deferproc 的下一条汇编指令的指令地址
     fn      *funcval // 描述函数的变长结构体，包括函数地址及参数
     _panic  *_panic // 正在执行 defer 的 panic 结构体
     link    *_defer // 链表指针
