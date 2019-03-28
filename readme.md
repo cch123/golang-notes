@@ -14,7 +14,7 @@
 8. [x] [Sync](sync.md)
 9. [x] [Netpoll](netpoll.md)
 10. [ ] [Reflect](reflect.md)
-11. [ ] [Panic](panic.md)
+11. [x] [Panic](panic.md)
 12. [ ] [Goroutine](goroutine.md)
 13. [x] [Scheduler](scheduler.md)
 14. [ ] [GC](gc.md)

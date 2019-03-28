@@ -145,4 +145,4 @@ Q && A:
 
 1. deferreturn + jmpdefer 就可以使 _defer 链表被消耗完毕，为什么还需要编译出多次 deferreturn 调用？
 
-TODO
+deferproc 和 deferreturn 是成对出现的，对于编译器的实现来说，这样做应该稍微简单一些。

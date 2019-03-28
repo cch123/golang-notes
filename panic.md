@@ -1,54 +1,23 @@
-# panic 和 error 处理
+# panic
 
 ## panic 的本质
 
+panic 的本质其实就是 gopanic，用户代码和 runtime 中都会有对 panic() 的调用，最终会转为这个 runtime.gopanic 函数。
+
 ```go
-// The implementation of the predeclared function panic.
 func gopanic(e interface{}) {
+    // 获取当前 g
     gp := getg()
-    if gp.m.curg != gp {
-        print("panic: ")
-        printany(e)
-        print("\n")
-        throw("panic on system stack")
-    }
 
-    // m.softfloat is set during software floating point.
-    // It increments m.locks to avoid preemption.
-    // We moved the memory loads out, so there shouldn't be
-    // any reason for it to panic anymore.
-    if gp.m.softfloat != 0 {
-        gp.m.locks--
-        gp.m.softfloat = 0
-        throw("panic during softfloat")
-    }
-    if gp.m.mallocing != 0 {
-        print("panic: ")
-        printany(e)
-        print("\n")
-        throw("panic during malloc")
-    }
-    if gp.m.preemptoff != "" {
-        print("panic: ")
-        printany(e)
-        print("\n")
-        print("preempt off reason: ")
-        print(gp.m.preemptoff)
-        print("\n")
-        throw("panic during preemptoff")
-    }
-    if gp.m.locks != 0 {
-        print("panic: ")
-        printany(e)
-        print("\n")
-        throw("panic holding locks")
-    }
-
+    // 生成一个新的 panic 结构体
     var p _panic
     p.arg = e
+    // 链上之前的 panic 结构
     p.link = gp._panic
+    // 新节点做整个链表的表头
     gp._panic = (*_panic)(noescape(unsafe.Pointer(&p)))
 
+    // 统计
     atomic.Xadd(&runningPanicDefers, 1)
 
     for {
@@ -70,30 +39,27 @@ func gopanic(e interface{}) {
             continue
         }
 
-        // Mark defer as started, but keep on list, so that traceback
-        // can find and update the defer's argument frame if stack growth
-        // or a garbage collection happens before reflectcall starts executing d.fn.
+        // 标记 defer 为已启动，暂时保持在链表上
+        // 这样 traceback 在栈增长或者 GC 的时候，能够找到并更新 defer 的参数栈帧
+        // 并用 reflectcall 执行 d.fn
         d.started = true
 
-        // Record the panic that is running the defer.
-        // If there is a new panic during the deferred call, that panic
-        // will find d in the list and will mark d._panic (this panic) aborted.
+        // 记录在 defer 中发生的 panic
+        // 如果在 defer 的函数调用过程中又发生了新的 panic，那个 panic 会在链表中找到 d
+        // 然后标记 d._panic(指向当前的 panic) 为 aborted 状态。
         d._panic = (*_panic)(noescape(unsafe.Pointer(&p)))
 
         p.argp = unsafe.Pointer(getargp(0))
         reflectcall(nil, unsafe.Pointer(d.fn), deferArgs(d), uint32(d.siz), uint32(d.siz))
         p.argp = nil
 
-        // reflectcall did not panic. Remove d.
+        // reflectcall 没有 panic，移除 d
         if gp._defer != d {
             throw("bad defer entry in panic")
         }
         d._panic = nil
         d.fn = nil
         gp._defer = d.link
-
-        // trigger shrinkage to test stack copy. See stack_test.go:TestStackPanic
-        //GC()
 
         pc := d.pc
         sp := unsafe.Pointer(d.sp) // must be pointer so it gets adjusted during stack copy
@@ -107,14 +73,14 @@ func gopanic(e interface{}) {
             for gp._panic != nil && gp._panic.aborted {
                 gp._panic = gp._panic.link
             }
-            if gp._panic == nil { // must be done with signal
+            if gp._panic == nil { // 必须已处理完 signal
                 gp.sig = 0
             }
-            // Pass information about recovering frame to recovery.
+            // 把需要恢复的栈帧信息传给 recovery 函数
             gp.sigcode0 = uintptr(sp)
             gp.sigcode1 = pc
             mcall(recovery)
-            throw("recovery failed") // mcall should not return
+            throw("recovery failed") // mcall 永远不会返回
         }
     }
 
@@ -130,10 +96,95 @@ func gopanic(e interface{}) {
     atomic.Xadd(&runningPanicDefers, -1)
 
     printpanics(gp._panic)
-    dopanic(0)       // should not return
-    *(*int)(nil) = 0 // not reached
+    dopanic(0)       // 永远不会返回
 }
 
 ```
 
-## error 处理
+可见这里面的 panic 也是一个链表，用 link 指针相连接:
+
+```go
+// panics
+type _panic struct {
+    argp      unsafe.Pointer // pointer to arguments of deferred call run during panic; cannot move - known to liblink
+    arg       interface{}    // argument to panic
+    link      *_panic        // link to earlier panic
+    recovered bool           // whether this panic is over
+    aborted   bool           // the panic was aborted
+}
+```
+
+下面这种写法应该会形成一个 _panic 的链表:
+
+```go
+package main
+
+func fxfx() {
+    defer func() {
+        if err := recover(); err != nil {
+            println("recover here")
+        }
+    }()
+
+    defer func() {
+        panic(1)
+    }()
+
+    defer func() {
+        panic(2)
+    }()
+}
+
+func main() {
+    fxfx()
+}
+```
+
+非 defer 中的 panic 的话，函数的后续代码就没办法运行了，写代码的时候要注意这个特性。
+
+## recovery
+
+上面的 panic 恢复过程，最终走到了 recovery:
+
+```go
+// 把需要恢复的栈帧信息传给 recovery 函数
+gp.sigcode0 = uintptr(sp)
+gp.sigcode1 = pc
+mcall(recovery)
+```
+
+```go
+// 在被 defer 的函数中调用的 recover 从 panic 中已恢复，展开栈继续运行。
+// 现场恢复为发生 panic 的函数正常返回时的情况
+func recovery(gp *g) {
+    // 之前之前传入的 sp 和 pc 恢复
+    sp := gp.sigcode0
+    pc := gp.sigcode1
+
+    // d 的参数需要放在栈上
+    if sp != 0 && (sp < gp.stack.lo || gp.stack.hi < sp) {
+        print("recover: ", hex(sp), " not in [", hex(gp.stack.lo), ", ", hex(gp.stack.hi), "]\n")
+        throw("bad recovery")
+    }
+
+    // 让这个 defer 结构体的 deferproc 位置的调用重新返回
+    // 这次将返回值修改为 1
+    gp.sched.sp = sp
+    gp.sched.pc = pc
+    gp.sched.lr = 0
+    gp.sched.ret = 1 // ------> 没有调用 deferproc，但直接修改了返回值，所以跳转到 deferproc 的下一条指令位置，且设置了 1，假装作为 deferproc 的返回值
+    gogo(&gp.sched)
+}
+```
+
+这里比较 trick，实际上 recovery 中传入的 pc 寄存器的值是 call deferproc 的下一条汇编指令的地址:
+
+```go
+	0x0034 00052 (x.go:4)	CALL	runtime.deferproc(SB)
+	0x0039 00057 (x.go:4)	TESTL	AX, AX -----> 传入到 deferproc 中的 pc 寄存器指向的位置
+	0x003b 00059 (x.go:4)	JNE	135
+```
+
+和刚注册 defer 结构体链表时的情况不同，panic 时，我们没有调用 deferproc，而是直接跳到了 deferproc 的下一条指令的地址上，并且检查 AX 的值，这里已经被改成 1 了。
+
+所以会直接跳转到函数最后对应该 deferproc 的 deferreturn 位置去。
