@@ -141,8 +141,17 @@ TEXT runtime·jmpdefer(SB), NOSPLIT, $0-16
 
 在 jmpdefer 所调用的函数返回时，会回到调用 deferreturn 的函数，并重新执行 deferreturn，每次执行都会使 g 的 defer 链表表头被消耗掉，直到进入 deferreturn 时 `d == nil` 并返回。至此便完成了整个 defer 的流程。
 
+这里比较粗暴的是直接把栈上存储的 pc 寄存器的值减了 5，注释中说是因为 call deferreturn 这条指令长度为 5，这是怎么算出来的呢:
+
+```go
+  defertest.go:8        0x104aca4               e82754fdff              CALL runtime.deferreturn(SB)
+  defertest.go:8        0x104aca9               488b6c2418              MOVQ 0x18(SP), BP
+```
+
+0x104aca9 - 0x104aca4 = 5。所以这里理论上就是一个用汇编实现的非常 trick 的 for 循环。。。
+
 Q && A:
 
-1. deferreturn + jmpdefer 就可以使 _defer 链表被消耗完毕，为什么还需要编译出多次 deferreturn 调用？
+Q: deferreturn + jmpdefer 就可以使 _defer 链表被消耗完毕，为什么还需要编译出多次 deferreturn 调用？
 
-deferproc 和 deferreturn 是成对出现的，对于编译器的实现来说，这样做应该稍微简单一些。
+A: deferproc 和 deferreturn 是成对出现的，对于编译器的实现来说，这样做应该稍微简单一些。
