@@ -121,19 +121,15 @@ type gcTrigger struct {
 type gcTriggerKind int
 
 const (
-    // gcTriggerAlways indicates that a cycle should be started
-    // unconditionally, even if GOGC is off or we're in a cycle
-    // right now. This cannot be consolidated with other cycles.
+    // 表示应该无条件地开始 GC，不管外部任何参数
+    // 即使 GOGC 设置为 off，或者当前已经在进行 GC 进行中
     gcTriggerAlways gcTriggerKind = iota
 
-    // gcTriggerHeap indicates that a cycle should be started when
-    // the heap size reaches the trigger heap size computed by the
-    // controller.
+    // 该枚举值表示 GC 会在 heap 大小达到 controller 计算出的阈值之后开始
     gcTriggerHeap
 
-    // gcTriggerTime indicates that a cycle should be started when
-    // it's been more than forcegcperiod nanoseconds since the
-    // previous GC cycle.
+    // 表示从上一次 GC 之后，经过了 forcegcperiod 纳秒
+    // 基于时间触发本次 GC
     gcTriggerTime
 
     // gcTriggerCycle indicates that a cycle should be started if
@@ -146,13 +142,14 @@ const (
 ### mallocgc 中的 trigger 类型是 gcTriggerHeap;
 
 ```go
-
     if shouldhelpgc {
         if t := (gcTrigger{kind: gcTriggerHeap}); t.test() {
             gcStart(gcBackgroundMode, t)
         }
     }
 ```
+
+在 mallocgc 中进行 gc 可以防止内存分配过快，导致 GC 回收不过来。
 
 ### runtime.GC 中使用的是 gcTriggerCycle;
 
@@ -225,12 +222,12 @@ func (t gcTrigger) test() bool {
 ## gcStart
 
 ```go
-// gcStart transitions the GC from _GCoff to _GCmark (if
-// !mode.stwMark) or _GCmarktermination (if mode.stwMark) by
-// performing sweep termination and GC initialization.
+// 该函数会将 GC 状态从 _GCoff 切换到 _GCmark(if !mode.stwMark)
+// 或者 _GCmarktermination(if mode.stwMark)
+// 开始执行 sweep termination 或者 GC 初始化
 //
-// This may return without performing this transition in some cases,
-// such as when called on a system stack or with locks held.
+// 函数可能会在一些情况下未进行状态变更就返回
+// 比如在 system stack 中被调用，或者 locks 被别人持有
 func gcStart(mode gcMode, trigger gcTrigger) {
     // Since this is called from malloc and malloc is called in
     // the guts of a number of libraries that might be holding
@@ -258,10 +255,9 @@ func gcStart(mode gcMode, trigger gcTrigger) {
         sweep.nbgsweep++
     }
 
-    // Perform GC initialization and the sweep termination
-    // transition.
+    // 进行 GC 初始化和 sweep termination
     semacquire(&work.startSema)
-    // Re-check transition condition under transition lock.
+    // 在 transition lock 下再检查一次 transition 条件
     if !trigger.test() {
         semrelease(&work.startSema)
         return
@@ -282,13 +278,11 @@ func gcStart(mode gcMode, trigger gcTrigger) {
         }
     }
 
-    // Ok, we're doing it! Stop everybody else
+    // 获取全局锁，让别人都停下 stw
     semacquire(&worldsema)
 
-    if trace.enabled {
-        traceGCStart()
-    }
-
+    // 在 background 模式下
+    // 启动所有标记 worker
     if mode == gcBackgroundMode {
         gcBgMarkStartWorkers()
     }
@@ -308,9 +302,7 @@ func gcStart(mode gcMode, trigger gcTrigger) {
     now := nanotime()
     work.tSweepTerm = now
     work.pauseStart = now
-    if trace.enabled {
-        traceGCSTWStart(1)
-    }
+
     systemstack(stopTheWorldWithSema)
     // Finish sweep before we start concurrent scan.
     systemstack(func() {
@@ -358,27 +350,21 @@ func gcStart(mode gcMode, trigger gcTrigger) {
         // mutators.
         atomic.Store(&gcBlackenEnabled, 1)
 
-        // Assists and workers can start the moment we start
-        // the world.
+        // 协助标记的 g 和 worker 在 start the world 之后就可以开始工作了
         gcController.markStartTime = now
 
-        // Concurrent mark.
+        // 并发标记
         systemstack(func() {
             now = startTheWorldWithSema(trace.enabled)
         })
         work.pauseNS += now - work.pauseStart
         work.tMark = now
     } else {
-        if trace.enabled {
-            // Switch to mark termination STW.
-            traceGCSTWDone()
-            traceGCSTWStart(0)
-        }
         t := nanotime()
         work.tMark, work.tMarkTerm = t, t
         work.heapGoal = work.heap0
 
-        // Perform mark termination. This will restart the world.
+        // 进行 mark termination 阶段的工作，会 restart the world
         gcMarkTermination(memstats.triggerRatio)
     }
 
