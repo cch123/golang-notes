@@ -308,17 +308,19 @@ func gcStart(mode gcMode, trigger gcTrigger) {
     systemstack(func() {
         finishsweep_m()
     })
-    // clearpools before we start the GC. If we wait they memory will not be
-    // reclaimed until the next GC cycle.
+
+    // 清除全局的 :
+    // 1. sudogcache(sudog 数据结构的链表)
+    // 2. deferpool(defer struct 的链表的数组)
+    // 3. sync.Pool
     clearpools()
 
     work.cycles++
-    if mode == gcBackgroundMode { // Do as much work concurrently as possible
+    if mode == gcBackgroundMode { // 尽量多地提高并发度
         gcController.startCycle()
         work.heapGoal = memstats.next_gc
 
-        // Enter concurrent mark phase and enable
-        // write barriers.
+        // 进入并发标记阶段，并让 write barriers 开始生效
         //
         // Because the world is stopped, all Ps will
         // observe that write barriers are enabled by
