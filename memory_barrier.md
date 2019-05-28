@@ -2,6 +2,8 @@
 
 memory barrier 也称为 memory fence。
 
+## CPU 架构
+
 ```
  ┌─────────────┐                ┌─────────────┐   
  │    CPU 0    │                │    CPU 1    │   
@@ -45,6 +47,73 @@ memory barrier 也称为 memory fence。
                 │               │                 
                 └───────────────┘                 
 ```
+
+## CPU 导致乱序
+
+使用 litmus 进行形式化验证:
+
+```
+cat sb.litmus
+
+X86 SB
+{ x=0; y=0; }
+ P0          | P1          ;
+ MOV [x],$1  | MOV [y],$1  ;
+ MOV EAX,[y] | MOV EAX,[x] ;
+locations [x;y;]
+exists (0:EAX=0 /\ 1:EAX=0)
+```
+
+```shell
+~ ❯❯❯ bin/litmus7 ./sb.litmus
+%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Results for ./sb.litmus %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%
+X86 SB
+
+{x=0; y=0;}
+
+ P0          | P1          ;
+ MOV [x],$1  | MOV [y],$1  ;
+ MOV EAX,[y] | MOV EAX,[x] ;
+
+locations [x; y;]
+exists (0:EAX=0 /\ 1:EAX=0)
+Generated assembler
+	##START _litmus_P0
+	movl	$1, -4(%rbx,%rcx,4)
+	movl	-4(%rsi,%rcx,4), %eax
+	##START _litmus_P1
+	movl	$1, -4(%rsi,%rcx,4)
+	movl	-4(%rbx,%rcx,4), %eax
+
+Test SB Allowed
+Histogram (4 states)
+96    *>0:EAX=0; 1:EAX=0; x=1; y=1;
+499878:>0:EAX=1; 1:EAX=0; x=1; y=1;
+499862:>0:EAX=0; 1:EAX=1; x=1; y=1;
+164   :>0:EAX=1; 1:EAX=1; x=1; y=1;
+Ok
+
+Witnesses
+Positive: 96, Negative: 999904
+Condition exists (0:EAX=0 /\ 1:EAX=0) is validated
+Hash=2d53e83cd627ba17ab11c875525e078b
+Observation SB Sometimes 96 999904
+Time SB 0.11
+```
+
+## mesi 协议
+
+## 编译器导致乱序
+
+## lfence, sfence, mfence
+
+## write barrier, read barrier
+
+## memory order
+
+## atomic/lock 操作成本 in Go
 
 参考资料：
 
