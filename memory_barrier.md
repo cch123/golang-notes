@@ -105,6 +105,15 @@ Time SB 0.11
 
 ## mesi 协议
 
+| | p0 | p1 | p2 | p3 |
+|---|:----:|:----:|:--:| :--: |
+| initial state | I | I | I | I |
+| p0 reads X | E | I | I | I |
+| p1 reads X | S | S | I | I |
+| p2 reads X | S | S | S | I |
+| p3 writes X | I | I | I | M |
+| p0 readx X | S | I | I | S |
+
 ## 编译器导致乱序
 
 ## lfence, sfence, mfence
@@ -114,6 +123,8 @@ Time SB 0.11
 ## memory order
 
 ## atomic/lock 操作成本 in Go
+
+## false sharing / true sharing
 
 参考资料：
 
@@ -139,3 +150,8 @@ https://preshing.com/20120612/an-introduction-to-lock-free-programming/
 
 https://preshing.com/20130922/acquire-and-release-fences/
 
+https://webcourse.cs.technion.ac.il/234267/Spring2016/ho/WCFiles/tirgul%205%20mesi.pdf
+
+https://www.scss.tcd.ie/Jeremy.Jones/VivioJS/caches/MESIHelp.htm
+
+http://15418.courses.cs.cmu.edu/spring2017/lectures
