@@ -120,9 +120,24 @@ Time SB 0.11
 | p3 writes X | I | I | I | M |
 | p0 readx X | S | I | I | S |
 
-![](./images/mesi_1.jpg)
+![](images/mesi_1.jpg)
 
-![](./images/mesi_2.jpg)
+```
+Following are the different type of Processor requests and Bus side requests:
+
+Processor Requests to Cache includes the following operations:
+
+PrRd: The processor requests to read a Cache block.
+PrWr: The processor requests to write a Cache block
+Bus side requests are the following:
+
+BusRd: Snooped request that indicates there is a read request to a Cache block made by another processor
+BusRdX: Snooped request that indicates there is a write request to a Cache block made by another processor which doesn't already have the block.
+BusUpgr: Snooped request that indicates that there is a write request to a Cache block made by another processor but that processor already has that Cache block resident in its Cache.
+Flush: Snooped request that indicates that an entire cache block is written back to the main memory by another processor.
+FlushOpt: Snooped request that indicates that an entire cache block is posted on the bus in order to supply it to another processor(Cache to Cache transfers).
+(Such Cache to Cache transfers can reduce the read miss latency if the latency to bring the block from the main memory is more than from Cache to Cache transfers which is generally the case in bus based systems. But in multicore architectures, where the coherence is maintained at the level of L2 caches, there is on chip L3 cache, it may be faster to fetch the missed block from the L3 cache rather than from another L2)
+```
 
 ## 编译器导致乱序
 
