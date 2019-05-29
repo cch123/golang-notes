@@ -158,6 +158,40 @@ Also, some CPUs have things other than memory caches that can affect memory visi
 
 ## atomic/lock 操作成本 in Go
 
+```go
+package main
+
+import (
+	"sync/atomic"
+	"testing"
+)
+
+var a int64
+
+func BenchmarkAtomic(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		atomic.StoreInt64(&a, int64(i))
+	}
+}
+
+func BenchmarkNormal(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		a = 1
+	}
+}
+
+```
+
+```shell
+go test -bench=.
+goos: darwin
+goarch: amd64
+BenchmarkAtomic-4   	200000000	         7.00 ns/op
+BenchmarkNormal-4   	2000000000	         0.39 ns/op
+PASS
+ok  	_/Users/xx/test/go/atomic_bench	2.925s
+```
+
 ## false sharing / true sharing
 
 参考资料：
