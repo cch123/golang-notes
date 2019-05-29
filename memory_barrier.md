@@ -126,6 +126,36 @@ Time SB 0.11
 
 ## memory order
 
+## cache coherency vs memory consistency
+
+```
+The MESI protocol makes the memory caches effectively invisible. This means that multithreaded programs don't have to worry about a core reading stale data from them or two cores writing to different parts of a cache line and getting half of one write and half of the other sent to main memory.
+
+However, this doesn't help with read-modify-write operations such as increment, compare and swap, and so on. The MESI protocol won't stop two cores from each reading the same chunk of memory, each adding one to it, and then each writing the same value back, turning two increments into one.
+
+On modern CPUs, the LOCK prefix locks the cache line so that the read-modify-write operation is logically atomic. These are oversimplified, but hopefully they'll give you the idea.
+
+Unlocked increment:
+
+Acquire cache line, shareable is fine. Read the value.
+Add one to the read value.
+Acquire cache line exclusive (if not already E or M) and lock it.
+Write the new value to the cache line.
+Change the cache line to modified and unlock it.
+Locked increment:
+
+Acquire cache line exclusive (if not already E or M) and lock it.
+Read value.
+Add one to it.
+Write the new value to the cache line.
+Change the cache line to modified and unlock it.
+Notice the difference? In the unlocked increment, the cache line is only locked during the write memory operation, just like all writes. In the locked increment, the cache line is held across the entire instruction, all the way from the read operation to the write operation and including during the increment itself.
+
+Also, some CPUs have things other than memory caches that can affect memory visibility. For example, some CPUs have a read prefetcher or a posted write buffer that can result in memory operations executing out of order. Where needed, a LOCK prefix (or equivalent functionality on other CPUs) will also do whatever needs to be done to handle memory operation ordering issues.
+```
+
+引用自 [这里](https://stackoverflow.com/questions/29880015/lock-prefix-vs-mesi-protocol)。
+
 ## atomic/lock 操作成本 in Go
 
 ## false sharing / true sharing
@@ -162,3 +192,5 @@ http://15418.courses.cs.cmu.edu/spring2017/lectures
 https://software.intel.com/en-us/articles/how-memory-is-accessed
 
 https://software.intel.com/en-us/articles/detect-and-avoid-memory-bottlenecks#_Move_Instructions_into
+
+https://stackoverflow.com/questions/29880015/lock-prefix-vs-mesi-protocol
