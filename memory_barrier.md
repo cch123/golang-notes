@@ -114,6 +114,10 @@ Time SB 0.11
 | p3 writes X | I | I | I | M |
 | p0 readx X | S | I | I | S |
 
+![](./images/mesi_1.jpg)
+
+![](./images/mesi_2.jpg)
+
 ## 编译器导致乱序
 
 ## lfence, sfence, mfence
@@ -155,3 +159,6 @@ https://webcourse.cs.technion.ac.il/234267/Spring2016/ho/WCFiles/tirgul%205%20me
 https://www.scss.tcd.ie/Jeremy.Jones/VivioJS/caches/MESIHelp.htm
 
 http://15418.courses.cs.cmu.edu/spring2017/lectures
+https://software.intel.com/en-us/articles/how-memory-is-accessed
+
+https://software.intel.com/en-us/articles/detect-and-avoid-memory-bottlenecks#_Move_Instructions_into
