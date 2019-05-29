@@ -1,5 +1,11 @@
 # memory barrier
 
+> There are only two hard things in Computer Science: cache invalidation and naming things.
+
+> -- Phil Karlton
+
+https://martinfowler.com/bliki/TwoHardThings.html
+
 memory barrier 也称为 memory fence。
 
 ## CPU 架构
