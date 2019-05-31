@@ -147,6 +147,10 @@ FlushOpt: Snooped request that indicates that an entire cache block is posted on
 
 ## memory order
 
+std::memory_order specifies how memory accesses, including regular, non-atomic memory accesses, are to be ordered around an atomic operation. Absent any constraints on a multi-core system, when multiple threads simultaneously read and write to several variables, one thread can observe the values change in an order different from the order another thread wrote them. Indeed, the apparent order of changes can even differ among multiple reader threads. Some similar effects can occur even on uniprocessor systems due to compiler transformations allowed by the memory model.
+
+The default behavior of all atomic operations in the library provides for sequentially consistent ordering (see discussion below). That default can hurt performance, but the library's atomic operations can be given an additional std::memory_order argument to specify the exact constraints, beyond atomicity, that the compiler and processor must enforce for that operation.
+
 ## cache coherency vs memory consistency
 
 ```
@@ -249,3 +253,5 @@ https://software.intel.com/en-us/articles/how-memory-is-accessed
 https://software.intel.com/en-us/articles/detect-and-avoid-memory-bottlenecks#_Move_Instructions_into
 
 https://stackoverflow.com/questions/29880015/lock-prefix-vs-mesi-protocol
+
+https://github.com/torvalds/linux/blob/master/Documentation/memory-barriers.txt
