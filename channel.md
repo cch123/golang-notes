@@ -699,3 +699,9 @@ func closechan(c *hchan) {
     }
 }
 ```
+
+## 一些问题
+
+Q: 如果有多个channel同时唤醒同一个goroutine，这个并发控制是怎么做的？
+
+A: TODO

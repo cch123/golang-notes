@@ -1,6 +1,4 @@
-# lock
-
-## futex
+# Futex
 
 ```go
 // This implementation depends on OS-specific implementations of
@@ -216,21 +214,24 @@ func notetsleepg(n *note, ns int64) bool {
         throw("notetsleepg on g0")
     }
 
-    entersyscallblock()
+    entersyscallblock(0)
     ok := notetsleep_internal(n, ns)
-    exitsyscall()
+    exitsyscall(0)
     return ok
 }
 
-func pauseSchedulerUntilCallback() bool {
-    return false
-}
-
-func checkTimeouts() {}
 ```
 
-## sync.RWMutex
+参考资料:
 
-## atomic
+https://zh.wikipedia.org/zh-hans/Futex
 
-## sync.Map
+http://man7.org/linux/man-pages/man2/futex.2.html
+
+https://blog.csdn.net/jianchaolv/article/details/7544316
+
+http://blog.sina.com.cn/s/blog_e59371cc0102v29b.html
+
+https://www.jianshu.com/p/570a61f08e27
+
+https://eli.thegreenplace.net/2018/basics-of-futexes/
