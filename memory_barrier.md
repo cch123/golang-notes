@@ -122,7 +122,6 @@ Time SB 0.11
 
 ![](images/mesi_1.jpg)
 
-```
 Following are the different type of Processor requests and Bus side requests:
 
 Processor Requests to Cache includes the following operations:
@@ -137,7 +136,7 @@ BusUpgr: Snooped request that indicates that there is a write request to a Cache
 Flush: Snooped request that indicates that an entire cache block is written back to the main memory by another processor.
 FlushOpt: Snooped request that indicates that an entire cache block is posted on the bus in order to supply it to another processor(Cache to Cache transfers).
 (Such Cache to Cache transfers can reduce the read miss latency if the latency to bring the block from the main memory is more than from Cache to Cache transfers which is generally the case in bus based systems. But in multicore architectures, where the coherence is maintained at the level of L2 caches, there is on chip L3 cache, it may be faster to fetch the missed block from the L3 cache rather than from another L2)
-```
+
 
 ## 编译器导致乱序
 
@@ -153,7 +152,6 @@ The default behavior of all atomic operations in the library provides for sequen
 
 ## cache coherency vs memory consistency
 
-```
 The MESI protocol makes the memory caches effectively invisible. This means that multithreaded programs don't have to worry about a core reading stale data from them or two cores writing to different parts of a cache line and getting half of one write and half of the other sent to main memory.
 
 However, this doesn't help with read-modify-write operations such as increment, compare and swap, and so on. The MESI protocol won't stop two cores from each reading the same chunk of memory, each adding one to it, and then each writing the same value back, turning two increments into one.
@@ -177,9 +175,11 @@ Change the cache line to modified and unlock it.
 Notice the difference? In the unlocked increment, the cache line is only locked during the write memory operation, just like all writes. In the locked increment, the cache line is held across the entire instruction, all the way from the read operation to the write operation and including during the increment itself.
 
 Also, some CPUs have things other than memory caches that can affect memory visibility. For example, some CPUs have a read prefetcher or a posted write buffer that can result in memory operations executing out of order. Where needed, a LOCK prefix (or equivalent functionality on other CPUs) will also do whatever needs to be done to handle memory operation ordering issues.
-```
 
-引用自 [这里](https://stackoverflow.com/questions/29880015/lock-prefix-vs-mesi-protocol)。
+mesi 协议使得各核心的写操作可以序列化地进行观测，但是却没有办法解决先读后写的问题。而先读后写又是我们在写程序时非常常见的操作，比如对用户访问进行计数。甚至在实现用户逻辑层的 sync 库时，也需要底层提供原子性的 check and set 即 CAS 操作，所以 CPU 一般还会提供一个 lock 指令来应对这种窘境:
+
+https://stackoverflow.com/questions/29880015/lock-prefix-vs-mesi-protocol
+
 
 ## atomic/lock 操作成本 in Go
 
