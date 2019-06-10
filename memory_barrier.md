@@ -122,25 +122,32 @@ Time SB 0.11
 
 ![](images/mesi_1.jpg)
 
-Following are the different type of Processor requests and Bus side requests:
+下面是不同类型的处理器请求和总线侧的请求:
 
-Processor Requests to Cache includes the following operations:
+处理器向 Cache 发请求包括下面这些操作:
 
-PrRd: The processor requests to read a Cache block.
-PrWr: The processor requests to write a Cache block
-Bus side requests are the following:
+PrRd: 处理器请求读取一个 Cache block
+PrWr: 处理器请求写入一个 Cache block
 
-BusRd: Snooped request that indicates there is a read request to a Cache block made by another processor
-BusRdX: Snooped request that indicates there is a write request to a Cache block made by another processor which doesn't already have the block.
-BusUpgr: Snooped request that indicates that there is a write request to a Cache block made by another processor but that processor already has that Cache block resident in its Cache.
-Flush: Snooped request that indicates that an entire cache block is written back to the main memory by another processor.
-FlushOpt: Snooped request that indicates that an entire cache block is posted on the bus in order to supply it to another processor(Cache to Cache transfers).
-(Such Cache to Cache transfers can reduce the read miss latency if the latency to bring the block from the main memory is more than from Cache to Cache transfers which is generally the case in bus based systems. But in multicore architectures, where the coherence is maintained at the level of L2 caches, there is on chip L3 cache, it may be faster to fetch the missed block from the L3 cache rather than from another L2)
+总线侧的请求包含:
 
+BusRd: 监听到请求，表示当前有其它处理器正在发起对某个 Cache block 的读请求
+
+BusRdX: 监听到请求，表示当前有其它处理器正在发起对某个其未拥有的 Cache block 的写请求
+
+BusUpgr: 监听到请求，表示有另一个处理器正在发起对某 Cache block 的写请求，该处理器已经持有此 Cache block 块
+
+Flush: 监听到请求，表示整个 cache 块已被另一个处理器写入到主存中
+
+FlushOpt: 监听到请求，表示一个完整的 cache 块已经被发送到总线，以提供给另一个处理器使用(Cache 到 Cache 传数)
+
+Cache 到 Cache 的传送可以降低 read miss 导致的延迟，如果不这样做，需要先将该 block 写回到主存，再读取，延迟会大大增加，在基于总线的系统中，这个结论是正确的。但在多核架构中，coherence 是在 L2 caches 这一级保证的，从 L3 中取可能要比从另一个 L2 中取还要快。
 
 ## 编译器导致乱序
 
 ## lfence, sfence, mfence
+
+## acquire/release 抽象
 
 ## write barrier, read barrier
 
@@ -160,18 +167,20 @@ On modern CPUs, the LOCK prefix locks the cache line so that the read-modify-wri
 
 Unlocked increment:
 
-Acquire cache line, shareable is fine. Read the value.
-Add one to the read value.
-Acquire cache line exclusive (if not already E or M) and lock it.
-Write the new value to the cache line.
-Change the cache line to modified and unlock it.
+1. Acquire cache line, shareable is fine. Read the value.
+2. Add one to the read value.
+3. Acquire cache line exclusive (if not already E or M) and lock it.
+4. Write the new value to the cache line.
+5. Change the cache line to modified and unlock it.
+
 Locked increment:
 
-Acquire cache line exclusive (if not already E or M) and lock it.
-Read value.
-Add one to it.
-Write the new value to the cache line.
-Change the cache line to modified and unlock it.
+1. Acquire cache line exclusive (if not already E or M) and lock it.
+2. Read value.
+3. Add one to it.
+4. Write the new value to the cache line.
+5. Change the cache line to modified and unlock it.
+
 Notice the difference? In the unlocked increment, the cache line is only locked during the write memory operation, just like all writes. In the locked increment, the cache line is held across the entire instruction, all the way from the read operation to the write operation and including during the increment itself.
 
 Also, some CPUs have things other than memory caches that can affect memory visibility. For example, some CPUs have a read prefetcher or a posted write buffer that can result in memory operations executing out of order. Where needed, a LOCK prefix (or equivalent functionality on other CPUs) will also do whatever needs to be done to handle memory operation ordering issues.
