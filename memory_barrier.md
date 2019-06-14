@@ -209,6 +209,34 @@ https://stackoverflow.com/questions/29880015/lock-prefix-vs-mesi-protocol
 
 ## 编译器导致乱序
 
+snippet 1
+```python
+X = 0
+for i in range(100):
+    X = 1
+    print X
+```
+
+snippet 2
+```python
+X = 1
+for i in range(100):
+    print X
+
+```
+
+snippet 1 和 snippet 2 从逻辑上等价的。
+
+如果这时候，假设有 Processor 2 同时在执行一条指令：
+
+```python
+X = 0
+```
+
+P2 中的指令和 snippet 1 交错执行时，可能产生的结果是：111101111..
+
+P2 中的指令和 snippet 2 交错执行时，可能产生的结果是：11100000…​
+
 ## atomic/lock 操作成本 in Go
 
 ```go
