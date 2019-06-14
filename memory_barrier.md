@@ -157,15 +157,24 @@ Invalidate Queues：
 
 从结果上来讲，memory barrier 是必须的。一个 store barrier 会把 store buffer flush 掉，确保所有的写操作都被应用到 CPU 的 cache。一个 read barrier 会把 invalidation queue flush 掉，也就确保了其它 CPU 的写入对执行 flush 操作的当前这个 CPU 可见。再进一步，MMU 没有办法扫描 store buffer，会导致类似的问题。这种效果对于单线程处理器来说已经是会发生的了。
 
+
+## barrier
+
+从功能上来讲，barrier 有四种:
+
+|||
+|-|-|
+|#LoadLoad|#LoadStore|
+|#StoreLoad|#StoreStore|
+
 ## lfence, sfence, mfence
 
 https://stackoverflow.com/questions/27595595/when-are-x86-lfence-sfence-and-mfence-instructions-required
 
-## acquire/release 抽象
+## acquire/release 语义
 
 https://preshing.com/20130922/acquire-and-release-fences/
 
-## write barrier, read barrier
 
 ## memory order
 
@@ -236,6 +245,8 @@ X = 0
 P2 中的指令和 snippet 1 交错执行时，可能产生的结果是：111101111..
 
 P2 中的指令和 snippet 2 交错执行时，可能产生的结果是：11100000…​
+
+多核心下，编译器对代码的优化理论上就是重排。
 
 ## atomic/lock 操作成本 in Go
 
