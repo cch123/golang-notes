@@ -192,6 +192,7 @@ mm_sfence("store fence": wait for all stores to complete)
 
 >Serializes all memory stores. All stores that precede the store fence in program order will become globally observable before any stores that succeed the store fence in program order become globally observable. Note that a store fence is ordered, by definition, with other store fences.
 >In the cycle that follows the cycle when the store fence instruction retires, all stores that precede the store fence in program order are guaranteed to be globally observable. Any store that succeeds the store fence in program order may or may not be globally observable immediately after retiring the store fence. See Section 7.4 of the Intel optimization manual and Section 7.5 of the Intel developer manual Volume 2. Global observability will be discussed in the next section.
+>However, that “SFENCE operation” is not actually a fully store serializing operation even though there is the word SFENCE in its name. This is clarified by the emphasized part. I think there is a typo here; it should read “store fence” not “store, fence.” The manual specifies that while clearing IA32_RTIT_CTL.TraceEn serializes all previous stores with respect to all later stores, it does not by itself ensure global observability of previous stores. It is exactly for this reason why the Linux kernel uses a full store fence (called wmb, which is basically SFENCE) after clearing TraceEn.
 
 mm_mfence("mem fence": wait for all memory operations to complete)
 
