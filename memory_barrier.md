@@ -215,8 +215,11 @@ https://stackoverflow.com/questions/27595595/when-are-x86-lfence-sfence-and-mfen
 
 https://preshing.com/20130922/acquire-and-release-fences/
 
+在 x86/64 平台上，只有 StoreLoad 乱序，所以你使用 acquire release 时，实际上生成的 fence 是 NOP。
 
-## memory order
+在 Go 语言中也不需要操心这个问题，Go 语言的 atomic 默认是最强的内存序保证，即 sequential consistency。该一致性保证由 Go 保证，在所有运行 Go 的硬件平台上都是一致的。
+
+## memory order 参数
 
 硬件会提供其 memory order，而语言本身可能也会有自己的 memory order，在 C/C++ 语言中会根据传给 atomic 的参数来决定其使用的 memory order，从而进行一些重排，这里的重排不但有硬件重排，还有编译器级别的重排。
 
@@ -224,6 +227,8 @@ https://preshing.com/20130922/acquire-and-release-fences/
 > std::memory_order specifies how memory accesses, including regular, non-atomic memory accesses, are to be ordered around an atomic operation. Absent any constraints on a multi-core system, when multiple threads simultaneously read and write to several variables, one thread can observe the values change in an order different from the order another thread wrote them. Indeed, the apparent order of changes can even differ among multiple reader threads. Some similar effects can occur even on uniprocessor systems due to compiler transformations allowed by the memory model.
 
 > The default behavior of all atomic operations in the library provides for sequentially consistent ordering (see discussion below). That default can hurt performance, but the library's atomic operations can be given an additional std::memory_order argument to specify the exact constraints, beyond atomicity, that the compiler and processor must enforce for that operation.
+
+这也是一个 Go 不需要操心的问题。
 
 ## sequential consistency
 
