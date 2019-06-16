@@ -200,16 +200,23 @@ mfence 会等待当前核心中的 store buffer 排空之后再执行后续指�
 
 https://stackoverflow.com/questions/27595595/when-are-x86-lfence-sfence-and-mfence-instructions-required
 
+直接考虑硬件的 fence 指令太复杂了，思考过程应该是，先从程序逻辑出发，然后考虑需要使用哪种 barrier/fence(LL LS SS SL)，然后再找对应硬件平台上对应的 fence 指令。
+
 ## acquire/release 语义
+
+![barriers](https://preshing.com/images/acq-rel-barriers.png)
 
 https://preshing.com/20130922/acquire-and-release-fences/
 
 
 ## memory order
 
-std::memory_order specifies how memory accesses, including regular, non-atomic memory accesses, are to be ordered around an atomic operation. Absent any constraints on a multi-core system, when multiple threads simultaneously read and write to several variables, one thread can observe the values change in an order different from the order another thread wrote them. Indeed, the apparent order of changes can even differ among multiple reader threads. Some similar effects can occur even on uniprocessor systems due to compiler transformations allowed by the memory model.
+硬件会提供其 memory order，而语言本身可能也会有自己的 memory order，在 C/C++ 语言中会根据传给 atomic 的参数来决定其使用的 memory order，从而进行一些重排，这里的重排不但有硬件重排，还有编译器级别的重排。
 
-The default behavior of all atomic operations in the library provides for sequentially consistent ordering (see discussion below). That default can hurt performance, but the library's atomic operations can be given an additional std::memory_order argument to specify the exact constraints, beyond atomicity, that the compiler and processor must enforce for that operation.
+下面是 C++ 中对 memory_order 参数的描述:
+> std::memory_order specifies how memory accesses, including regular, non-atomic memory accesses, are to be ordered around an atomic operation. Absent any constraints on a multi-core system, when multiple threads simultaneously read and write to several variables, one thread can observe the values change in an order different from the order another thread wrote them. Indeed, the apparent order of changes can even differ among multiple reader threads. Some similar effects can occur even on uniprocessor systems due to compiler transformations allowed by the memory model.
+
+> The default behavior of all atomic operations in the library provides for sequentially consistent ordering (see discussion below). That default can hurt performance, but the library's atomic operations can be given an additional std::memory_order argument to specify the exact constraints, beyond atomicity, that the compiler and processor must enforce for that operation.
 
 ## sequential consistency
 
