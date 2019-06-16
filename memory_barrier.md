@@ -162,12 +162,40 @@ Invalidate Queues：
 
 从功能上来讲，barrier 有四种:
 
-|||
-|-|-|
 |#LoadLoad|#LoadStore|
+|-|-|
 |#StoreLoad|#StoreStore|
 
+具体说明:
+
+|barrier name|desc|
+|-|-|
+|#LoadLoad|阻止不相关的 Load 操作发生重排|
+|#LoadStore|阻止 Store 被重排到 Load 之前|
+|#StoreLoad|阻止 Load 被重排到 Store 之前|
+|#StoreStore|阻止 Store 被重排到 Store 之前|
+
+需要注意的是，这里所说的重排都是内存一致性范畴，即全局视角的不同变量操作。如果是同一个变量的读写的话，显然是不会发生重排的，因为不按照 program order 来执行程序的话，相当于对用户的程序发生了破坏行为。
+
 ## lfence, sfence, mfence
+
+Intel x86/x64 平台，total store ordering(但未来不一定还是 TSO):
+
+mm_lfence("load fence": wait for all loads to complete)
+
+不保证在 lfence 之前的写全局可见(globally visible)。并不是把读操作都序列化。只是保证这些读操作和 lfence 之间的先后关系。
+
+mm_sfence("store fence": wait for all stores to complete)
+
+>The Semantics of a Store Fence
+>On all Intel and AMD processors, a store fence has two effects:
+
+>Serializes all memory stores. All stores that precede the store fence in program order will become globally observable before any stores that succeed the store fence in program order become globally observable. Note that a store fence is ordered, by definition, with other store fences.
+>In the cycle that follows the cycle when the store fence instruction retires, all stores that precede the store fence in program order are guaranteed to be globally observable. Any store that succeeds the store fence in program order may or may not be globally observable immediately after retiring the store fence. See Section 7.4 of the Intel optimization manual and Section 7.5 of the Intel developer manual Volume 2. Global observability will be discussed in the next section.
+
+mm_mfence("mem fence": wait for all memory operations to complete)
+
+mfence 会等待当前核心中的 store buffer 排空之后再执行后续指令。
 
 https://stackoverflow.com/questions/27595595/when-are-x86-lfence-sfence-and-mfence-instructions-required
 
