@@ -239,6 +239,36 @@ P2 中的指令和 snippet 2 交错执行时，可能产生的结果是：111000
 
 多核心下，编译器对代码的优化理论上就是重排。
 
+有人说这个例子不够有说服力，我们看看参考资料中的另一个例子:
+
+```c
+int a, b;
+int foo()
+{
+    a = b + 1;
+    b = 0; 
+    return 1;
+}
+```
+
+输出汇编:
+```
+mov eax, DWORD PTR b[rip]
+add eax, 1
+mov DWORD PTR a[rip], eax    // --> store to a
+mov DWORD PTR b[rip], 0      // --> store to b
+```
+
+开启 O2 优化后，输出汇编:
+```
+mov eax, DWORD PTR b[rip]
+mov DWORD PTR b[rip], 0      // --> store to b
+add eax, 1
+mov DWORD PTR a[rip], eax    // --> store to a
+```
+
+可见 compiler 也是可能会修改赋值的顺序的。
+
 ## atomic/lock 操作成本 in Go
 
 ```go
