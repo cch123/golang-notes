@@ -54,6 +54,21 @@ memory barrier 也称为 memory fence。
                 └───────────────┘                 
 ```
 
+## store buffer 和 invalidate queue
+
+Store Buffer：
+
+当写入到一行 invalidate 状态的 cache line 时便会使用到 store buffer。写如果要继续执行，CPU 需要先发出一条 read-invalid 消息(因为需要确保所有其它缓存了当前内存地址的 CPU 的 cache line 都被 invalidate 掉)，然后将写推入到 store buffer 中，当最终 cache line 达到当前 CPU 时再执行这个写操作。
+
+CPU 存在 store buffer 的直接影响是，当 CPU 提交一个写操作时，这个写操作不会立即写入到 cache 中。因而，无论什么时候 CPU 需要从 cache line 中读取，都需要先扫描它自己的 store buffer 来确认是否存在相同的 line，因为有可能当前 CPU 在这次操作之前曾经写入过 cache，但该数据还没有被刷入过 cache(之前的写操作还在 store buffer 中等待)。需要注意的是，虽然 CPU 可以读取其之前写入到 store buffer 中的值，但其它 CPU 并不能在该 CPU 将 store buffer 中的内容 flush 到 cache 之前看到这些值。即 store buffer 是不能跨核心访问的，CPU 核心看不到其它核心的 store buffer。
+
+Invalidate Queues：
+
+为了处理 invalidation 消息，CPU 实现了 invalidate queue，借以处理新达到的 invalidate 请求，在这些请求到达时，可以马上进行响应，但可以不马上处理。取而代之的，invalidation 消息只是会被推进一个 invalidation 队列，并在之后尽快处理(但不是马上)。因此，CPU 可能并不知道在它 cache 里的某个 cache line 是 invalid 状态的，因为 invalidation 队列包含有收到但还没有处理的 invalidation 消息，这是因为 CPU 和 invalidation 队列从物理上来讲是位于 cache 的两侧的。
+
+从结果上来讲，memory barrier 是必须的。一个 store barrier 会把 store buffer flush 掉，确保所有的写操作都被应用到 CPU 的 cache。一个 read barrier 会把 invalidation queue flush 掉，也就确保了其它 CPU 的写入对执行 flush 操作的当前这个 CPU 可见。再进一步，MMU 没有办法扫描 store buffer，会导致类似的问题。这种效果对于单线程处理器来说已经是会发生的了。
+
+
 ## CPU 导致乱序
 
 使用 litmus 进行形式化验证:
@@ -143,35 +158,77 @@ FlushOpt: 监听到请求，表示一个完整的 cache 块已经被发送到总
 
 Cache 到 Cache 的传送可以降低 read miss 导致的延迟，如果不这样做，需要先将该 block 写回到主存，再读取，延迟会大大增加，在基于总线的系统中，这个结论是正确的。但在多核架构中，coherence 是在 L2 caches 这一级保证的，从 L3 中取可能要比从另一个 L2 中取还要快。
 
-## store buffer 和 invalidate queue
+mesi 协议解决了多核环境下，内存多层级带来的问题。使得 cache 层对于 CPU 来说可以认为是透明的，不存在的。单一地址的变量的写入，可以以线性的逻辑进行理解。
 
-Store Buffer：
+但 mesi 协议有两个问题没有解决，一种是 RMW 操作，或者叫 CAS；一种是 ADD 操作。因为这两种操作都需要先读到原始值，进行修改，然后再写回到内存中。
 
-当写入到一行 invalidate 状态的 cache line 时便会使用到 store buffer。写如果要继续执行，CPU 需要先发出一条 read-invalid 消息(因为需要确保所有其它缓存了当前内存地址的 CPU 的 cache line 都被 invalidate 掉)，然后将写推入到 store buffer 中，当最终 cache line 达到当前 CPU 时再执行这个写操作。
+同时，在 CPU 架构中我们看到 CPU 除了 cache 这一层之外，还存在 store buffer，而 store buffer 导致的内存乱序问题，mesi 协议是解决不了的，这是 memory consistency 范畴讨论的问题。
 
-CPU 存在 store buffer 的直接影响是，当 CPU 提交一个写操作时，这个写操作不会立即写入到 cache 中。因而，无论什么时候 CPU 需要从 cache line 中读取，都需要先扫描它自己的 store buffer 来确认是否存在相同的 line，因为有可能当前 CPU 在这次操作之前曾经写入过 cache，但该数据还没有被刷入过 cache(之前的写操作还在 store buffer 中等待)。需要注意的是，虽然 CPU 可以读取其之前写入到 store buffer 中的值，但其它 CPU 并不能在该 CPU 将 store buffer 中的内容 flush 到 cache 之前看到这些值。即 store buffer 是不能跨核心访问的，CPU 核心看不到其它核心的 store buffer。
 
-Invalidate Queues：
+## barrier
 
-为了处理 invalidation 消息，CPU 实现了 invalidate queue，借以处理新达到的 invalidate 请求，在这些请求到达时，可以马上进行响应，但可以不马上处理。取而代之的，invalidation 消息只是会被推进一个 invalidation 队列，并在之后尽快处理(但不是马上)。因此，CPU 可能并不知道在它 cache 里的某个 cache line 是 invalid 状态的，因为 invalidation 队列包含有收到但还没有处理的 invalidation 消息，这是因为 CPU 和 invalidation 队列从物理上来讲是位于 cache 的两侧的。
+从功能上来讲，barrier 有四种:
 
-从结果上来讲，memory barrier 是必须的。一个 store barrier 会把 store buffer flush 掉，确保所有的写操作都被应用到 CPU 的 cache。一个 read barrier 会把 invalidation queue flush 掉，也就确保了其它 CPU 的写入对执行 flush 操作的当前这个 CPU 可见。再进一步，MMU 没有办法扫描 store buffer，会导致类似的问题。这种效果对于单线程处理器来说已经是会发生的了。
+|#LoadLoad|#LoadStore|
+|-|-|
+|#StoreLoad|#StoreStore|
+
+具体说明:
+
+|barrier name|desc|
+|-|-|
+|#LoadLoad|阻止不相关的 Load 操作发生重排|
+|#LoadStore|阻止 Store 被重排到 Load 之前|
+|#StoreLoad|阻止 Load 被重排到 Store 之前|
+|#StoreStore|阻止 Store 被重排到 Store 之前|
+
+需要注意的是，这里所说的重排都是内存一致性范畴，即全局视角的不同变量操作。如果是同一个变量的读写的话，显然是不会发生重排的，因为不按照 program order 来执行程序的话，相当于对用户的程序发生了破坏行为。
 
 ## lfence, sfence, mfence
 
+Intel x86/x64 平台，total store ordering(但未来不一定还是 TSO):
+
+mm_lfence("load fence": wait for all loads to complete)
+
+不保证在 lfence 之前的写全局可见(globally visible)。并不是把读操作都序列化。只是保证这些读操作和 lfence 之间的先后关系。
+
+mm_sfence("store fence": wait for all stores to complete)
+
+>The Semantics of a Store Fence
+>On all Intel and AMD processors, a store fence has two effects:
+
+>Serializes all memory stores. All stores that precede the store fence in program order will become globally observable before any stores that succeed the store fence in program order become globally observable. Note that a store fence is ordered, by definition, with other store fences.
+>In the cycle that follows the cycle when the store fence instruction retires, all stores that precede the store fence in program order are guaranteed to be globally observable. Any store that succeeds the store fence in program order may or may not be globally observable immediately after retiring the store fence. See Section 7.4 of the Intel optimization manual and Section 7.5 of the Intel developer manual Volume 2. Global observability will be discussed in the next section.
+>However, that “SFENCE operation” is not actually a fully store serializing operation even though there is the word SFENCE in its name. This is clarified by the emphasized part. I think there is a typo here; it should read “store fence” not “store, fence.” The manual specifies that while clearing IA32_RTIT_CTL.TraceEn serializes all previous stores with respect to all later stores, it does not by itself ensure global observability of previous stores. It is exactly for this reason why the Linux kernel uses a full store fence (called wmb, which is basically SFENCE) after clearing TraceEn.
+
+mm_mfence("mem fence": wait for all memory operations to complete)
+
+mfence 会等待当前核心中的 store buffer 排空之后再执行后续指令。
+
 https://stackoverflow.com/questions/27595595/when-are-x86-lfence-sfence-and-mfence-instructions-required
 
-## acquire/release 抽象
+直接考虑硬件的 fence 指令太复杂了，思考过程应该是，先从程序逻辑出发，然后考虑需要使用哪种 barrier/fence(LL LS SS SL)，然后再找对应硬件平台上对应的 fence 指令。
+
+## acquire/release 语义
+
+![barriers](https://preshing.com/images/acq-rel-barriers.png)
 
 https://preshing.com/20130922/acquire-and-release-fences/
 
-## write barrier, read barrier
+在 x86/64 平台上，只有 StoreLoad 乱序，所以你使用 acquire release 时，实际上生成的 fence 是 NOP。
 
-## memory order
+在 Go 语言中也不需要操心这个问题，Go 语言的 atomic 默认是最强的内存序保证，即 sequential consistency。该一致性保证由 Go 保证，在所有运行 Go 的硬件平台上都是一致的。
 
-std::memory_order specifies how memory accesses, including regular, non-atomic memory accesses, are to be ordered around an atomic operation. Absent any constraints on a multi-core system, when multiple threads simultaneously read and write to several variables, one thread can observe the values change in an order different from the order another thread wrote them. Indeed, the apparent order of changes can even differ among multiple reader threads. Some similar effects can occur even on uniprocessor systems due to compiler transformations allowed by the memory model.
+## memory order 参数
 
-The default behavior of all atomic operations in the library provides for sequentially consistent ordering (see discussion below). That default can hurt performance, but the library's atomic operations can be given an additional std::memory_order argument to specify the exact constraints, beyond atomicity, that the compiler and processor must enforce for that operation.
+硬件会提供其 memory order，而语言本身可能也会有自己的 memory order，在 C/C++ 语言中会根据传给 atomic 的参数来决定其使用的 memory order，从而进行一些重排，这里的重排不但有硬件重排，还有编译器级别的重排。
+
+下面是 C++ 中对 memory_order 参数的描述:
+> std::memory_order specifies how memory accesses, including regular, non-atomic memory accesses, are to be ordered around an atomic operation. Absent any constraints on a multi-core system, when multiple threads simultaneously read and write to several variables, one thread can observe the values change in an order different from the order another thread wrote them. Indeed, the apparent order of changes can even differ among multiple reader threads. Some similar effects can occur even on uniprocessor systems due to compiler transformations allowed by the memory model.
+
+> The default behavior of all atomic operations in the library provides for sequentially consistent ordering (see discussion below). That default can hurt performance, but the library's atomic operations can be given an additional std::memory_order argument to specify the exact constraints, beyond atomicity, that the compiler and processor must enforce for that operation.
+
+这也是一个 Go 不需要操心的问题。
 
 ## sequential consistency
 
