@@ -250,6 +250,42 @@ https://preshing.com/20130922/acquire-and-release-fences/
 
 ## sequential consistency
 
+> Sequential consistency is a strong safety property for concurrent systems. Informally, sequential consistency implies that operations appear to take place in some total order, and that that order is consistent with the order of operations on each individual process.
+
+可以理解为，同一块内存每次一定只有一个核心能执行。是最符合人的直觉的多线程执行顺序，可以用顺序的逻辑来理解程序执行结果。可以理解为完全没有读写重排。
+
+其执行流程类似下图:
+
+```
+┌──────────────┐    ┌──────────────┐   ┌──────────────┐    ┌──────────────┐
+│ Processor 1  │    │ Processor 2  │   │ Processor 3  │    │ Processor 4  │
+└──────────────┘    └──────────────┘   └──────────────┘    └──────────────┘
+        ▲                                                                  
+        │                                                                  
+        │                                                                  
+        │                                                                  
+        │                                                                  
+        │                                                                  
+        │                                                                  
+        └──────────────────────────┐                                       
+                                   │                                       
+                                   │                                       
+                                   │                                       
+                                   │                                       
+                                   │                                       
+                                   │                                       
+                                   │                                       
+                         ┌──────────────────┐                              
+                         │                  │                              
+                         │      Memory      │                              
+                         │                  │                              
+                         └──────────────────┘                              
+```
+
+内存上有一个开关，可以拨到任意一个 Processor 上，拨动到位后 Processor 即开始访问和修改内存。
+
+保证 Sequential Consistency 的话，性能会非常差。体现不了多核心的优势。Intel 的 TSO 虽然是较强的 Memory Model，但也会有 WR 的重排。
+
 ## cache coherency vs memory consistency
 
 The MESI protocol makes the memory caches effectively invisible. This means that multithreaded programs don't have to worry about a core reading stale data from them or two cores writing to different parts of a cache line and getting half of one write and half of the other sent to main memory.
