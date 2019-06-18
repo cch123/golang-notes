@@ -54,20 +54,75 @@ memory barrier 也称为 memory fence。
                 └───────────────┘                 
 ```
 
+CPU 和内存间是个多层的架构，有些资料上会把 L1/L2/L3 都叫作内存，并把这个整体称为内存分层: memory hierachy。
+
+CPU 的 cache 层需要保证其本身能保证一定的一致性，一般叫 cache coherence，这是通过 MESI 协议来保证的。
+
+但是 MESI 协议中，如果要写入，需要把其它 cache 中的数据 invalidate 掉。这会导致 CPU 需要等待本地的 cacheline 变为 E(Exclusive)状态才能写入，也就是会带来等待，为了优化这种等待，最好是攒一波写，统一进行触发，所以积攒这些写入操作的地方就是 store buffer。
+
+如果 CPU 收到了其它核心发来的 invalidate 消息(BusRdX)，这时候 CPU 需要将本地的 cache invalidate 掉，又涉及了 cacheline 的修改和 store buffer 的处理，需要等待。为了消除这个等待，CPU 会把这些 invalidate 消息放在 invalidate queue 中，只要保证该消息之后一定会被处理后才对相应的 cache line 进行处理，那么就可以立即对其它核心发来的 invalidate 消息进行响应，以避免阻塞其它核心的流程处理。
+
+这样的多层结构在我们编写程序的时候，也给我们带来了一些困扰。
+
+不过我们先来看看 cache 层怎么保证多核心间数据的一致性，即 mesi 协议。
+
+## mesi 协议
+
+| | p0 | p1 | p2 | p3 |
+|---|:----:|:----:|:--:| :--: |
+| initial state | I | I | I | I |
+| p0 reads X | E | I | I | I |
+| p1 reads X | S | S | I | I |
+| p2 reads X | S | S | S | I |
+| p3 writes X | I | I | I | M |
+| p0 readx X | S | I | I | S |
+
+![](images/mesi_1.jpg)
+
+下面是不同类型的处理器请求和总线侧的请求:
+
+处理器向 Cache 发请求包括下面这些操作:
+
+PrRd: 处理器请求读取一个 Cache block
+PrWr: 处理器请求写入一个 Cache block
+
+总线侧的请求包含:
+
+BusRd: 监听到请求，表示当前有其它处理器正在发起对某个 Cache block 的读请求
+
+BusRdX: 监听到请求，表示当前有其它处理器正在发起对某个其未拥有的 Cache block 的写请求
+
+BusUpgr: 监听到请求，表示有另一个处理器正在发起对某 Cache block 的写请求，该处理器已经持有此 Cache block 块
+
+Flush: 监听到请求，表示整个 cache 块已被另一个处理器写入到主存中
+
+FlushOpt: 监听到请求，表示一个完整的 cache 块已经被发送到总线，以提供给另一个处理器使用(Cache 到 Cache 传数)
+
+Cache 到 Cache 的传送可以降低 read miss 导致的延迟，如果不这样做，需要先将该 block 写回到主存，再读取，延迟会大大增加，在基于总线的系统中，这个结论是正确的。但在多核架构中，coherence 是在 L2 caches 这一级保证的，从 L3 中取可能要比从另一个 L2 中取还要快。
+
+mesi 协议解决了多核环境下，内存多层级带来的问题。使得 cache 层对于 CPU 来说可以认为是透明的，不存在的。单一地址的变量的写入，可以以线性的逻辑进行理解。
+
+但 mesi 协议有两个问题没有解决，一种是 RMW 操作，或者叫 CAS；一种是 ADD 操作。因为这两种操作都需要先读到原始值，进行修改，然后再写回到内存中。
+
+同时，在 CPU 架构中我们看到 CPU 除了 cache 这一层之外，还存在 store buffer，而 store buffer 导致的内存乱序问题，mesi 协议是解决不了的，这是 memory consistency 范畴讨论的问题。
+
+下面一节是 wikipedia 上对于 store buffer 和 invalidate queue 的描述，可能比我开头写的要权威一些。
+
 ## store buffer 和 invalidate queue
 
-Store Buffer：
+>Store Buffer：
 
-当写入到一行 invalidate 状态的 cache line 时便会使用到 store buffer。写如果要继续执行，CPU 需要先发出一条 read-invalid 消息(因为需要确保所有其它缓存了当前内存地址的 CPU 的 cache line 都被 invalidate 掉)，然后将写推入到 store buffer 中，当最终 cache line 达到当前 CPU 时再执行这个写操作。
+>当写入到一行 invalidate 状态的 cache line 时便会使用到 store buffer。写如果要继续执行，CPU 需要先发出一条 read-invalid 消息(因为需要确保所有其它缓存了当前内存地址的 CPU 的 cache line 都被 invalidate 掉)，然后将写推入到 store buffer 中，当最终 cache line 达到当前 CPU 时再执行这个写操作。
 
-CPU 存在 store buffer 的直接影响是，当 CPU 提交一个写操作时，这个写操作不会立即写入到 cache 中。因而，无论什么时候 CPU 需要从 cache line 中读取，都需要先扫描它自己的 store buffer 来确认是否存在相同的 line，因为有可能当前 CPU 在这次操作之前曾经写入过 cache，但该数据还没有被刷入过 cache(之前的写操作还在 store buffer 中等待)。需要注意的是，虽然 CPU 可以读取其之前写入到 store buffer 中的值，但其它 CPU 并不能在该 CPU 将 store buffer 中的内容 flush 到 cache 之前看到这些值。即 store buffer 是不能跨核心访问的，CPU 核心看不到其它核心的 store buffer。
+>CPU 存在 store buffer 的直接影响是，当 CPU 提交一个写操作时，这个写操作不会立即写入到 cache 中。因而，无论什么时候 CPU 需要从 cache line 中读取，都需要先扫描它自己的 store buffer 来确认是否存在相同的 line，因为有可能当前 CPU 在这次操作之前曾经写入过 cache，但该数据还没有被刷入过 cache(之前的写操作还在 store buffer 中等待)。需要注意的是，虽然 CPU 可以读取其之前写入到 store buffer 中的值，但其它 CPU 并不能在该 CPU 将 store buffer 中的内容 flush 到 cache 之前看到这些值。即 store buffer 是不能跨核心访问的，CPU 核心看不到其它核心的 store buffer。
 
-Invalidate Queues：
+>Invalidate Queues：
 
-为了处理 invalidation 消息，CPU 实现了 invalidate queue，借以处理新达到的 invalidate 请求，在这些请求到达时，可以马上进行响应，但可以不马上处理。取而代之的，invalidation 消息只是会被推进一个 invalidation 队列，并在之后尽快处理(但不是马上)。因此，CPU 可能并不知道在它 cache 里的某个 cache line 是 invalid 状态的，因为 invalidation 队列包含有收到但还没有处理的 invalidation 消息，这是因为 CPU 和 invalidation 队列从物理上来讲是位于 cache 的两侧的。
+>为了处理 invalidation 消息，CPU 实现了 invalidate queue，借以处理新达到的 invalidate 请求，在这些请求到达时，可以马上进行响应，但可以不马上处理。取而代之的，invalidation 消息只是会被推进一个 invalidation 队列，并在之后尽快处理(但不是马上)。因此，CPU 可能并不知道在它 cache 里的某个 cache line 是 invalid 状态的，因为 invalidation 队列包含有收到但还没有处理的 invalidation 消息，这是因为 CPU 和 invalidation 队列从物理上来讲是位于 cache 的两侧的。
 
-从结果上来讲，memory barrier 是必须的。一个 store barrier 会把 store buffer flush 掉，确保所有的写操作都被应用到 CPU 的 cache。一个 read barrier 会把 invalidation queue flush 掉，也就确保了其它 CPU 的写入对执行 flush 操作的当前这个 CPU 可见。再进一步，MMU 没有办法扫描 store buffer，会导致类似的问题。这种效果对于单线程处理器来说已经是会发生的了。
+>从结果上来讲，memory barrier 是必须的。一个 store barrier 会把 store buffer flush 掉，确保所有的写操作都被应用到 CPU 的 cache。一个 read barrier 会把 invalidation queue flush 掉，也就确保了其它 CPU 的写入对执行 flush 操作的当前这个 CPU 可见。再进一步，MMU 没有办法扫描 store buffer，会导致类似的问题。这种效果对于单线程处理器来说已经是会发生的了。
 
+因为前面提到的 store buffer 的存在，会导致多核心运行用户代码时，读和写以非程序顺序的顺序完成。下面我们用工具来对这种乱序进行一些观察。
 
 ## CPU 导致乱序
 
@@ -124,46 +179,7 @@ Observation SB Sometimes 96 999904
 Time SB 0.11
 ```
 
-## mesi 协议
-
-| | p0 | p1 | p2 | p3 |
-|---|:----:|:----:|:--:| :--: |
-| initial state | I | I | I | I |
-| p0 reads X | E | I | I | I |
-| p1 reads X | S | S | I | I |
-| p2 reads X | S | S | S | I |
-| p3 writes X | I | I | I | M |
-| p0 readx X | S | I | I | S |
-
-![](images/mesi_1.jpg)
-
-下面是不同类型的处理器请求和总线侧的请求:
-
-处理器向 Cache 发请求包括下面这些操作:
-
-PrRd: 处理器请求读取一个 Cache block
-PrWr: 处理器请求写入一个 Cache block
-
-总线侧的请求包含:
-
-BusRd: 监听到请求，表示当前有其它处理器正在发起对某个 Cache block 的读请求
-
-BusRdX: 监听到请求，表示当前有其它处理器正在发起对某个其未拥有的 Cache block 的写请求
-
-BusUpgr: 监听到请求，表示有另一个处理器正在发起对某 Cache block 的写请求，该处理器已经持有此 Cache block 块
-
-Flush: 监听到请求，表示整个 cache 块已被另一个处理器写入到主存中
-
-FlushOpt: 监听到请求，表示一个完整的 cache 块已经被发送到总线，以提供给另一个处理器使用(Cache 到 Cache 传数)
-
-Cache 到 Cache 的传送可以降低 read miss 导致的延迟，如果不这样做，需要先将该 block 写回到主存，再读取，延迟会大大增加，在基于总线的系统中，这个结论是正确的。但在多核架构中，coherence 是在 L2 caches 这一级保证的，从 L3 中取可能要比从另一个 L2 中取还要快。
-
-mesi 协议解决了多核环境下，内存多层级带来的问题。使得 cache 层对于 CPU 来说可以认为是透明的，不存在的。单一地址的变量的写入，可以以线性的逻辑进行理解。
-
-但 mesi 协议有两个问题没有解决，一种是 RMW 操作，或者叫 CAS；一种是 ADD 操作。因为这两种操作都需要先读到原始值，进行修改，然后再写回到内存中。
-
-同时，在 CPU 架构中我们看到 CPU 除了 cache 这一层之外，还存在 store buffer，而 store buffer 导致的内存乱序问题，mesi 协议是解决不了的，这是 memory consistency 范畴讨论的问题。
-
+在两个核心上运行汇编指令，意料之外的情况 100w 次中出现了 96 次。虽然很少，但确实是客观存在的情况。
 
 ## barrier
 
@@ -207,7 +223,9 @@ mfence 会等待当前核心中的 store buffer 排空之后再执行后续指�
 
 https://stackoverflow.com/questions/27595595/when-are-x86-lfence-sfence-and-mfence-instructions-required
 
-直接考虑硬件的 fence 指令太复杂了，思考过程应该是，先从程序逻辑出发，然后考虑需要使用哪种 barrier/fence(LL LS SS SL)，然后再找对应硬件平台上对应的 fence 指令。
+直接考虑硬件的 fence 指令太复杂了，因为硬件提供的 fence 指令和我们前面说的 RW RR WW WR barrier 逻辑并不是严格对应的。
+
+我们在写程序的时候的思考过程应该是，先从程序逻辑出发，然后考虑需要使用哪种 barrier/fence(LL LS SS SL)，然后再找对应硬件平台上对应的 fence 指令。
 
 ## acquire/release 语义
 
