@@ -350,19 +350,61 @@ func BenchmarkNormal(b *testing.B) {
 	}
 }
 
+func BenchmarkAtomicParallel(b *testing.B) {
+	b.SetParallelism(100)
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			atomic.StoreInt64(&a, int64(0))
+		}
+	})
+}
+
 ```
+
+结果:
 
 ```shell
-go test -bench=.
 goos: darwin
 goarch: amd64
-BenchmarkAtomic-4   	200000000	         7.00 ns/op
-BenchmarkNormal-4   	2000000000	         0.39 ns/op
+BenchmarkAtomic-4           	200000000	         7.01 ns/op
+BenchmarkNormal-4           	2000000000	         0.63 ns/op
+BenchmarkAtomicParallel-4   	100000000	        15.8 ns/op
 PASS
-ok  	_/Users/xx/test/go/atomic_bench	2.925s
+ok  	_/Users/didi/test/go/atomic_bench	5.051s
 ```
 
+可见，atomic 耗时比普通赋值操作要高一个数量级，在有竞争的情况下会更加慢。
+
 ## false sharing / true sharing
+
+true sharing 的概念比较好理解，在对全局变量或局部变量进行多线程修改时，就是一种形式的共享，而且非常字面意思，就是 true sharing。true sharing 带来的明显的问题，例如 RWMutex scales poorly 的官方 issue，即 RWMutex 的 RLock 会对 RWMutex 这个对象的 readerCount 原子加一。本质上就是一种 true sharing。
+
+false sharing 指的是那些意料之外的共享。我们知道 CPU 是以 cacheline 为单位进行内存加载的，L1 的 cache line 大小一般是 64 bytes，如果两个变量，或者两个结构体在内存上相邻，那么在 CPU 加载并修改前一个变量的时候，会把第二个变量也加载到 cache line 中，这时候如果恰好另一个核心在使用第二个变量，那么在 P1 修改掉第一个变量的时候，会把整个 cache line invalidate 掉，这时候 P2 要修改第二个变量的话，就需要再重新加载该 cache line。导致了无谓的加载。
+
+在 Go 的 runtime 中有不少例子，特别是那些 per-P 的结构，大多都有针对 false sharing 的优化:
+
+runtime/time.go
+
+```go
+var timers [timersLen]struct {
+	timersBucket
+
+	// The padding should eliminate false sharing
+	// between timersBucket values.
+	pad [cpu.CacheLinePadSize - unsafe.Sizeof(timersBucket{})%cpu.CacheLinePadSize]byte
+}
+```
+
+runtime/sema.go
+
+```go
+var semtable [semTabSize]struct {
+	root semaRoot
+	pad  [cpu.CacheLinePadSize - unsafe.Sizeof(semaRoot{})]byte
+}
+```
+
+用户态的代码对 false sharing 其实关注的比较少。
 
 参考资料：
 
