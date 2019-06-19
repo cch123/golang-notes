@@ -23,5 +23,5 @@
 17. [x] [Syscall](syscall.md)
 18. [x] [Memory](memory.md)
 19. [x] [Semaphore](semaphore.md)
-20. [ ] [Memory Barrier](memory_barrier.md)
+20. [x] [Memory Barrier](memory_barrier.md)
 21. [ ] [Lock Free](lockfree.md)

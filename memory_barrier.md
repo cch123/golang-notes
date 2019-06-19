@@ -288,11 +288,11 @@ https://preshing.com/20130922/acquire-and-release-fences/
 
 ## cache coherency vs memory consistency
 
-The MESI protocol makes the memory caches effectively invisible. This means that multithreaded programs don't have to worry about a core reading stale data from them or two cores writing to different parts of a cache line and getting half of one write and half of the other sent to main memory.
+MESI 协议使 cache 层对 CPU 透明。多线程程序不需要担心某个核心读到过期数据，或者多个核心同时写入到一行 cache line 的不同部分，而导致 half write 的 cache line 被同步到主存中。
 
-However, this doesn't help with read-modify-write operations such as increment, compare and swap, and so on. The MESI protocol won't stop two cores from each reading the same chunk of memory, each adding one to it, and then each writing the same value back, turning two increments into one.
+然而这种一致性机制没有办法解决 read-modify-write 操作的问题，比如 increment 操作，compare and swap 等操作。MESI 协议并不会阻止两个核心读到相同的内存内容，然后每个核心分别对其加一，再将新的相同的值写回到内存中，相当于将两次加一操作合并成了一次。
 
-On modern CPUs, the LOCK prefix locks the cache line so that the read-modify-write operation is logically atomic. These are oversimplified, but hopefully they'll give you the idea.
+在现代 CPU 上，Lock 前缀会将 cache line 上锁，从而使 read-modify-write 操作在逻辑上具备原子性。下面的说明进行了简化，不过应该可以说明问题。
 
 Unlocked increment:
 
@@ -310,13 +310,13 @@ Locked increment:
 4. Write the new value to the cache line.
 5. Change the cache line to modified and unlock it.
 
-Notice the difference? In the unlocked increment, the cache line is only locked during the write memory operation, just like all writes. In the locked increment, the cache line is held across the entire instruction, all the way from the read operation to the write operation and including during the increment itself.
+在 unlocked increment 操作中，cache line 只在写内存操作时被锁住，和所有类型的写一样。在 locked increment 中，cache line 在整个指令阶段都被持有，从读一直到最后的写操作。
 
-Also, some CPUs have things other than memory caches that can affect memory visibility. For example, some CPUs have a read prefetcher or a posted write buffer that can result in memory operations executing out of order. Where needed, a LOCK prefix (or equivalent functionality on other CPUs) will also do whatever needs to be done to handle memory operation ordering issues.
-
-mesi 协议使得各核心的写操作可以序列化地进行观测，但是却没有办法解决先读后写的问题。而先读后写又是我们在写程序时非常常见的操作，比如对用户访问进行计数。甚至在实现用户逻辑层的 sync 库时，也需要底层提供原子性的 check and set 即 CAS 操作，所以 CPU 一般还会提供一个 lock 指令来应对这种窘境:
+某些 CPU 除了 cache 之外，还有其它的组件会影响内存的可见性。比如一些 CPU 有一个 read prefetcher(预取器)或者 write buffer，会导致内存操作执行乱序。不管有什么组件，LOCK 前缀(或其它 CPU 上的等价方式)可以避免一些内存操作上的顺序问题。
 
 https://stackoverflow.com/questions/29880015/lock-prefix-vs-mesi-protocol
+
+总结一下，cache coherence 解决的是单一地址的写问题，可以使多核心对同一地址的写入序列化。而 memory consistency 说的是不同地址的读写的顺序问题。即全局视角对读写的观测顺序问题。解决 cache coherence 的协议(MESI)并不能解决 CAS 类的问题。同时也解决不了 memory consistency，即不同内存地址读写的可见性问题，要解决 memory consistency 的问题，需要使用 memory barrier 之类的工具。
 
 ## 编译器导致乱序
 
