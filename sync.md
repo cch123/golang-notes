@@ -1013,3 +1013,9 @@ https://www.cnblogs.com/gaochundong/p/lock_free_programming.html
 https://en.cppreference.com/w/cpp/atomic/memory_order
 
 https://github.com/brpc/brpc/blob/master/docs/cn/atomic_instructions.md
+
+FAQ
+
+Q: 非饥饿模式下，有可能不一定是先lock的先释放呗？
+
+A: 
