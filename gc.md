@@ -2,8 +2,8 @@
 
 ## 大致流程
 
+GC 和用户线程并发运行，在 GC 的概念中常见的 mutator 这个词是 Dijkstra 发明的，mutator 本意是改变者，变异子，在 GC 中将用户程序称为 mutator，是因为用户代码会不断地改变对象之间的引用关系。所以我们也看到有人说 mutator 是 fancy word for the 'real program')
 ```
-// Garbage collector (GC).
 //
 // The GC runs concurrently with mutator threads, is type accurate (aka precise), allows multiple
 // GC thread to run in parallel. It is a concurrent mark and sweep that uses a write barrier. It is
