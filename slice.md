@@ -231,6 +231,7 @@ var arr = make([]int, 0, 10)
 ```go
 func main() {
     var a = make([]int, 10)
+    doSomeHappyThings(a)
     fmt.Println(a)
 }
 
