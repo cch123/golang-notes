@@ -166,7 +166,7 @@ make(map[k]v, hint)
 的代码，在 hint <= 8(bucketSize) 时，会调用 makemap_small 来进行初始化，如果 hint > 8，则调用 makemap。
 
 ```go
-make(map[k]v)
+make(map[k]v) // 测试时，把这个作为一个全局变量 var a = make(map[int]int)
 ```
 
 不提供 hint 的代码，编译器始终会调用 makemap_small 来初始化。
