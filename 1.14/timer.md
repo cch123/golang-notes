@@ -471,10 +471,9 @@ loop:
 ```
 
 ```go
-// resettimer resets an existing inactive timer to turn it into an active timer,
-// with a new time for when the timer should fire.
-// This should be called instead of addtimer if the timer value has been,
-// or may have been, used previously.
+// 该函数将已存在的非活跃 timer 进行重置，并将其变为一个活跃的 timer
+// 同时给该 timer 设置新的触发时间
+// 如果某个 timer 已经或者可能已经被使用过了，就不要使用 addtimer，而应该使用这个函数
 func resettimer(t *timer, when int64) {
 	if when < 0 {
 		when = maxWhen
@@ -505,13 +504,12 @@ func resettimer(t *timer, when int64) {
 				return
 			}
 		case timerRemoving:
-			// Wait for the removal to complete.
+			// 等待移除完毕就行了
 			osyield()
 		case timerRunning:
-			// Even though the timer should not be active,
-			// we can see timerRunning if the timer function
-			// permits some other goroutine to call resettimer.
-			// Wait until the run is complete.
+			// 即使 timer 不应该活跃，也可能因为 timer function
+			// 允许其它 goroutine 调用 resettimer 而导致看到 timerRunning 这个状态
+			// 这时候应该等待 timer function 运行完毕
 			osyield()
 		case timerWaiting, timerModifying, timerModifiedEarlier, timerModifiedLater, timerMoving:
 			// Called resettimer on active timer.
@@ -577,10 +575,8 @@ func cleantimers(pp *p) bool {
 ```
 
 ```go
-// moveTimers moves a slice of timers to pp. The slice has been taken
-// from a different P.
-// This is currently called when the world is stopped, but the caller
-// is expected to have locked the timers for pp.
+// 移动一个 timer 切片到 pp。该切片中的 timers 是从另外的 P 中获取到的
+// 当前该函数在 STW 期间调用，不过 caller 还是应该锁住 pp 中的 timers lock
 func moveTimers(pp *p, timers []*timer) {
 	for _, t := range timers {
 	loop:
