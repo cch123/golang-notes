@@ -57,6 +57,7 @@ timer 共有 addtimer，deltimer，modtimer，resettimer，cleantimers，adjustt
 下面是 timer 进行各种操作时的可能状态迁移：
 
 // TODO, draw status migration picture
+// TODO, draw status migration picture
 
 ```go
 //
@@ -211,15 +212,12 @@ func resettimer(t *timer, when int64) {
 
 所以流程是 time.Sleep -> gopark -> resetForSleep -> resettimer -> addInitializedTimer -> (cleantimers && doaddtimer -> wakeNetPoller)。
 
-相比老的 time.Sleep 实现，这里最大的变化是在 goroutine 被唤醒之前，没有锁了(？？？)。
+## 添加 timer 流程
 
 ```go
 // 把 t 放进 timer heap
 //go:linkname startTimer time.startTimer
 func startTimer(t *timer) {
-	if raceenabled {
-		racerelease(unsafe.Pointer(t))
-	}
 	addtimer(t)
 }
 
@@ -233,9 +231,6 @@ func stopTimer(t *timer) bool {
 // reset 一个非活跃的 timer，并把它塞进堆里
 //go:linkname resetTimer time.resetTimer
 func resetTimer(t *timer, when int64) {
-	if raceenabled {
-		racerelease(unsafe.Pointer(t))
-	}
 	resettimer(t, when)
 }
 
@@ -243,8 +238,7 @@ func resetTimer(t *timer, when int64) {
 // 只有新创建的 timer 才应该使用该操作
 // 这样可以避免修改某个 P 的堆上的 timer 的 when 字段，以避免导致 heap 从有序变为无序
 func addtimer(t *timer) {
-	// when must never be negative; otherwise runtimer will overflow
-	// during its delta calculation and never expire other runtime timers.
+    // when 不能是负数，否则在计算 delta 的时候可能溢出，导致其它 timer 永远不过期
 	if t.when < 0 {
 		t.when = maxWhen
 	}
@@ -271,12 +265,10 @@ func addInitializedTimer(t *timer) {
 	wakeNetPoller(when)
 }
 
-// doaddtimer adds t to the current P's heap.
-// It reports whether it saw no problems due to races.
-// The caller must have locked the timers for pp.
+// 给当前的 p 添加 timer
+// 调整小顶堆至合法
 func doaddtimer(pp *p, t *timer) bool {
-	// Timers rely on the network poller, so make sure the poller
-	// has started.
+    // 新的 timer 依赖于 network poller，所以需要确保 poller 已经被启动了
 	if netpollInited == 0 {
 		netpollGenericInit()
 	}
@@ -291,11 +283,12 @@ func doaddtimer(pp *p, t *timer) bool {
 }
 ```
 
+## 删除 timer 流程
+
 ```go
-// deltimer deletes the timer t. It may be on some other P, so we can't
-// actually remove it from the timers heap. We can only mark it as deleted.
-// It will be removed in due course by the P whose heap it is on.
-// Reports whether the timer was removed before it was run.
+// 删除 timer t，这个 t 可能在别的 P 上，所以我们不能直接从 timer 堆中移除它。只能将其置为 deleted 状态。
+// 在合适的时间，该 timer 会被其所在的 P 的的堆上被删除
+// 本函数的返回值表示该 timer 是否在被运行之前移除了
 func deltimer(t *timer) bool {
 	for {
 		switch s := atomic.Load(&t.status); s {
@@ -334,10 +327,10 @@ func deltimer(t *timer) bool {
 	}
 }
 
-// dodeltimer removes timer i from the current P's heap.
-// We are locked on the P when this is called.
-// It reports whether it saw no problems due to races.
-// The caller must have locked the timers for pp.
+// 从其所在的 P 的堆上，删除第 i 个 timer。
+// 本函数调用之前会被锁定在 P 上
+// 函数返回值表示是否有因为 race 导致的问题
+// 本函数需要由 caller 确保 pp 对 timers 的锁已经加好了
 func dodeltimer(pp *p, i int) bool {
 	if t := pp.timers[i]; t.pp.ptr() != pp {
 		throw("dodeltimer: wrong P")
@@ -364,10 +357,10 @@ func dodeltimer(pp *p, i int) bool {
 	return ok
 }
 
-// dodeltimer0 removes timer 0 from the current P's heap.
-// We are locked on the P when this is called.
-// It reports whether it saw no problems due to races.
-// The caller must have locked the timers for pp.
+// 删除 P 的 timer 堆上的第 0 个 timer
+// 调用该函数时，需要锁定至 P
+// 返回值表示是否有 race 问题
+// caller 必须确保 pp 已对 timers 上了锁
 func dodeltimer0(pp *p) bool {
 	if t := pp.timers[0]; t.pp.ptr() != pp {
 		throw("dodeltimer0: wrong P")
@@ -389,8 +382,8 @@ func dodeltimer0(pp *p) bool {
 ```
 
 ```go
-// modtimer modifies an existing timer.
-// This is called by the netpoll code.
+// 修改已经存在的 timer
+// 该函数被 netpoll 代码所调用
 func modtimer(t *timer, when, period int64, f func(interface{}, uintptr), arg interface{}, seq uintptr) {
 	if when < 0 {
 		when = maxWhen
@@ -822,19 +815,11 @@ func runtimer(pp *p, now int64) int64 {
 ```
 
 ```go
-// runOneTimer runs a single timer.
-// The caller must have locked the timers for pp.
-// This will temporarily unlock the timers while running the timer function.
+// 运行一个独立的 timer
+// caller 必须让 pp 对 timers 上锁
+// 在运行 timer 函数时会临时将 timers 的锁 unlock 掉
 //go:systemstack
 func runOneTimer(pp *p, t *timer, now int64) {
-	if raceenabled {
-		ppcur := getg().m.p.ptr()
-		if ppcur.timerRaceCtx == 0 {
-			ppcur.timerRaceCtx = racegostart(funcPC(runtimer) + sys.PCQuantum)
-		}
-		raceacquirectx(ppcur.timerRaceCtx, unsafe.Pointer(t))
-	}
-
 	f := t.f
 	arg := t.arg
 	seq := t.seq
@@ -859,25 +844,12 @@ func runOneTimer(pp *p, t *timer, now int64) {
 		}
 	}
 
-	if raceenabled {
-		// Temporarily use the current P's racectx for g0.
-		gp := getg()
-		if gp.racectx != 0 {
-			throw("runOneTimer: unexpected racectx")
-		}
-		gp.racectx = gp.m.p.ptr().timerRaceCtx
-	}
-
 	unlock(&pp.timersLock)
 
 	f(arg, seq)
 
 	lock(&pp.timersLock)
 
-	if raceenabled {
-		gp := getg()
-		gp.racectx = 0
-	}
 }
 ```
 
