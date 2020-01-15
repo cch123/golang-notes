@@ -118,45 +118,46 @@ timer 的 status 字段可能有下面这些取值：
 
 ```
 const (
-	// Timer has no status set yet.
+    // timer 还没有设置任何状态
+    // 刚 new 出来
 	timerNoStatus = iota
 
-	// Waiting for timer to fire.
-	// The timer is in some P's heap.
+    // 正在等待 timer 被触发
+    // 该 timer 在某个 P 的 heap 中
 	timerWaiting
 
-	// Running the timer function.
-	// A timer will only have this status briefly.
+    // 正在运行 timer 的执行函数
+    // 一个 timer 只会有很短的时间是这个状态
 	timerRunning
 
-	// The timer is deleted and should be removed.
-	// It should not be run, but it is still in some P's heap.
+    // timer 已被 deleted，需要进行 remove
+    // 不应该执行该 timer 了，不过它还在某个 P 的 heap 里
 	timerDeleted
 
-	// The timer is being removed.
-	// The timer will only have this status briefly.
+    // timer 正在被移除
+    // timer 在这个状态也只会持续很短一段时间
 	timerRemoving
 
-	// The timer has been stopped.
-	// It is not in any P's heap.
+    // timer 已被停止:
+    // 不在任何一个 P 的 heap 中
 	timerRemoved
 
-	// The timer is being modified.
-	// The timer will only have this status briefly.
+    // timer 正在被修改
+    // 该状态也只持续很短的时间
 	timerModifying
 
-	// The timer has been modified to an earlier time.
-	// The new when value is in the nextwhen field.
-	// The timer is in some P's heap, possibly in the wrong place.
+    // timer 被修改为了较早的时间
+    // 新的 when 值存在 nextwhen 字段中
+    // timer 在某个 P 的 heap 中，可能是错误的位置
 	timerModifiedEarlier
 
-	// The timer has been modified to the same or a later time.
-	// The new when value is in the nextwhen field.
-	// The timer is in some P's heap, possibly in the wrong place.
+    // timer 被修改为了相同或者较晚的时间
+    // 新的 when 值存储在 nextwhen 字段中
+    // timer 在某个 P 的 heap 中，可能是在错误的位置
 	timerModifiedLater
 
-	// The timer has been modified and is being moved.
-	// The timer will only have this status briefly.
+    // timer 已被修改，并且正在被移动
+    // timer 在这个状态也只持续很短的时间
 	timerMoving
 )
 ```
