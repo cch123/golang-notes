@@ -523,10 +523,9 @@ func resettimer(t *timer, when int64) {
 ```
 
 ```go
-// cleantimers cleans up the head of the timer queue. This speeds up
-// programs that create and delete timers; leaving them in the heap
-// slows down addtimer. Reports whether no timer problems were found.
-// The caller must have locked the timers for pp.
+// cleantimers 会删除 timer 队列头部的那些 timer。这样会加快程序创建和删除 timer 的速度；如果将 timer 保留在堆上的话会使 addtimer 变慢。
+// 函数返回值表示是否碰到了 timer 问题(错误
+// 调用该函数前 caller 需要保证 pp 已经对 timers 上了锁
 func cleantimers(pp *p) bool {
 	for {
 		if len(pp.timers) == 0 {
@@ -567,7 +566,7 @@ func cleantimers(pp *p) bool {
 				return false
 			}
 		default:
-			// Head of timers does not need adjustment.
+			// timer 堆的头部不需要进行调整
 			return true
 		}
 	}
@@ -609,14 +608,16 @@ func moveTimers(pp *p, timers []*timer) {
 				// We no longer need this timer in the heap.
 				break loop
 			case timerModifying:
-				// Loop until the modification is complete.
+				// 循环一直到完成修改操作
 				osyield()
 			case timerNoStatus, timerRemoved:
-				// We should not see these status values in a timers heap.
+				// 理论上不应该在时间堆上看到这两个状态
+				// nostatus 是初始化的时候的默认状态，是入堆前的状态
+				// removed 是移除之后的状态，在堆之外
 				badTimer()
 			case timerRunning, timerRemoving, timerMoving:
-				// Some other P thinks it owns this timer,
-				// which should not happen.
+				// 有其它 P 认为他们持有该 timer
+				// 从原理上讲不应该
 				badTimer()
 			default:
 				badTimer()
