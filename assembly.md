@@ -607,7 +607,7 @@ output.s:
 #include "textflag.h"
 
 // func output(a,b int) int
-TEXT ·output(SB), NOSPLIT, $24-8
+TEXT ·output(SB), NOSPLIT, $24-24
     MOVQ a+0(FP), DX // arg a
     MOVQ DX, 0(SP) // arg x
     MOVQ b+8(FP), CX // arg b
