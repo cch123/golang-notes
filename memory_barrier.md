@@ -235,7 +235,7 @@ https://preshing.com/20130922/acquire-and-release-fences/
 
 在 x86/64 平台上，只有 StoreLoad 乱序，所以你使用 acquire release 时，实际上生成的 fence 是 NOP。
 
-在 Go 语言中也不需要操心这个问题，Go 语言的 atomic 默认是最强的内存序保证，即 sequential consistency。该一致性保证由 Go 保证，在所有运行 Go 的硬件平台上都是一致的。
+在 Go 语言中也不需要操心这个问题，Go 语言的 atomic 默认是最强的内存序保证，即 sequential consistency。该一致性保证由 Go 保证，在所有运行 Go 的硬件平台上都是一致的。当然，这里说的只是 sync/atomic 暴露出来的接口。Go 在 runtime 层有较弱内存序的相关接口，位置在: runtime/internal/atomic。
 
 ## memory order 参数
 
@@ -459,6 +459,12 @@ var semtable [semTabSize]struct {
 ```
 
 用户态的代码对 false sharing 其实关注的比较少。
+
+## runtime 中的 publicationBarrier
+
+TODO
+
+https://github.com/golang/go/issues/35541
 
 参考资料：
 
