@@ -342,6 +342,35 @@ func parentCancelCtx(parent Context) (*cancelCtx, bool) {
 
 ### timerCtx 使用
 
+用 WithDeadline 和 WithTimeout 都可以生成一个 timerCtx:
+
+```go
+package main
+
+import (
+	"context"
+	"fmt"
+	"time"
+)
+
+func main() {
+	// Pass a context with a timeout to tell a blocking function that it
+	// should abandon its work after the timeout elapses.
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+
+	select {
+	case <-time.After(1 * time.Second):
+		fmt.Println("overslept")
+	case <-ctx.Done():
+		fmt.Println(ctx.Err()) // prints "context deadline exceeded"
+	}
+
+}
+```
+
+这是从官方的 example 里摘出来的例子，WithTimeout 其实底层是用 WithDeadline 实现的。
+
 ### timerCtx 分析
 
 ```go
@@ -356,7 +385,7 @@ type timerCtx struct {
 }
 ```
 
-用 WithTimeout 和 WithDeadline 本质都是生成一个 timerCtx。
+用 WithTimeout 和 WithDeadline 都会生成一个 timerCtx。
 
 ```go
 func WithDeadline(parent Context, d time.Time) (Context, CancelFunc) {
@@ -387,27 +416,77 @@ func WithDeadline(parent Context, d time.Time) (Context, CancelFunc) {
 }
 ```
 
-每次执行都会创建新的 timer。
+- 每次执行都会创建新的 timer
+- 子节点的 deadline 一定不会超过父节点
+- 创建过程中发现已经过期了，立刻返回
 
 ## 树形结构
 
 为什么设计成树形结构呢。因为对于 fork-join 的模型(Go 的原地 go func 就是这种模型)来说，程序代码的执行本来就是树形的。在进入、退出某个子节点的时候，既要加新的数据，又不能影响父节点的数据，所以这种链式结构可以完美地匹配。
 
-TODO，这里应该有一张大图
-
 取消某个父节点，又能够用树的遍历算法将该取消指令传导到整棵树去。
-
-TODO，这里应该有一张大图
 
 ## traps
 
 ### cancelCtx 的性能问题
 
-TODO
+如果不通过 WithCancel 来复制通知 channel，大家都使用同一个 ctx.Done，那么实际上是在争一把大锁。
+
+```go
+package main
+
+import "context"
+import "time"
+
+func main() {
+	ctx, _ := context.WithCancel(context.TODO())
+	for i := 0; i < 100; i++ {
+		go func() {
+			select {
+			case <-ctx.Done():
+			}
+		}()
+	}
+	time.Sleep(time.Hour)
+}
+
+```
+
+在一些场景可能会有性能问题。
 
 ### ctx 的打印 panic
 
-TODO
+http 中的 ctx 还塞了 map，打印会造成 fatal。
+
+```go
+package main
+
+import (
+    "fmt"
+    "net/http"
+    "reflect"
+)
+
+func panic(w http.ResponseWriter, r *http.Request) {
+    server := r.Context().Value(http.ServerContextKey).(*http.Server)
+    v := reflect.ValueOf(*server)
+
+    for i := 0; i < v.NumField(); i++ {
+        if name := v.Type().Field(i).Name; name != "activeConn" {
+            continue
+        }
+        fmt.Println(v.Field(i))
+    }
+}
+
+func main() {
+    http.HandleFunc("/", panic)
+    err := http.ListenAndServe(":9090", nil)
+    if err != nil {
+        fmt.Println(err)
+    }
+}
+```
 
 # 总结
 
