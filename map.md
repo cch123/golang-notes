@@ -870,7 +870,7 @@ func evacuate(t *maptype, h *hmap, oldbucket uintptr) {
                         //    1111
                         // 所以实际上这个就是
                         // xxx1xxx & 1000 > 0
-                        // 说明这个元素在扩容后一定会去下半区
+                        // 说明这个元素在扩容后一定会去下半区，即Y部分
                         // 所以就是 useY 了
                         if hash&newbit != 0 {
                             useY = 1
