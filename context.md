@@ -319,7 +319,7 @@ func propagateCancel(parent Context, child canceler) {
 }
 ```
 
-parentCancelCtx 只识别 context 包内的三种类型，如果用户自己的类实现了 context.Context 接口，或者把  ctx 包在了自己的类型内，那这里始终返回的是 nil，false。
+parentCancelCtx 只识别 context 包内的三种类型，如果用户自己的类实现了 context.Context 接口，或者把  ctx 包在了自己的类型内，或者是 emptyCtx，那这里始终返回的是 nil，false。
 
 ```go
 func parentCancelCtx(parent Context) (*cancelCtx, bool) {
