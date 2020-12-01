@@ -305,7 +305,7 @@ TEXT runtime·read(SB),NOSPLIT,$0-28
     RET
 ```
 
-下面是所有 runtime 另外定义的 syscall 列表:
+下面是所有 runtime 另外定义的 syscall 列表（不同架构的机器映射各不相同，linux 下具体可通过 ausyscall --dump 命令获取系统调用映射表进行查看）:
 
 ```go
 #define SYS_read        0
