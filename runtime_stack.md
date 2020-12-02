@@ -268,7 +268,7 @@ func callers(skip int, pcbuf []uintptr) int {
 `callers` 函数大部分逻辑和之前的 `runtime.Stack`函数中 `traceback` 大同小异，唯一不同的就是
 `gentraceback` 调用的入参 `max` 参数是人为设置的，并且进针对当前 `goroutine` 进行
 ## 总结
-- stack dump 操作是否会有性能损耗，损耗在哪儿（是
+- stack dump 操作是否会有性能损耗（是），损耗在哪儿
   - 与调用方式有关，如果是通过类似 `runtime.Stack` 方法打印所有堆栈信息的， 会触发 `STW` 操作，是一个代价比较大的操作
   - 与需要追溯的栈帧数量有关
   - 会触发协程的切换
