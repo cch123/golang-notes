@@ -1,15 +1,15 @@
-## Stack Dump
+# Stack Dump
 
 > 引言：在工程中经常需要在异常发生的时候打印相应的日志，或利用成熟的第三方日志库，或自己进行简单的实现，在相应日志输出的时候，常常会有不同的级别，当遇到 error 或者 panic 之类的情况的时候，通常需要输出相应堆栈信息来辅助我们进行问题的定位以及解决，那么，关于堆栈这块的信息我们该怎么获取，获取的时候需要注意什么，以及堆栈的获取会对程序造成什么影响，会带来多大的性能损耗？日志库的使用或者进行相关配置我们该怎么选择？本章的目的就是深入一下 golang 中 stack dump 的细节
 
-### STACK APIs
+## STACK APIs
 - debug.Stack
   - debug.PrintStack
 - runtime.Stack
 - runtime.Callers
   - runtime.Caller
   
-#### debug.Stack & debug.PrintStack
+## debug.Stack & debug.PrintStack
 ```go
 package main
 
@@ -210,7 +210,7 @@ const _TracebackMaxFrames = 100
 ```
 最大帧数为固定值 100，意味着在 stack dump 时需要追溯至多 100 个栈帧的信息，O(N) 复杂度。
 
-#### runtime.Caller & runtime.Callers
+## runtime.Caller & runtime.Callers
 runtime/extern.go
 ```go
 // Caller reports file and line number information about function invocations on
@@ -267,7 +267,7 @@ func callers(skip int, pcbuf []uintptr) int {
 ```
 `callers` 函数大部分逻辑和之前的 `runtime.Stack`函数中 `traceback` 大同小异，唯一不同的就是
 `gentraceback` 调用的入参 `max` 参数是人为设置的，并且进针对当前 `goroutine` 进行
-#### 总结
+## 总结
 - stack dump 操作是否会有性能损耗，损耗在哪儿（是
   - 与调用方式有关，如果是通过类似 `runtime.Stack` 方法打印所有堆栈信息的， 会触发 `STW` 操作，是一个代价比较大的操作
   - 与需要追溯的栈帧数量有关
@@ -278,5 +278,5 @@ func callers(skip int, pcbuf []uintptr) int {
   - 以 `runtime.Callers` 与 `runtime.CallersFrames` 相结合代替 `runtime.Stack` 、`debug.Stack`，避免使用默认的 `stack dump` 配置，根据自己的业务情况选择合适的栈帧数量（如不同级别的日志打印不同数量的栈帧信息），知名的开源日志库 `github.com/uber-go/zap` 正是使用这种思路
   
 ----
-##### 参考：
+### 参考：
 [zap stacktrace 实现](https://homes.cs.washington.edu/~bornholt/post/memory-models.html)
