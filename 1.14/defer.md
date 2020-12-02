@@ -1,5 +1,7 @@
 # 1.14 defer
 
+## 正常处理流程
+
 在 Go 1.14 中，增加了一种新的 defer 实现：open coded defer。当函数内 defer 不超过 8 个时，则会使用这种实现。
 
 ```go
@@ -264,7 +266,7 @@ DEFER 逻辑执行部分
 	0x043a 01082 (open-coded-defer.go:31)	LEAQ	fmt.Println·f(SB), CX
 	0x0441 01089 (open-coded-defer.go:8)	JMP	188
 
-这段代码没什么用，因为不会跳过来的，可能是可以优化的一个点
+这段代码没什么用，只有在 panic 时，才可能跳到这里，但本例中无 panic
 	0x0446 01094 (open-coded-defer.go:8)	CALL	runtime.deferreturn(SB)
 	0x044b 01099 (open-coded-defer.go:8)	MOVQ	344(SP), BP
 	0x0453 01107 (open-coded-defer.go:8)	ADDQ	$352, SP
@@ -275,3 +277,34 @@ DEFER 逻辑执行部分
 	0x045b 01115 (open-coded-defer.go:7)	CALL	runtime.morestack_noctxt(SB)
 	0x0460 01120 (open-coded-defer.go:7)	JMP	0
 ```
+
+超过 8 个 defer 时会退化回以前的 defer 链，也可以观察一下:
+
+```go
+package main
+
+func main() {
+	defer println(1)
+	defer println(1)
+	defer println(1)
+	defer println(1)
+	defer println(1)
+	defer println(1)
+	defer println(1)
+	defer println(1)
+	defer println(1)
+	defer println(1)
+}
+```
+
+编译出的汇编就不贴了，和以前的没什么区别。
+
+可以做个简单的总结了:
+
+* open coded defer 在函数内部总 defer 数量少于 8 时才会使用，大于 8 时会退化回老的 defer 链，这个权衡是考虑到程序文件的体积(个人觉得应该也有栈膨胀的考虑在)
+* 使用 open coded defer 时，在进入函数内的每个 block 时，都会设置这个 block 相应的 bit(ORL 指令)，在执行到相应的 defer 语句时，把 defer 语句的参数和调用函数地址推到栈的相应位置
+* 在栈上需要为这些 defer 调用的参数、函数地址，以及这个用来记录 defer bits 的 byte 预留空间，所以毫无疑问，函数的 framesize 会变大
+
+参考资料:
+
+1. [open coded defer](https://github.com/golang/proposal/blob/master/design/34481-opencoded-defers.md)
