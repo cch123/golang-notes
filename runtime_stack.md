@@ -279,4 +279,4 @@ func callers(skip int, pcbuf []uintptr) int {
   
 ----
 ### 参考：
-[zap stacktrace 实现](https://homes.cs.washington.edu/~bornholt/post/memory-models.html)
+[zap stacktrace 实现](https://github.com/uber-go/zap/blob/v1.16.0/stacktrace.go)
