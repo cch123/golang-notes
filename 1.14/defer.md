@@ -176,7 +176,8 @@ FUNCTION END, FLAG CHECKS, 这里要检查上面设置的所有的 open coded de
 	0x02b7 00695 (open-coded-defer.go:31)	ADDQ	$352, SP
 	0x02be 00702 (open-coded-defer.go:31)	RET
 
-DEFER 逻辑执行部分:
+DEFER 逻辑执行部分
+    // defer fmt.Println("6"):
 	0x02bf 00703 (open-coded-defer.go:31)	ANDL	$-2, DX
 	0x02c2 00706 (open-coded-defer.go:31)	MOVB	DL, ""..autotmp_24+55(SP)
 	0x02c6 00710 (open-coded-defer.go:31)	MOVQ	""..autotmp_26+320(SP), AX
@@ -188,6 +189,7 @@ DEFER 逻辑执行部分:
 	0x02ec 00748 (open-coded-defer.go:31)	CALL	fmt.Println(SB)
 	0x02f1 00753 (open-coded-defer.go:31)	JMP	687
 
+    // defer fmt.Println("5"):
 	0x02f3 00755 (open-coded-defer.go:31)	ANDL	$-3, DX
 	0x02f6 00758 (open-coded-defer.go:31)	MOVB	DL, ""..autotmp_37+54(SP)
 	0x02fa 00762 (open-coded-defer.go:31)	MOVB	DL, ""..autotmp_24+55(SP)
@@ -201,6 +203,7 @@ DEFER 逻辑执行部分:
 	0x0329 00809 (open-coded-defer.go:31)	MOVBLZX	""..autotmp_37+54(SP), DX
 	0x032e 00814 (open-coded-defer.go:31)	JMP	682
 
+    // defer fmt.Println("4"):
 	0x0333 00819 (open-coded-defer.go:31)	ANDL	$-5, DX
 	0x0336 00822 (open-coded-defer.go:31)	MOVB	DL, ""..autotmp_37+54(SP)
 	0x033a 00826 (open-coded-defer.go:31)	MOVB	DL, ""..autotmp_24+55(SP)
@@ -214,6 +217,7 @@ DEFER 逻辑执行部分:
 	0x0369 00873 (open-coded-defer.go:31)	MOVBLZX	""..autotmp_37+54(SP), DX
 	0x036e 00878 (open-coded-defer.go:31)	JMP	677
 
+    // defer fmt.Println("3"):
 	0x0373 00883 (open-coded-defer.go:31)	ANDL	$-9, DX
 	0x0376 00886 (open-coded-defer.go:31)	MOVB	DL, ""..autotmp_37+54(SP)
 	0x037a 00890 (open-coded-defer.go:31)	MOVB	DL, ""..autotmp_24+55(SP)
@@ -227,6 +231,7 @@ DEFER 逻辑执行部分:
 	0x03a9 00937 (open-coded-defer.go:31)	MOVBLZX	""..autotmp_37+54(SP), DX
 	0x03ae 00942 (open-coded-defer.go:31)	JMP	668
 
+    // defer fmt.Println("2"):
 	0x03b3 00947 (open-coded-defer.go:31)	ANDL	$-17, DX
 	0x03b6 00950 (open-coded-defer.go:31)	MOVB	DL, ""..autotmp_37+54(SP)
 	0x03ba 00954 (open-coded-defer.go:31)	MOVB	DL, ""..autotmp_24+55(SP)
@@ -240,6 +245,7 @@ DEFER 逻辑执行部分:
 	0x03e9 01001 (open-coded-defer.go:31)	MOVBLZX	""..autotmp_37+54(SP), DX
 	0x03ee 01006 (open-coded-defer.go:31)	JMP	659
 
+    // defer fmt.Println("1"):
 	0x03f3 01011 (open-coded-defer.go:31)	ANDL	$-33, DX
 	0x03f6 01014 (open-coded-defer.go:31)	MOVB	DL, ""..autotmp_37+54(SP)
 	0x03fa 01018 (open-coded-defer.go:31)	MOVB	DL, ""..autotmp_24+55(SP)
@@ -258,10 +264,13 @@ DEFER 逻辑执行部分:
 	0x043a 01082 (open-coded-defer.go:31)	LEAQ	fmt.Println·f(SB), CX
 	0x0441 01089 (open-coded-defer.go:8)	JMP	188
 
+这段代码没什么用，因为不会跳过来的，可能是可以优化的一个点
 	0x0446 01094 (open-coded-defer.go:8)	CALL	runtime.deferreturn(SB)
 	0x044b 01099 (open-coded-defer.go:8)	MOVQ	344(SP), BP
 	0x0453 01107 (open-coded-defer.go:8)	ADDQ	$352, SP
 	0x045a 01114 (open-coded-defer.go:8)	RET
+
+函数 prologue 栈检查的时候可能会跳到这里
 	0x045b 01115 (open-coded-defer.go:8)	NOP
 	0x045b 01115 (open-coded-defer.go:7)	CALL	runtime.morestack_noctxt(SB)
 	0x0460 01120 (open-coded-defer.go:7)	JMP	0
