@@ -4,6 +4,41 @@
 
 在 Go 1.14 中，增加了一种新的 defer 实现：open coded defer。当函数内 defer 不超过 8 个时，则会使用这种实现。
 
+形如下面这样的代码:
+
+```go
+defer f1(a)
+if cond {
+ defer f2(b)
+}
+body...
+```
+
+会被翻译为:
+
+```go
+deferBits |= 1<<0  // 因为函数主 block 有 defer 语句，所以这里要设置第 0 位为 1
+tmpF1 = f1 // 将函数地址搬运到预留的栈上空间
+tmpA = a // 将函数参数复制到预留的栈上空间
+if cond {
+ deferBits |= 1<<1 // 因为进入了 if block，所以这里要设置第 1 位为 1
+ tmpF2 = f2 // 将函数地址搬运到预留的栈上空间
+ tmpB = b // 将函数参数复制到预留的栈上空间
+}
+body...
+exit: // 退出函数 body
+if deferBits & 1<<1 != 0 { // 检查第 1 个 bit，如果是 1，执行保存好的函数
+ deferBits &^= 1<<1
+ tmpF2(tmpB)
+}
+if deferBits & 1<<0 != 0 { // 检查第 0 个 bit，如果是 1，执行保存好的函数
+ deferBits &^= 1<<0
+ tmpF1(tmpA)
+}
+```
+
+这样看我们不一定知道他具体是怎么实现的，可以写个 block 更多的例子来看看实际生成的代码是什么样的:
+
 ```go
      1	package main
      2
@@ -38,7 +73,7 @@
     31	}
 ```
 
-可以分析上面的代码生成的汇编来理解这个新版的 open coded defer 到底是怎么实现的：
+下面是 go tool compile -S 生成的汇编代码，简单划分一下 block 来理解一下:
 
 ```
 "".main STEXT size=1125 args=0x0 locals=0x160
@@ -278,6 +313,8 @@ DEFER 逻辑执行部分
 	0x0460 01120 (open-coded-defer.go:7)	JMP	0
 ```
 
+整体流程还好，不过比起以前堆上分配一个 `_defer` 链表，函数执行完之后直接遍历链表还是复杂太多了。
+
 超过 8 个 defer 时会退化回以前的 defer 链，也可以观察一下:
 
 ```go
@@ -299,11 +336,122 @@ func main() {
 
 编译出的汇编就不贴了，和以前的没什么区别。
 
-可以做个简单的总结了:
+结合代码分析过程和 proposal 中的描述，总结:
 
 * open coded defer 在函数内部总 defer 数量少于 8 时才会使用，大于 8 时会退化回老的 defer 链，这个权衡是考虑到程序文件的体积(个人觉得应该也有栈膨胀的考虑在)
 * 使用 open coded defer 时，在进入函数内的每个 block 时，都会设置这个 block 相应的 bit(ORL 指令)，在执行到相应的 defer 语句时，把 defer 语句的参数和调用函数地址推到栈的相应位置
 * 在栈上需要为这些 defer 调用的参数、函数地址，以及这个用来记录 defer bits 的 byte 预留空间，所以毫无疑问，函数的 framesize 会变大
+
+## panic 处理部分
+
+proposal 有两部分，一部分是讲 open coded defer 的实现，另一部分是说 panic 的处理，现在在函数中发生 panic 时，我们没有办法获得原来的 `_defer` 结构体了，所以必须在编译期，给每个函数准备一项 FUNCDATA，存储每一个 defer block 的地址。这样 runtime 就可以通过 FUNCDATA 和偏移找到需要执行的 defer block 在什么地方。
+
+```
+	0x004a 00074 (defer.go:8)	FUNCDATA	$2, gclocals·951c056c1b0a4d6097d387fbe928bbbf(SB)
+	0x004a 00074 (defer.go:8)	FUNCDATA	$3, "".main.stkobj(SB)
+	0x004a 00074 (defer.go:8)	FUNCDATA	$5, "".main.opendefer(SB)
+
+	....
+
+	"".main.opendefer SRODATA dupok size=29
+	0x0000 30 c1 01 04 30 80 01 01 60 18 00 30 78 01 48 18  0...0...`..0x.H.
+	0x0010 00 30 70 01 30 18 00 30 68 01 18 18 00           .0p.0..0h....
+```
+
+这里的 main.opendefer 在编译为二进制之后，可能会被优化掉。不过我们理解基本的执行流程就可以了。
+
+跟踪 runtime.gopanic 的流程，可以看到现在的 defer 上有 openDefer 的 bool 值:
+
+```
+(dlv) p d
+*runtime._defer {
+	siz: 48,
+	started: true,
+	heap: false,
+	openDefer: false,
+	sp: 824634391712,
+	pc: 17590156,
+	fn: *runtime.funcval {fn: 17565744},
+	_panic: *runtime._panic nil,
+	link: *runtime._defer {
+		siz: 8,
+		started: false,
+		heap: true,
+		openDefer: true,
+		sp: 824634392456,
+		pc: 17001293,
+		fn: *runtime.funcval nil,
+		_panic: *runtime._panic nil,
+		link: *runtime._defer nil,
+		fd: unsafe.Pointer(0x10fea48),
+		varp: 824634392528,
+		framepc: 17000984,},
+	fd: unsafe.Pointer(0x0),
+	varp: 0,
+	framepc: 0,}
+(dlv) n
+```
+
+执行具体的 defer 逻辑在 runtime.runOpenDeferFrame，也没啥神奇的:
+
+```go
+func runOpenDeferFrame(gp *g, d *_defer) bool {
+	done := true
+	fd := d.fd
+
+	// Skip the maxargsize
+	_, fd = readvarintUnsafe(fd)
+	deferBitsOffset, fd := readvarintUnsafe(fd)
+	nDefers, fd := readvarintUnsafe(fd)
+	deferBits := *(*uint8)(unsafe.Pointer(d.varp - uintptr(deferBitsOffset)))
+
+	for i := int(nDefers) - 1; i >= 0; i-- {
+		// read the funcdata info for this defer
+		var argWidth, closureOffset, nArgs uint32
+		argWidth, fd = readvarintUnsafe(fd)
+		closureOffset, fd = readvarintUnsafe(fd)
+		nArgs, fd = readvarintUnsafe(fd)
+		if deferBits&(1<<i) == 0 {
+			for j := uint32(0); j < nArgs; j++ {
+				_, fd = readvarintUnsafe(fd)
+				_, fd = readvarintUnsafe(fd)
+				_, fd = readvarintUnsafe(fd)
+			}
+			continue
+		}
+		closure := *(**funcval)(unsafe.Pointer(d.varp - uintptr(closureOffset)))
+		d.fn = closure
+		deferArgs := deferArgs(d)
+		// If there is an interface receiver or method receiver, it is
+		// described/included as the first arg.
+		for j := uint32(0); j < nArgs; j++ {
+			var argOffset, argLen, argCallOffset uint32
+			argOffset, fd = readvarintUnsafe(fd)
+			argLen, fd = readvarintUnsafe(fd)
+			argCallOffset, fd = readvarintUnsafe(fd)
+			memmove(unsafe.Pointer(uintptr(deferArgs)+uintptr(argCallOffset)),
+				unsafe.Pointer(d.varp-uintptr(argOffset)),
+				uintptr(argLen))
+		}
+		deferBits = deferBits &^ (1 << i)
+		*(*uint8)(unsafe.Pointer(d.varp - uintptr(deferBitsOffset))) = deferBits
+		p := d._panic
+		reflectcallSave(p, unsafe.Pointer(closure), deferArgs, argWidth)
+		if p != nil && p.aborted {
+			break
+		}
+		d.fn = nil
+		// These args are just a copy, so can be cleared immediately
+		memclrNoHeapPointers(deferArgs, uintptr(argWidth))
+		if d._panic != nil && d._panic.recovered {
+			done = deferBits == 0
+			break
+		}
+	}
+
+	return done
+
+```
 
 参考资料:
 
