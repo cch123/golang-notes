@@ -111,6 +111,7 @@ atomic.CompareAndSwap 即是使用 lock cmpxchg 来实现的。
 
 > Actually modern Intel CPUs (since the Pentium pro) only lock the bus in very rare exceptions. Generally they use cache locking which is much, much more efficient and basically just follows from the usual cache coherence protocol (e.g. exclusive state in MESI). 
 
+[Atomic 详解](atomic.md)
 ## waitgroup
 
 ```go
