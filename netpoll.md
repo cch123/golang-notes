@@ -397,6 +397,10 @@ func poll_runtime_pollOpen(fd uintptr) (*pollDesc, int) {
 ```go
 func netpollopen(fd uintptr, pd *pollDesc) int32 {
     var ev epollevent
+    // linux 下 epoll 采用了 ET 模式
+    // epoll 下用户可以 watch 的 descriptors 是有上限的
+    // 具体上限的查看及配置可以通过 /proc/sys/fs/epoll/max_user_watches 系统虚拟文件进行操作
+    // https://github.com/torvalds/linux/blob/v4.9/fs/eventpoll.c#L259-L263
     ev.events = _EPOLLIN | _EPOLLOUT | _EPOLLRDHUP | _EPOLLET
     *(**pollDesc)(unsafe.Pointer(&ev.data)) = pd
     return -epollctl(epfd, _EPOLL_CTL_ADD, int32(fd), &ev)
