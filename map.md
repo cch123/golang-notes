@@ -667,6 +667,12 @@ search:
 }
 ```
 
+## 缩容
+
+Go 的 map 是不会缩容的，除非你把整个 map 删掉:
+
+https://github.com/golang/go/issues/20135
+
 ## 扩容
 
 扩容触发在 mapassign 中，我们之前注释过了，主要是两点:
