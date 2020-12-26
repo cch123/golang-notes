@@ -52,9 +52,75 @@ kill(444444, SIGKILL)                   = -1 ESRCH (No such process)
 ...
 ```
 
+### signal
+
+最简单的修改信号行为的 syscall 就是 signal，因为在 Go 里写裸的 signal handler 不太容易，这里用 c 来演示:
+
+```cpp
+// https://www.geeksforgeeks.org/signals-c-language/
+#include<stdio.h> 
+#include<signal.h> 
+
+void handle_sigint(int sig) 
+{ 
+	printf("Caught signal %d\n", sig); 
+} 
+
+int main() 
+{ 
+	signal(SIGINT, handle_sigint); 
+	while (1) ; 
+	return 0; 
+} 
+```
+
+在命令行中执行该程序，每次按下 ctrl+c 都会看到有 `^CCaught signal 2` 的输出。但是 signal 这个 syscall 实在是太简单了，信号到来的时候如果有更多的可配置项和程序上下文，就可以让我们做更复杂的操作。所以才会有 sigaction 这样的稍微复杂一些的信号处理 syscall。
+
 ### sigaction
 
-设置信号执行时的 sighandler，
+用 sigaction 可以写出和用 signal 完全一致的效果:
+
+```cpp
+#include<stdio.h> 
+#include<signal.h> 
+
+void handle_sigint(int sig) 
+{ 
+	printf("Caught signal %d\n", sig); 
+} 
+
+int main() 
+{ 
+	struct sigaction act;
+	act.sa_handler = handle_sigint;
+	sigemptyset(&act.sa_mask);
+	act.sa_flags = 0;
+	sigaction(SIGINT, &act, NULL); 
+	while (1) ; 
+	return 0; 
+} 
+```
+
+这段代码和上面的效果是一样的，每次按 ctrl+c 都会输出 `^CCaught signal 2`。
+
+sigaction 的 sa_handler 和 sa_sigaction 共同组成一个 C 语言的 union 结构(在 Mac OS 上是这样，暂时没 linux 环境，凑和看吧):
+
+```cpp
+/* union for signal handlers */
+union __sigaction_u {
+	void    (*__sa_handler)(int);
+	void    (*__sa_sigaction)(int, struct __siginfo *,
+	    void *);
+};
+```
+
+也就是说我们想简单处理，就用 sa_handler，想做复杂些的功能就用 sa_sigaction。
+
+sigaction 的三个参数:
+
+* int 就是 signal number
+* siginfo 中包含一些信号的上下文信息，比如发送信号的进程 id，出现信号的指令地址等等。
+* void * 是一个很特殊的参数
 
 ### sigaltstack
 
