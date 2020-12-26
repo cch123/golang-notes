@@ -2,7 +2,9 @@
 
 ## 信号概念
 
-信号是一种发给进程的通知，以告知有事件发生。有时信号也被称为软件中断。从中断用户控制流来说，信号和硬件中断是类似的；在大多场景下，信号何时到达进程是无法预测的。
+信号是一种在有事件发生时，发送给进程的通知。也可以认为信号是进程之间的一种通信机制。
+
+信号也被称为软件中断。从中断用户控制流来说，信号和硬件中断是类似的；在大多场景下，信号何时到达进程是无法预测的。
 
 信号可以由内核发给用户进程，可以用户进程发给自己，也可以用户进程发给其它的用户进程。
 
@@ -10,7 +12,7 @@
 
 ## 信号是易失的么
 
-有一种传言认为信号是易失的，但实际上在早期的 unix 实现中才是易失的。这里的易失说的是完全没有把信号传递给相应的进程。由 POSIX.1-1990 标准定义之后实现的信号基本都是可靠信号了。
+有一种传言认为信号是易失的，但实际上在早期的 unix 实现中才是易失的。这里的易失说的是信号在发送给进程的过程中完全丢失。由 POSIX.1-1990 标准定义之后实现的信号基本都是可靠信号了。
 
 但不易失不代表你向同一个进程重复发送相同的信号 100 次，进程就能收到 100 次这个信号，这是怎么回事？
 
@@ -30,9 +32,25 @@ TODO，画个图
 
 信号处理涉及几个 syscall:
 
-### tigkill
+### tgkill
 
 向某个进程的某个线程发信号。
+
+> tgkill() sends the signal sig to the thread with the thread ID tid in the thread group tgid. (By contrast, kill(2) can be used to send a signal only to a process (i.e., thread group) as a whole, and the signal will be delivered to an arbitrary thread within that process.)
+
+> tkill() is an obsolete predecessor to tgkill(). It allows only the target thread ID to be specified, which may result in the wrong thread being signaled if a thread terminates and its thread ID is recycled. Avoid using this system call.
+
+tgkill 是 thread group kill 的缩写，可以给某个进程的某个线程发信号，在 tgkill 之前有一个不带进程 id 的 tkill，不过这个 syscall 可能会杀掉错误的进程，比如正好在发送之前，老进程被销毁，而新进程使用了同样的线程 id。也就是说现在使用的话，都是 tgkill 这个 syscall 了。
+
+与 tgkill 相比，kill 则只能给进程整体发信号，信号可能被进程内的任意线程处理。平常使用比较多的 kill -9 就是使用的 kill 这个 syscall，可以用 strace 来确认:
+
+sudo strace kill -9 pid
+
+```
+...
+kill(444444, SIGKILL)                   = -1 ESRCH (No such process)
+...
+```
 
 ### sigaction
 
