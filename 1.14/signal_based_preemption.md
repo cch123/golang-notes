@@ -137,13 +137,35 @@ sigaction 的三个参数:
 goto 虽然看起来无所不能，但实际上高级语言的 goto 是跳不出函数作用域的，比如下面这样的代码就没法通过编译:
 
 ```go
-TODO
+package main
+
+func xx() {
+xx:
+}
+
+func main() {
+	goto yy
+	goto xx
+yy:
+}
 ```
+
+goto yy，没有问题，但是 goto xx 是不行的。
 
 在其它语言里也一样:
 
 ```c
-TODO
+#include <stdio.h>
+
+void xx() {
+XX:
+    printf("hello world");
+}
+
+int main() {
+    goto XX;
+    return 0;
+}
 ```
 
 ### non-local goto
