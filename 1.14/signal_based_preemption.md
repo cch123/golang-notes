@@ -380,6 +380,21 @@ asyncPreempt 是汇编实现的，分为三个部分:
 └─────────────────────────────────────────────────────────────────────┘     └──────────────────────────────────────────────────────────────────┘
 ```
 
+## asyncPreempt2
+
+```go
+func asyncPreempt2() {
+	gp := getg()
+	gp.asyncSafePoint = true
+	if gp.preemptStop {
+		mcall(preemptPark)
+	} else {
+		mcall(gopreempt_m)
+	}
+	gp.asyncSafePoint = false
+}
+```
+
 ## 总结
 
 TODO，总览图
