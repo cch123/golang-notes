@@ -563,7 +563,15 @@ loop:
 
         switch cas.kind {
         case caseNil:
-            // 这个 case 要怎么触发？
+            /*
+             * var nil_chan chan int
+             * var non_nil_chan chan int = make(chan int)
+             * select {
+             *   case <-nil_chan:
+             *        // here
+             *   case <-non_nil_chan:
+             * }
+             */
             continue
 
         case caseRecv:
