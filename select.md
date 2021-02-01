@@ -825,4 +825,4 @@ sclose:
 
 Q: 如果select多个channel，有一个channel触发了，其他channel的waitlist需要不要主动去除？还是一直在那等着？
 
-A: TODO
+A: waitlist 的出列是由 `func (q *waitq) dequeue() *sudog` 函数控制的，每个 sudog 携带了一个 `selectDone` 标志位，通过 `cas` 操作在每次 `dequeue` 的时候「惰性」去除队列中无效的元素
