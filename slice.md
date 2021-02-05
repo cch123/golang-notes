@@ -318,3 +318,23 @@ func main() {
     fmt.Println(sux)
 }
 ```
+
+## reflect 与 slice
+对于 slice 的操作，除了计算 slice 的内存布局来获取 len, cap, data 以外，同样也可以利用 reflect 来实现
+```go
+    var b []byte = []byte("test")
+    bh := (*reflect.SliceHeader)(unsafe.Pointer(&b))
+    _ = bh.Len // len
+    _ = bh.Cap // cap
+    _ = bh.Data // 底层数组指针
+
+    // 案例: 0 拷贝转换 slice 为 string
+    var str string
+    sh := (*reflect.StringHeader)(unsafe.Pointer(&str))
+    // 从头转换 test
+    sh.Data = bh.Data
+    sh.Len = bh.Len
+    // 从中间截取转换 est
+    sh.Data = (uintptr)(unsafe.Pointer(&b[1]))
+    sh.Len = bh.Len - 1
+```
