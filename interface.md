@@ -1,6 +1,4 @@
-# interface
-
-## iface 和 eface
+# iface 和 eface
 
 Go 使用 iface 和 eface 来表达 interface。iface 其实就是 interface，这种接口内部是有函数的。
 
@@ -35,6 +33,7 @@ type eface struct {
 所以我们可以比较容易地推断出来下面两种 interface 在 Go 内部是怎么表示的：
 
 iface:
+
 ```go
 type Reader interface {
     Read([]byte) (int, error)
@@ -42,9 +41,12 @@ type Reader interface {
 ```
 
 eface:
+
 ```go
 var x interface{}
 ```
+
+## iface
 
 ### iface 适用场景
 
@@ -88,4 +90,29 @@ func CreateOrder(order OrderStruct) {
 
 业务逻辑不应该知道底层的实现，不应该有形如 db 的 tag，不应该知道配置是从 ETCD 中取出的。
 
+```
+┌──────────────────────────────────────────────────────────────┐
+│                                                              │
+│                                                              │
+│                        business logic                        │
+├────────────────────┬────────────────────┬────────────────────┤
+│  configInterface   │   storeInterface   │    getInterface    │
+└────────────────────┴────────────────────┴────────────────────┘
+           ▲                    ▲                    ▲          
+           │                    │                    │          
+           │                    │                    │          
+           │                    │                    │          
+           │                    │                    │          
+           │                    │                    │          
+           │                    │                    │          
+           │                    │                    │          
+  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐ 
+  │    etcd Impl    │  │    DATABASE     │  │       RPC       │ 
+  └─────────────────┘  └─────────────────┘  └─────────────────┘ 
+```
+
+## eface
+
 ### eface 适用场景
+
+### eface 实现原理
