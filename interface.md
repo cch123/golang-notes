@@ -138,6 +138,8 @@ func CreateOrder(order OrderStruct) {
 └─────────────────────────────┘                                            
 ```
 
+既然是个子集，那已经有了 iface 为什么还需要 eface？显然是为了优化。
+
 ### eface 适用场景
 
 ### eface 实现原理
