@@ -6,7 +6,7 @@
 
 1. [x] [Bootstrap](bootstrap.md)
 2. [x] [Channel](channel.md)
-3. [ ] [Interface](interface.md)
+3. [x] [Interface](interface.md)
 4. [x] [Select](select.md)
 5. [x] [Slice](slice.md)
 6. [x] [Timer](timer.md)
