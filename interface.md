@@ -235,6 +235,88 @@ func Unmarshal(data []byte, v interface{}) error
 
 ### 普通类型转换为 iface
 
+```go
+ 1	package main
+ 2
+ 3	import (
+ 4		"io"
+ 5		"os"
+ 6	)
+ 7
+ 8	var j io.Reader
+ 9
+10	func main() {
+11		var i, _ = os.Open("ab.go")
+12		j = i
+13		var k = j.(*os.File)
+14		println(k)
+15	}
+```
+
+看看第 12 行的汇编:
+
+```go
+0x0050 00080 (interface2.go:12)	LEAQ	go.itab.*os.File,io.Reader(SB), CX
+0x0057 00087 (interface2.go:12)	MOVQ	CX, "".j(SB)
+0x0067 00103 (interface2.go:12)	MOVQ	AX, "".j+8(SB)
+```
+
+和 eface 的赋值其实差不多，稍微有区别的是这里的 go.itab.*os.File,io.Reader(SB)，这个符号(理解成一个全局变量，类型是 runtime._type 就行)是编译器帮我们生成的:
+
+```go
+go.itab.*os.File,io.Reader SRODATA dupok size=32
+	0x0000 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+	0x0010 44 b5 f3 33 00 00 00 00 00 00 00 00 00 00 00 00  D..3............
+	rel 0+8 t=1 type.io.Reader+0
+	rel 8+8 t=1 type.*os.File+0
+	rel 24+8 t=1 os.(*File).Read+0
+```
+
+并且是按需生成的，如果你把 `*os.File` 赋值给 io.Writer，在编译结果中也能找到类似的符号:
+
+```go
+go.itab.*os.File,io.Writer SRODATA dupok size=32
+	0x0000 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+	0x0010 44 b5 f3 33 00 00 00 00 00 00 00 00 00 00 00 00  D..3............
+	rel 0+8 t=1 type.io.Writer+0
+	rel 8+8 t=1 type.*os.File+0
+	rel 24+8 t=1 os.(*File).Write+0
+```
+
+看起来就容易理解了。
+
 ### iface 转换为普通类型
 
-### 类型转换图
+```go
+ 1	package main
+ 2
+ 3	import (
+ 4		"io"
+ 5		"os"
+ 6	)
+ 7
+ 8	var j io.Reader
+ 9
+10	func main() {
+11		var i, _ = os.Open("ab.go")
+12		j = i
+13		var k = j.(*os.File)
+14		println(k)
+15	}
+```
+
+主要关心第 13 行的汇编结果:
+
+```go
+// 数据准备在这里，AX 和 CX 寄存器 13 行会用到
+0x0050 00080 (interface2.go:12)	LEAQ	go.itab.*os.File,io.Reader(SB), CX
+0x0057 00087 (interface2.go:12)	MOVQ	CX, "".j(SB)
+0x0067 00103 (interface2.go:12)	MOVQ	AX, "".j+8(SB)
+
+0x006e 00110 (interface2.go:13)	MOVQ	"".j+8(SB), AX  // AX = j.data
+0x0075 00117 (interface2.go:13)	MOVQ	"".j(SB), DX    // DX = j.itab
+0x007c 00124 (interface2.go:13)	CMPQ	DX, CX          // 比较 iface.itab 和  go.itab.*os.File,io.Reader(SB) 是否一致
+0x007f 00127 (interface2.go:13)	JNE	187             // 不一致，说明断言失败，跳到 panic 流程
+
+// 下面就是正常流程了
+```
