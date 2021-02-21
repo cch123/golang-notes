@@ -1618,7 +1618,7 @@ findrunnable 比较复杂，流程图先把 gc 相关的省略掉了:
 
 ```mermaid
 graph TD
-runqget --> A[gp == nil]
+localrunqget --> A[gp == nil]
 A --> |no|return
 A --> |yes|globrunqget
 globrunqget --> B[gp == nil]
@@ -1641,7 +1641,7 @@ H --> |yes|I[netpoll]
 I --> J[gp == nil]
 J --> |no| return
 J --> |yes| stopm
-stopm --> runqget
+stopm --> localrunqget
 ```
 
 ```go
