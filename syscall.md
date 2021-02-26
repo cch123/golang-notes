@@ -175,12 +175,98 @@ ok2:
     RET
 ```
 
-RawSyscall 和 Syscall 的区别也非常微小，就只是在进入 Syscall 和退出的时候没有通知 runtime，这样 runtime 理论上是没有办法通过调度把这个 g 的 m 的 p 调度走的，所以如果用户代码使用了 RawSyscall 来做一些阻塞的系统调用，是有可能阻塞其它的 g 的，下面是官方开发的原话:
+golang 旧版本中 RawSyscall 和 Syscall 的区别也非常微小，就只是在进入 Syscall 和退出的时候没有通知 runtime，这样 runtime 理论上是没有办法通过调度把这个 g 的 m 的 p 调度走的，所以如果用户代码使用了 RawSyscall 来做一些阻塞的系统调用，是有可能阻塞其它的 g 的，下面是官方开发的原话:
 
 > Yes, if you call RawSyscall you may block other goroutines from running.  The system monitor may start them up after a while, but I think there are cases where it won't.  I would say that Go programs should always call Syscall.  RawSyscall exists to make it slightly more efficient to call system calls that never block, such as getpid. But it's really an internal mechanism.
 
 RawSyscall 只是为了在执行那些一定不会阻塞的系统调用时，能节省两次对 runtime 的函数调用消耗。
 
+#### 新版本抢占式调度中的 RawSyscall 和 Syscall 
+由于 `RawSyscall` 相较于 `Syscall` 缺少了 `runtime·entersyscall(SB)` 以及 `runtime·exitsyscall(SB)` 的调用，当 `g` 执行的是阻塞性质的系统调用的时候，当前 `g` 会维持 `running` 状态，runtime 系统监控在进行全局调度的时候一旦发现运行超过 10ms 的 `g` 就会执行抢占操作（1.14.3 版本, linux_amd64 下为例），通过发送信号量给 `g` 对应的线程，而由于线程在初始化的时候进行了信号量的监听以及设置了相应的 `sa_flags` 参数，会导致在收到信号量的时候对正在阻塞的系统调用产生中断，这种行为往往会给使用者带来意料之外的情况，以下通过一个简单的阻塞性系统调用案例来演示（futex）:
+```go
+// futex
+package main
+
+import (
+	"fmt"
+	"os"
+	"syscall"
+	"time"
+	"unsafe"
+)
+
+const (
+	SYS_futex           = 202
+	_FUTEX_PRIVATE_FLAG = 128
+	_FUTEX_WAIT         = 0
+	_FUTEX_WAKE         = 1
+	_FUTEX_WAIT_PRIVATE = _FUTEX_WAIT | _FUTEX_PRIVATE_FLAG
+	_FUTEX_WAKE_PRIVATE = _FUTEX_WAKE | _FUTEX_PRIVATE_FLAG
+)
+
+func main() {
+	var futexVar uint32 = uint32(os.Getegid())
+	futexVar++
+	for i := 0; i < 3; i++ {
+		go func() { // 启动 3 个线程进行阻塞系统调用
+			fmt.Println("sleep start")
+			type timespec struct {
+				tv_sec  int64
+				tv_nsec int64
+			}
+            /*
+             *  设置 10 秒唤醒 futex
+             *  通过调节该参数大小可以测试：
+             *  当执行时间小于 runtime 调度器的判定时间的时候，阻塞调用可正常进行
+             */
+			var ns int64 = 1e9 * 10 
+			ts := timespec{
+				tv_sec:  ns / 1e9,
+				tv_nsec: ns % 1e9,
+			}
+			// var ts timespec
+			// ts.setNsec(ns)
+			fmt.Println(syscall.RawSyscall6(
+				SYS_futex,                          // trap AX    202
+				uintptr(unsafe.Pointer(&futexVar)), // a1 DI      1
+				uintptr(_FUTEX_WAIT),               // a2 SI      0
+				1,                                  // a3 DX
+                // futex 超时参数，经测试，在设置为 NULL 的情况下（永不超时）
+                // 再起一个线程（下方注释部分代码）修改 futexVar 的值可以发现另一个系统调用异常，感兴趣的读者可自行测试验证
+				uintptr(unsafe.Pointer(&ts)),       // a4 R10
+				0,                                  // a5 R8
+				0),                                 // a6 R9
+			)
+			fmt.Println("sleep end")
+		}()
+	}
+    // go func () {
+    //     select {
+    //         case <-time.After(time.Second):
+    //             futexVar = 2
+    //     }
+    // }
+	for {
+		select {
+		case <-time.After(time.Hour):
+		}
+	}
+}
+
+```
+执行结果:
+```shell
+sleep start
+sleep start
+sleep start
+18446744073709551615 0 interrupted system call # 线程收到 SIGURG ，系统调用被信号中断
+sleep end
+18446744073709551615 0 interrupted system call
+sleep end
+18446744073709551615 0 interrupted system call
+sleep end
+```
+综上，在使用 `RawSyscall` 的时候需要自行根据 golang 版本确定是否符合你的语气
 ## vdso
 
 vdso 可以认为是一种特殊的调用，在使用时，没有本文开头的用户态到内核态的切换，引用一段参考资料:
