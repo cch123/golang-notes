@@ -189,7 +189,6 @@ package main
 
 import (
 	"fmt"
-	"os"
 	"syscall"
 	"time"
 	"unsafe"
@@ -205,8 +204,7 @@ const (
 )
 
 func main() {
-	var futexVar uint32 = uint32(os.Getegid())
-	futexVar++
+	var futexVar uint32 = 1
 	for i := 0; i < 3; i++ {
 		go func() { // 启动 3 个线程进行阻塞系统调用
 			fmt.Println("sleep start")
