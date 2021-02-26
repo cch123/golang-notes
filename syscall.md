@@ -266,7 +266,7 @@ sleep end
 18446744073709551615 0 interrupted system call
 sleep end
 ```
-综上，在使用 `RawSyscall` 的时候需要自行根据 golang 版本确定是否符合你的语气
+综上，在使用 `RawSyscall` 的时候需要自行根据 golang 版本确定是否符合你的预期
 ## vdso
 
 vdso 可以认为是一种特殊的调用，在使用时，没有本文开头的用户态到内核态的切换，引用一段参考资料:
