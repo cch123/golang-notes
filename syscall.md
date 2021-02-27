@@ -182,7 +182,7 @@ golang 旧版本中 RawSyscall 和 Syscall 的区别也非常微小，就只是�
 RawSyscall 只是为了在执行那些一定不会阻塞的系统调用时，能节省两次对 runtime 的函数调用消耗。
 
 #### 新版本抢占式调度中的 RawSyscall 和 Syscall 
-由于 `RawSyscall` 相较于 `Syscall` 缺少了 `runtime·entersyscall(SB)` 以及 `runtime·exitsyscall(SB)` 的调用，当 `g` 执行的是阻塞性质的系统调用的时候，当前 `g` 会维持 `running` 状态，runtime 系统监控在进行全局调度的时候一旦发现运行超过 10ms 的 `g` 就会执行抢占操作（1.14.3 版本, linux_amd64 下为例），通过发送信号量给 `g` 对应的线程，而由于线程在初始化的时候进行了信号量的监听以及设置了相应的 `sa_flags` 参数，会导致在收到信号量的时候对正在阻塞的系统调用产生中断，这种行为往往会给使用者带来意料之外的情况，以下通过一个简单的阻塞性系统调用案例来演示（futex）:
+由于 `RawSyscall` 相较于 `Syscall` 缺少了 `runtime·entersyscall(SB)` 以及 `runtime·exitsyscall(SB)` 的调用，当 `g` 执行的是阻塞性质的系统调用的时候，当前 `g` 会维持 `running` 状态，runtime 系统监控在进行全局调度的时候一旦发现运行超过 10ms 的 `g` 就会执行抢占操作（1.14.3 版本, linux_amd64 下为例），通过发送信号量给 `g` 对应的线程，而由于线程在初始化的时候进行了信号量的监听以及设置了相应的 `sa_flags` 参数，虽然包含诸如`SA_RESTART`参数会让系统调用在信号中断后自动恢复，但是不是对所有系统调用都会有效，这将会导致在收到信号量的时候对正在阻塞的系统调用产生中断，这种行为往往会给使用者带来意料之外的情况，以下通过一个简单的阻塞性系统调用案例来演示（futex）:
 ```go
 // futex
 package main
