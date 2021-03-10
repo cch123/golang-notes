@@ -1004,7 +1004,9 @@ func (e *entry) tryExpungeLocked() (isExpunged bool) {
     return p == expunged
 }
 ```
-
+-  sync.Map 利用了读写分离的思路为读多写少或读写不同 key 的场景而设计，当违背这种设计初衷来使用 sync.Map 的时候性能或许达不到你的期待
+-  可以参考下其他诸如散列思路减少锁开销的并发安全 [Map](https://github.com/orcaman/concurrent-map/
+)
 # 参考资料
 
 http://www.weixianmanbu.com/article/736.html
