@@ -10,7 +10,7 @@
 
 ### 栈调整
 
-intel 或 AT&T 汇编提供了 push 和 pop 指令族，plan9 中没有 push 和 pop，栈的调整是通过对硬件 SP 寄存器进行运算来实现的，例如:
+intel 或 AT&T 汇编提供了 push 和 pop 指令族，~~plan9 中没有 push 和 pop~~，plan9 中虽然有 push 和 pop 指令，但一般生成的代码中是没有的，我们看到的栈的调整大多是通过对硬件 SP 寄存器进行运算来实现的，例如:
 
 ```go
 SUBQ $0x18, SP // 对 SP 做减法，为函数分配函数栈帧
