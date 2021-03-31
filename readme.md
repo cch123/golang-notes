@@ -38,4 +38,4 @@
 
 # 公众号
 
-![](images/gzh.png)
+<img width="222px"  src="https://github.com/cch123/golang-notes/raw/master/images/gzh.png">
