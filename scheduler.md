@@ -1,3 +1,4 @@
+> 注: 在抢占式调度的 go 版本下如果需要对 runtime 进行调试，诸如使用 gdb, lldb, [delve](https://github.com/go-delve/delve) 等工具时，需要注意 GODEBUG=asyncpreemptoff=1 环境变量，该变量会导致 runtime 是否进行抢占式调度，由于 https://github.com/golang/go/issues/36494 ，导致部分系统下该变量会被一些（如 delve）工具配置开启，从而导致超出预期的调试情况，需要读者自行关注
 # 调度
 
 ## 基本数据结构
@@ -2344,3 +2345,4 @@ gcMarkDone --> forEachP
 可见只有 gc 和 retake 才会去真正地抢占 g，并没有其它的入口，其它的地方就只是恢复一下可能在 newstack 中被清除掉的抢占标记。
 
 当然，这里 entersyscall 和 entersyscallblock 比较特殊，虽然这俩函数的实现中有设置抢占标记，但实际上这两段逻辑是不会被走到的。因为 syscall 执行时是在 m 的 g0 栈上，如果在执行时被抢占，那么会直接 throw，而无法恢复。
+
