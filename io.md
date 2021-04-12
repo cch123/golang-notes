@@ -93,7 +93,7 @@ Actual DISK READ:       0.00 B/s
 ```
 可以观察到除了初次 I/O 的时候产生磁盘读写, 待测试代码稳定下后是没有产生磁盘读写的, 再看看文件 page cache 的情况
 ```shell
-tmp vmtouch /disk/data/tmp/test
+vmtouch /disk/data/tmp/test
            Files: 1
      Directories: 0
   Resident Pages: 4/256000  16K/1000M  0.00156%
