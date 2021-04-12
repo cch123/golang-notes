@@ -189,8 +189,8 @@ vmtouch /disk/data/tmp/test
 ## 回到 golang
 当前标准库如 http.ServeFile, os.Open 等默认采用的访问静态资源的方式均为非直接 I/O, 因此如果有特定场景需要用户自己进行这方面的考量及优化
 ## 参考资料
-http://nginx.org/en/docs/http/ngx_http_core_module.html#directio
-https://tech.meituan.com/2017/05/19/about-desk-io.html
-https://github.com/ncw/directio
+- http://nginx.org/en/docs/http/ngx_http_core_module.html#directio
+- https://tech.meituan.com/2017/05/19/about-desk-io.html
+- https://github.com/ncw/directio
 # DMA
 # Zero-Copy
