@@ -194,3 +194,105 @@ TEXT runtime·gogo(SB), NOSPLIT, $16-8
 ```
 
 这样所有流程就都打通了。
+
+---
+
+同样需要注意的是, 如多次`panic(defer)`后再利用`recover`恢复后获取到的`panic`信息仅仅为最近一次的信息, 是获取不了`_panic`整个链表中记录的所有信息的, 如果坚持想这样做, 那只能从 TLS 中获取当前的上下文, 通过基址加变址寻址的方式从当前的`g`中来获取`_panic`信息
+
+go 1.14.3 为例:
+```assembly
+#include "textflag.h"
+// main.s
+// func GetPanicPtr() uintptr
+TEXT ·GetPanicPtr(SB), NOSPLIT, $0-8
+	MOVQ TLS, CX
+	MOVQ 0(CX)(TLS*1), AX
+	MOVQ $32, BX // 32 根据不同版本 type g struct 中 _panic 字段计算偏移量即可
+	LEAQ 0(AX)(BX*1), DX
+	MOVQ (DX), AX
+	MOVQ AX, ret+0(FP)
+	RET
+```
+```go
+// main.go
+package main
+
+import (
+	"fmt"
+	"unsafe"
+)
+
+func GetPanicPtr() uintptr
+
+type gobuf struct {
+	// The offsets of sp, pc, and g are known to (hard-coded in) libmach.
+	//
+	// ctxt is unusual with respect to GC: it may be a
+	// heap-allocated funcval, so GC needs to track it, but it
+	// needs to be set and cleared from assembly, where it's
+	// difficult to have write barriers. However, ctxt is really a
+	// saved, live register, and we only ever exchange it between
+	// the real register and the gobuf. Hence, we treat it as a
+	// root during stack scanning, which means assembly that saves
+	// and restores it doesn't need write barriers. It's still
+	// typed as a pointer so that any other writes from Go get
+	// write barriers.
+	sp   uintptr
+	pc   uintptr
+	g    uintptr
+	ctxt unsafe.Pointer
+	ret  uint64
+	lr   uintptr
+	bp   uintptr // for GOEXPERIMENT=framepointer
+}
+type stack struct {
+	lo uintptr
+	hi uintptr
+}
+type g struct {
+	// Stack parameters.
+	// stack describes the actual stack memory: [stack.lo, stack.hi).
+	// stackguard0 is the stack pointer compared in the Go stack growth prologue.
+	// It is stack.lo+StackGuard normally, but can be StackPreempt to trigger a preemption.
+	// stackguard1 is the stack pointer compared in the C stack growth prologue.
+	// It is stack.lo+StackGuard on g0 and gsignal stacks.
+	// It is ~0 on other goroutine stacks, to trigger a call to morestackc (and crash).
+	stack       stack   // offset known to runtime/cgo
+	stackguard0 uintptr // offset known to liblink
+	stackguard1 uintptr // offset known to liblink
+
+	_panic       uintptr // innermost panic - offset known to liblink
+	_defer       uintptr // innermost defer
+	m            uintptr // current m; offset known to arm liblink
+	sched        gobuf
+	syscallsp    uintptr        // if status==Gsyscall, syscallsp = sched.sp to use during gc
+	syscallpc    uintptr        // if status==Gsyscall, syscallpc = sched.pc to use during gc
+	stktopsp     uintptr        // expected sp at top of stack, to check in traceback
+	param        unsafe.Pointer // passed parameter on wakeup
+	atomicstatus uint32
+	stackLock    uint32 // sigprof/scang lock; TODO: fold in to atomicstatus
+	goid         int64
+}
+type _panic struct {
+	argp      unsafe.Pointer // pointer to arguments of deferred call run during panic; cannot move - known to liblink
+	arg       interface{}    // argument to panic
+	link      *_panic        // link to earlier panic
+	pc        uintptr        // where to return to in runtime if this panic is bypassed
+	sp        unsafe.Pointer // where to return to in runtime if this panic is bypassed
+	recovered bool           // whether this panic is over
+	aborted   bool           // the panic was aborted
+	goexit    bool
+}
+
+func main() {
+	defer func() {
+		var __panic *_panic
+		var _panic_ptr uintptr = GetPanicPtr()
+		__panic = (*_panic)(unsafe.Pointer(_panic_ptr))
+		fmt.Println(__panic)
+	}()
+	defer panic(3)
+	defer panic(2)
+	panic(1)
+}
+```
