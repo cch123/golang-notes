@@ -710,9 +710,9 @@ func Splice(dst, src *FD, remain int64) (written int64, handled bool, sc string,
 }
 ```
 
-相信上面简短的分析大家也可以看到, 每次在进行 `splice` 的时候都会利用临时 `pipe`, 频繁的创建、销毁, 用户态-内核态的切换会带来非常多不必要的开销, 当前社区内也有关于 `splice temp-pipe` 生命周期的[讨论](https://go-review.googlesource.com/c/go/+/271537/)。
+相信上面简短的分析大家也可以看到, 每次在进行 `splice` 的时候都会利用临时 `pipe`, 频繁的创建、销毁, 用户态-内核态的切换会带来非常多不必要的开销, 当前社区内也有关于 `splice temp-pipe` 生命周期的[讨论](https://go-review.googlesource.com/c/go/+/271537/)。
 
-再者, 因为当前关联到 `socket` 的 `splice` 实现在 `runtime` 层面和内置 `io 模型(epoll 等)`高度耦合, 基本无法解耦单独应用, 而如果想自己来实现 `splice（syscall.Splice)` 的话则不得不顺带在用户层面实现自己的 `io 模型`再来使用, 会比较繁琐(上面测试用例使用内置 `splice api` 也是因为这个原因)
+再者, 因为当前关联到 `socket` 的 `splice` 实现在 `runtime` 层面和内置 `io 模型(epoll 等)`高度耦合, 基本无法解耦单独应用, 而如果想自己来实现 `splice（syscall.Splice)` 的话则不得不顺带在用户层面实现自己的`io 模型`再来使用, 会比较繁琐(上面测试用例使用内置 `splice api` 也是因为这个原因)
 
 ## 参考资料
 
