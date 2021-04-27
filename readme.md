@@ -30,6 +30,7 @@
 24. [x] [Atomic](atomic.md)
 25. [ ] [Generics](generics.md)
 26. [x] [IO](io.md)
+26. [x] [pprof](pprof.md)
 
 # Authors
 
