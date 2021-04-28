@@ -304,6 +304,199 @@ func scaleHeapSample(count, size, rate int64) (int64, int64) {
   return int64(float64(count) * scale), int64(float64(size) * scale)
 }
 ```
+
 为什么要在标题里加个伪? 看上面代码片段也可以注意到, 实质上在 `pprof` 分析的时候并没有扫描所有堆上内存进行分析 (想想也不现实) , 而是通过之前采样出的数据, 进行计算 (现有对象数量, 大小, 采样率等) 来估算出 `heap` 上的情况, 当然给我们参考一般来说是足够了
+
+## goroutine
+- debug >= 2 的情况, 直接进行堆栈输出, 详情可以查看 [stack](runtime_stack.md) 章节
+
+```go
+// fetch == runtime.GoroutineProfile
+func writeRuntimeProfile(w io.Writer, debug int, name string, fetch func([]runtime.StackRecord) (int, bool)) error {
+  // Find out how many records there are (fetch(nil)),
+  // allocate that many records, and get the data.
+  // There's a race—more records might be added between
+  // the two calls—so allocate a few extra records for safety
+  // and also try again if we're very unlucky.
+  // The loop should only execute one iteration in the common case.
+  var p []runtime.StackRecord
+  n, ok := fetch(nil)
+  for {
+    // Allocate room for a slightly bigger profile,
+    // in case a few more entries have been added
+    // since the call to ThreadProfile.
+    p = make([]runtime.StackRecord, n+10)
+    n, ok = fetch(p)
+    if ok {
+      p = p[0:n]
+      break
+    }
+    // Profile grew; try again.
+  }
+
+  return printCountProfile(w, debug, name, runtimeProfile(p))
+}
+```
+
+```go
+// GoroutineProfile returns n, the number of records in the active goroutine stack profile.
+// If len(p) >= n, GoroutineProfile copies the profile into p and returns n, true.
+// If len(p) < n, GoroutineProfile does not change p and returns n, false.
+//
+// Most clients should use the runtime/pprof package instead
+// of calling GoroutineProfile directly.
+func GoroutineProfile(p []StackRecord) (n int, ok bool) {
+  gp := getg()
+
+  isOK := func(gp1 *g) bool {
+    // Checking isSystemGoroutine here makes GoroutineProfile
+    // consistent with both NumGoroutine and Stack.
+    return gp1 != gp && readgstatus(gp1) != _Gdead && !isSystemGoroutine(gp1, false)
+  }
+  // 熟悉的味道, STW 又来了
+  stopTheWorld("profile")
+	// 统计有多少 goroutine
+  n = 1
+  for _, gp1 := range allgs {
+    if isOK(gp1) {
+      n++
+    }
+  }
+	// 当传入的 p 非空的时候, 开始获取各个 goroutine 信息, 整体姿势和 stack api 几乎一模一样
+  if n <= len(p) {
+    ok = true
+    r := p
+
+    // Save current goroutine.
+    sp := getcallersp()
+    pc := getcallerpc()
+    systemstack(func() {
+      saveg(pc, sp, gp, &r[0])
+    })
+    r = r[1:]
+
+    // Save other goroutines.
+    for _, gp1 := range allgs {
+      if isOK(gp1) {
+        if len(r) == 0 {
+          // Should be impossible, but better to return a
+          // truncated profile than to crash the entire process.
+          break
+        }
+        saveg(^uintptr(0), ^uintptr(0), gp1, &r[0])
+        r = r[1:]
+      }
+    }
+  }
+
+  startTheWorld()
+
+  return n, ok
+}
+```
+总结下 `pprof/goroutine`
+- STW 操作, 如果需要观察详情的需要注意这个 API 带来的风险
+- 整体流程基本就是 stackdump 所有协程信息的流程, 差别不大没什么好讲的, 不熟悉的可以去看下 stack 对应章节
+
+## pprof/threadcreate
+可能会有人想问, 我们通常只关注 `goroutine` 就够了, 为什么还需要对线程的一些情况进行追踪? 例如无法被抢占的阻塞性[系统调用](syscall.md), `cgo` 相关的线程等等, 都可以利用它来进行一个简单的分析, 当然大多数情况考虑的线程问题(诸如泄露等), 一般都是上层的使用问题所导致的(线程泄露等)
+```go
+// 还是用之前用过的无法被抢占的阻塞性系统调用来进行一个简单的实验
+package main
+
+import (
+	"fmt"
+	"net/http"
+	_ "net/http/pprof"
+	"os"
+	"syscall"
+	"unsafe"
+)
+
+const (
+	SYS_futex           = 202
+	_FUTEX_PRIVATE_FLAG = 128
+	_FUTEX_WAIT         = 0
+	_FUTEX_WAKE         = 1
+	_FUTEX_WAIT_PRIVATE = _FUTEX_WAIT | _FUTEX_PRIVATE_FLAG
+	_FUTEX_WAKE_PRIVATE = _FUTEX_WAKE | _FUTEX_PRIVATE_FLAG
+)
+
+func main() {
+	fmt.Println(os.Getpid())
+	go func() {
+		b := make([]byte, 1<<20)
+		_ = b
+	}()
+	for i := 1; i < 13; i++ {
+		go func() {
+			var futexVar int = 0
+			for {
+				// Syscall && RawSyscall, 具体差别分析可自行查看 syscall 章节
+				fmt.Println(syscall.Syscall6(
+					SYS_futex,                          // trap AX    202
+					uintptr(unsafe.Pointer(&futexVar)), // a1 DI      1
+					uintptr(_FUTEX_WAIT),               // a2 SI      0
+					0,                                  // a3 DX
+					0,                                  //uintptr(unsafe.Pointer(&ts)), // a4 R10
+					0,                                  // a5 R8
+					0))
+			}
+		}()
+	}
+	http.ListenAndServe("0.0.0.0:8899", nil)
+}
+```
+```shell
+# GET /debug/pprof/threadcreate?debug=1
+threadcreate profile: total 18
+17 @
+#	0x0
+
+1 @ 0x43b818 0x43bfa3 0x43c272 0x43857d 0x467fb1
+#	0x43b817	runtime.allocm+0x157			/usr/local/go/src/runtime/proc.go:1414
+#	0x43bfa2	runtime.newm+0x42			/usr/local/go/src/runtime/proc.go:1736
+#	0x43c271	runtime.startTemplateThread+0xb1	/usr/local/go/src/runtime/proc.go:1805
+#	0x43857c	runtime.main+0x18c			/usr/local/go/src/runtime/proc.go:186
+```
+```shell
+# 再结合诸如 pstack 的工具
+ps -efT | grep 22298 # pid = 22298
+root     22298 22298 13767  0 16:59 pts/4    00:00:00 ./mstest
+root     22298 22299 13767  0 16:59 pts/4    00:00:00 ./mstest
+root     22298 22300 13767  0 16:59 pts/4    00:00:00 ./mstest
+root     22298 22301 13767  0 16:59 pts/4    00:00:00 ./mstest
+root     22298 22302 13767  0 16:59 pts/4    00:00:00 ./mstest
+root     22298 22303 13767  0 16:59 pts/4    00:00:00 ./mstest
+root     22298 22304 13767  0 16:59 pts/4    00:00:00 ./mstest
+root     22298 22305 13767  0 16:59 pts/4    00:00:00 ./mstest
+root     22298 22306 13767  0 16:59 pts/4    00:00:00 ./mstest
+root     22298 22307 13767  0 16:59 pts/4    00:00:00 ./mstest
+root     22298 22308 13767  0 16:59 pts/4    00:00:00 ./mstest
+root     22298 22309 13767  0 16:59 pts/4    00:00:00 ./mstest
+root     22298 22310 13767  0 16:59 pts/4    00:00:00 ./mstest
+root     22298 22311 13767  0 16:59 pts/4    00:00:00 ./mstest
+root     22298 22312 13767  0 16:59 pts/4    00:00:00 ./mstest
+root     22298 22316 13767  0 16:59 pts/4    00:00:00 ./mstest
+root     22298 22317 13767  0 16:59 pts/4    00:00:00 ./mstest
+
+pstack 22299
+Thread 1 (process 22299):
+#0  runtime.futex () at /usr/local/go/src/runtime/sys_linux_amd64.s:568
+#1  0x00000000004326f4 in runtime.futexsleep (addr=0xb2fd78 <runtime.sched+280>, val=0, ns=60000000000) at /usr/local/go/src/runtime/os_linux.go:51
+#2  0x000000000040cb3e in runtime.notetsleep_internal (n=0xb2fd78 <runtime.sched+280>, ns=60000000000, ~r2=<optimized out>) at /usr/local/go/src/runtime/lock_futex.go:193
+#3  0x000000000040cc11 in runtime.notetsleep (n=0xb2fd78 <runtime.sched+280>, ns=60000000000, ~r2=<optimized out>) at /usr/local/go/src/runtime/lock_futex.go:216
+#4  0x00000000004433b2 in runtime.sysmon () at /usr/local/go/src/runtime/proc.go:4558
+#5  0x000000000043af33 in runtime.mstart1 () at /usr/local/go/src/runtime/proc.go:1112
+#6  0x000000000043ae4e in runtime.mstart () at /usr/local/go/src/runtime/proc.go:1077
+#7  0x0000000000401893 in runtime/cgo(.text) ()
+#8  0x00007fb1e2d53700 in ?? ()
+#9  0x0000000000000000 in ?? ()
+```
+其他的线程如果感兴趣也可以仔细查看
+
+`pprof/threadcreate` 具体实现和 `pprof/goroutine` 类似, 无非前者遍历的对象是全局 `allm`, 而后者为 `allgs`, 区别在于 `pprof/threadcreate => ThreadCreateProfile` 时不会进行进行 `STW`
+
+
 # 参考资料
 https://go-review.googlesource.com/c/go/+/299671
