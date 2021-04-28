@@ -22,9 +22,9 @@ profiles.m = map[string]*Profile{
 ```go
 
 var allocsProfile = &Profile{
-	name:  "allocs",
-	count: countHeap, // identical to heap profile
-	write: writeAlloc,
+  name:  "allocs",
+  count: countHeap, // identical to heap profile
+  write: writeAlloc,
 }
 ```
 - writeAlloc (主要涉及以下几个 api)
@@ -40,14 +40,14 @@ var allocsProfile = &Profile{
 // collection cycle.
 func ReadMemStats(m *MemStats) {
   // STW 操作
-	stopTheWorld("read mem stats")
+  stopTheWorld("read mem stats")
   // systemstack 切换
-	systemstack(func() {
+  systemstack(func() {
     // 将 memstats 通过 copy 操作复制给 m
-		readmemstats_m(m)
-	})
+    readmemstats_m(m)
+  })
 
-	startTheWorld()
+  startTheWorld()
 }
 ```
 
@@ -74,12 +74,12 @@ func ReadMemStats(m *MemStats) {
 // the testing package's -test.memprofile flag instead
 // of calling MemProfile directly.
 func MemProfile(p []MemProfileRecord, inuseZero bool) (n int, ok bool) {
-	lock(&proflock)
-	// If we're between mProf_NextCycle and mProf_Flush, take care
-	// of flushing to the active profile so we only have to look
-	// at the active profile below.
-	mProf_FlushLocked()
-	clear := true
+  lock(&proflock)
+  // If we're between mProf_NextCycle and mProf_Flush, take care
+  // of flushing to the active profile so we only have to look
+  // at the active profile below.
+  mProf_FlushLocked()
+  clear := true
   /* 
    * 记住这个 mbuckets -- memory profile buckets 
    * allocs 的采样都是记录在这个全局变量内, 下面会进行详细分析
@@ -91,46 +91,46 @@ func MemProfile(p []MemProfileRecord, inuseZero bool) (n int, ok bool) {
    * runtime.bucket *runtime.mbuckets;
    * (gdb)
    */
-	for b := mbuckets; b != nil; b = b.allnext {
-		mp := b.mp()
-		if inuseZero || mp.active.alloc_bytes != mp.active.free_bytes {
-			n++
-		}
-		if mp.active.allocs != 0 || mp.active.frees != 0 {
-			clear = false
-		}
-	}
-	if clear {
-		// Absolutely no data, suggesting that a garbage collection
-		// has not yet happened. In order to allow profiling when
-		// garbage collection is disabled from the beginning of execution,
-		// accumulate all of the cycles, and recount buckets.
-		n = 0
-		for b := mbuckets; b != nil; b = b.allnext {
-			mp := b.mp()
-			for c := range mp.future {
-				mp.active.add(&mp.future[c])
-				mp.future[c] = memRecordCycle{}
-			}
-			if inuseZero || mp.active.alloc_bytes != mp.active.free_bytes {
-				n++
-			}
-		}
-	}
-	if n <= len(p) {
-		ok = true
-		idx := 0
-		for b := mbuckets; b != nil; b = b.allnext {
-			mp := b.mp()
-			if inuseZero || mp.active.alloc_bytes != mp.active.free_bytes {
+  for b := mbuckets; b != nil; b = b.allnext {
+    mp := b.mp()
+    if inuseZero || mp.active.alloc_bytes != mp.active.free_bytes {
+      n++
+    }
+    if mp.active.allocs != 0 || mp.active.frees != 0 {
+      clear = false
+    }
+  }
+  if clear {
+    // Absolutely no data, suggesting that a garbage collection
+    // has not yet happened. In order to allow profiling when
+    // garbage collection is disabled from the beginning of execution,
+    // accumulate all of the cycles, and recount buckets.
+    n = 0
+    for b := mbuckets; b != nil; b = b.allnext {
+      mp := b.mp()
+      for c := range mp.future {
+        mp.active.add(&mp.future[c])
+        mp.future[c] = memRecordCycle{}
+      }
+      if inuseZero || mp.active.alloc_bytes != mp.active.free_bytes {
+        n++
+      }
+    }
+  }
+  if n <= len(p) {
+    ok = true
+    idx := 0
+    for b := mbuckets; b != nil; b = b.allnext {
+      mp := b.mp()
+      if inuseZero || mp.active.alloc_bytes != mp.active.free_bytes {
         // mbuckets 数据拷贝
-				record(&p[idx], b)
-				idx++
-			}
-		}
-	}
-	unlock(&proflock)
-	return
+        record(&p[idx], b)
+        idx++
+      }
+    }
+  }
+  unlock(&proflock)
+  return
 }
 ```
 
@@ -143,12 +143,12 @@ func MemProfile(p []MemProfileRecord, inuseZero bool) (n int, ok bool) {
 ```go
 var mbuckets  *bucket // memory profile buckets
 type bucket struct {
-	next    *bucket
-	allnext *bucket
-	typ     bucketType // memBucket or blockBucket (includes mutexProfile)
-	hash    uintptr
-	size    uintptr
-	nstk    uintptr
+  next    *bucket
+  allnext *bucket
+  typ     bucketType // memBucket or blockBucket (includes mutexProfile)
+  hash    uintptr
+  size    uintptr
+  nstk    uintptr
 }
 ```
 
@@ -164,7 +164,7 @@ type bucket struct {
  ------------------
        |
        |
-       | create && insert new bucket into mbuckets
+       | create_or_get && insert_or_update bucket into mbuckets
        |
        |
  --------------------------------------
@@ -223,10 +223,87 @@ var MemProfileRate int = 512 * 1024
 
 (本文讨论的基于 1.14.3 版本, 如有差异请进行版本确认)
 
-#### pprof/mallocs 总结
+#### pprof/allocs 总结
 - 开启后会对 runtime 产生额外压力, 采样时会在 `runtime malloc` 时记录额外信息以供后续分析
 - 可以人为选择是否开启, 以及采样频率, 通过设置 `runtime.MemProfileRate` 参数, 不同 go 版本存在差异(是否默认开启), 与用户代码内是否引用(linker)相关模块/变量有关, 默认大小为 512 KB
 
+`allocs` 部分还包含了 `heap` 情况的近似计算, 放在下一节分析
+## heap
+>allocs: A sampling of all past memory allocations
 
+>heap: A sampling of memory allocations of live objects. You can specify the gc GET parameter to run GC before taking the heap sample.
+
+对比下 `allocs` 和 `heap` 官方说明上的区别, 一个是分析所有内存分配的情况, 一个是当前 `heap` 上的分配情况. `heap` 还能使用额外参数运行一次 `GC` 后再进行分析
+
+看起来两者差别很大。。。不过实质上在代码层面两者除了一次 `GC` 可以人为调用以及生成的文件类型不同之外 (debug == 0 的时候) 之外没啥区别.
+
+### heap 采样(伪)
+```go
+// p 为上文提到过的 MemProfileRecord 采样记录
+for _, r := range p {
+    hideRuntime := true
+    for tries := 0; tries < 2; tries++ {
+      stk := r.Stack()
+      // For heap profiles, all stack
+      // addresses are return PCs, which is
+      // what appendLocsForStack expects.
+      if hideRuntime {
+        for i, addr := range stk {
+          if f := runtime.FuncForPC(addr); f != nil && strings.HasPrefix(f.Name(), "runtime.") {
+            continue
+          }
+          // Found non-runtime. Show any runtime uses above it.
+          stk = stk[i:]
+          break
+        }
+      }
+      locs = b.appendLocsForStack(locs[:0], stk)
+      if len(locs) > 0 {
+        break
+      }
+      hideRuntime = false // try again, and show all frames next time.
+    }
+    // rate 即为 runtime.MemProfileRate
+    values[0], values[1] = scaleHeapSample(r.AllocObjects, r.AllocBytes, rate)
+    values[2], values[3] = scaleHeapSample(r.InUseObjects(), r.InUseBytes(), rate)
+    var blockSize int64
+    if r.AllocObjects > 0 {
+      blockSize = r.AllocBytes / r.AllocObjects
+    }
+    b.pbSample(values, locs, func() {
+      if blockSize != 0 {
+        b.pbLabel(tagSample_Label, "bytes", "", blockSize)
+      }
+    })
+  }
+```
+```go
+// scaleHeapSample adjusts the data from a heap Sample to
+// account for its probability of appearing in the collected
+// data. heap profiles are a sampling of the memory allocations
+// requests in a program. We estimate the unsampled value by dividing
+// each collected sample by its probability of appearing in the
+// profile. heap profiles rely on a poisson process to determine
+// which samples to collect, based on the desired average collection
+// rate R. The probability of a sample of size S to appear in that
+// profile is 1-exp(-S/R).
+func scaleHeapSample(count, size, rate int64) (int64, int64) {
+  if count == 0 || size == 0 {
+    return 0, 0
+  }
+
+  if rate <= 1 {
+    // if rate==1 all samples were collected so no adjustment is needed.
+    // if rate<1 treat as unknown and skip scaling.
+    return count, size
+  }
+
+  avgSize := float64(size) / float64(count)
+  scale := 1 / (1 - math.Exp(-avgSize/float64(rate)))
+
+  return int64(float64(count) * scale), int64(float64(size) * scale)
+}
+```
+为什么要在标题里加个伪? 看上面代码片段也可以注意到, 实质上在 `pprof` 分析的时候并没有扫描所有堆上内存进行分析 (想想也不现实) , 而是通过之前采样出的数据, 进行计算 (现有对象数量, 大小, 采样率等) 来估算出 `heap` 上的情况, 当然给我们参考一般来说是足够了
 # 参考资料
 https://go-review.googlesource.com/c/go/+/299671
