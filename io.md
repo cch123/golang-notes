@@ -290,7 +290,7 @@ func normal(src, dst net.Conn) {
 ssize_t splice(int fd_in, off64_t *off_in, int fd_out,
                       off64_t *off_out, size_t len, unsigned int flags);
 ```
-一句话概括就是, `splice` 不需要从内核空间复制这部分数据到用户空间就可以支持将数据从两个文件描述符之间进行转移, 不过两个描述符至少得有一个是 `pipe`, 一下列举如何利用`splice`完成 `socket->socket` 的数据代理
+一句话概括就是, `splice` 不需要从内核空间复制这部分数据到用户空间就可以支持将数据从两个文件描述符之间进行转移, 不过两个描述符至少得有一个是 `pipe`, 以下列举如何利用`splice`完成 `socket->socket` 的数据代理
 
 example:
 ```go
