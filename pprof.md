@@ -1,4 +1,5 @@
 # pprof
+> 本章节没有介绍具体 pprof 以及周边工具的使用, 而是进行了 runtime pprof 实现原理的分析, 旨在提供给读者一个使用方面的参考
 在进行深入本章节之前, 让我们来看三个问题, 相信下面这几个问题也是大部分人在使用 pprof 的时候对它最大的困惑, 那么可以带着这三个问题来进行接下去的分析
 - 开启 pprof 会对 runtime 产生多大的压力?
 - 能否选择性在合适阶段对生产环境的应用进行 pprof 的开启 / 关闭操作?
@@ -355,14 +356,14 @@ func GoroutineProfile(p []StackRecord) (n int, ok bool) {
   }
   // 熟悉的味道, STW 又来了
   stopTheWorld("profile")
-	// 统计有多少 goroutine
+  // 统计有多少 goroutine
   n = 1
   for _, gp1 := range allgs {
     if isOK(gp1) {
       n++
     }
   }
-	// 当传入的 p 非空的时候, 开始获取各个 goroutine 信息, 整体姿势和 stack api 几乎一模一样
+  // 当传入的 p 非空的时候, 开始获取各个 goroutine 信息, 整体姿势和 stack api 几乎一模一样
   if n <= len(p) {
     ok = true
     r := p
@@ -405,59 +406,59 @@ func GoroutineProfile(p []StackRecord) (n int, ok bool) {
 package main
 
 import (
-	"fmt"
-	"net/http"
-	_ "net/http/pprof"
-	"os"
-	"syscall"
-	"unsafe"
+  "fmt"
+  "net/http"
+  _ "net/http/pprof"
+  "os"
+  "syscall"
+  "unsafe"
 )
 
 const (
-	SYS_futex           = 202
-	_FUTEX_PRIVATE_FLAG = 128
-	_FUTEX_WAIT         = 0
-	_FUTEX_WAKE         = 1
-	_FUTEX_WAIT_PRIVATE = _FUTEX_WAIT | _FUTEX_PRIVATE_FLAG
-	_FUTEX_WAKE_PRIVATE = _FUTEX_WAKE | _FUTEX_PRIVATE_FLAG
+  SYS_futex           = 202
+  _FUTEX_PRIVATE_FLAG = 128
+  _FUTEX_WAIT         = 0
+  _FUTEX_WAKE         = 1
+  _FUTEX_WAIT_PRIVATE = _FUTEX_WAIT | _FUTEX_PRIVATE_FLAG
+  _FUTEX_WAKE_PRIVATE = _FUTEX_WAKE | _FUTEX_PRIVATE_FLAG
 )
 
 func main() {
-	fmt.Println(os.Getpid())
-	go func() {
-		b := make([]byte, 1<<20)
-		_ = b
-	}()
-	for i := 1; i < 13; i++ {
-		go func() {
-			var futexVar int = 0
-			for {
-				// Syscall && RawSyscall, 具体差别分析可自行查看 syscall 章节
-				fmt.Println(syscall.Syscall6(
-					SYS_futex,                          // trap AX    202
-					uintptr(unsafe.Pointer(&futexVar)), // a1 DI      1
-					uintptr(_FUTEX_WAIT),               // a2 SI      0
-					0,                                  // a3 DX
-					0,                                  //uintptr(unsafe.Pointer(&ts)), // a4 R10
-					0,                                  // a5 R8
-					0))
-			}
-		}()
-	}
-	http.ListenAndServe("0.0.0.0:8899", nil)
+  fmt.Println(os.Getpid())
+  go func() {
+    b := make([]byte, 1<<20)
+    _ = b
+  }()
+  for i := 1; i < 13; i++ {
+    go func() {
+      var futexVar int = 0
+      for {
+        // Syscall && RawSyscall, 具体差别分析可自行查看 syscall 章节
+        fmt.Println(syscall.Syscall6(
+          SYS_futex,                          // trap AX    202
+          uintptr(unsafe.Pointer(&futexVar)), // a1 DI      1
+          uintptr(_FUTEX_WAIT),               // a2 SI      0
+          0,                                  // a3 DX
+          0,                                  //uintptr(unsafe.Pointer(&ts)), // a4 R10
+          0,                                  // a5 R8
+          0))
+      }
+    }()
+  }
+  http.ListenAndServe("0.0.0.0:8899", nil)
 }
 ```
 ```shell
 # GET /debug/pprof/threadcreate?debug=1
 threadcreate profile: total 18
 17 @
-#	0x0
+#  0x0
 
 1 @ 0x43b818 0x43bfa3 0x43c272 0x43857d 0x467fb1
-#	0x43b817	runtime.allocm+0x157			/usr/local/go/src/runtime/proc.go:1414
-#	0x43bfa2	runtime.newm+0x42			/usr/local/go/src/runtime/proc.go:1736
-#	0x43c271	runtime.startTemplateThread+0xb1	/usr/local/go/src/runtime/proc.go:1805
-#	0x43857c	runtime.main+0x18c			/usr/local/go/src/runtime/proc.go:186
+#  0x43b817  runtime.allocm+0x157      /usr/local/go/src/runtime/proc.go:1414
+#  0x43bfa2  runtime.newm+0x42      /usr/local/go/src/runtime/proc.go:1736
+#  0x43c271  runtime.startTemplateThread+0xb1  /usr/local/go/src/runtime/proc.go:1805
+#  0x43857c  runtime.main+0x18c      /usr/local/go/src/runtime/proc.go:186
 ```
 ```shell
 # 再结合诸如 pstack 的工具
@@ -497,6 +498,278 @@ Thread 1 (process 22299):
 
 `pprof/threadcreate` 具体实现和 `pprof/goroutine` 类似, 无非前者遍历的对象是全局 `allm`, 而后者为 `allgs`, 区别在于 `pprof/threadcreate => ThreadCreateProfile` 时不会进行进行 `STW`
 
+## pprof/mutex
+mutex 默认是关闭采样的, 通过 `runtime.SetMutexProfileFraction(int)` 来进行 `rate` 的配置进行开启或关闭
 
+和上文分析过的 `mbuckets` 类似, 这边用以记录采样数据的是 `xbuckets`, `bucket` 记录了锁持有的堆栈, 次数(采样)等信息以供用户查看
+```go
+//go:linkname mutexevent sync.event
+func mutexevent(cycles int64, skip int) {
+  if cycles < 0 {
+    cycles = 0
+  }
+  rate := int64(atomic.Load64(&mutexprofilerate))
+  // TODO(pjw): measure impact of always calling fastrand vs using something
+  // like malloc.go:nextSample()
+  // 同样根据 rate 来进行采样, 这边用以记录 rate 的是 mutexprofilerate 变量
+  if rate > 0 && int64(fastrand())%rate == 0 {
+    saveblockevent(cycles, skip+1, mutexProfile)
+  }
+}
+```
+```shell
+                                                  ---------------
+                                                 |  user access  |
+                                                  ---------------
+                                                         |
+ ------------------                                      |
+|   xbuckets list  |              copy                   |
+|     (global)     | -------------------------------------  
+ ------------------
+       |
+       |
+       | create_or_get && insert_or_update bucket into xbuckets
+       |
+       |
+ --------------------------------------
+|  func stkbucket & typ == mutexProfile  |
+ --------------------------------------
+                 |
+         ------------------
+        |  saveblockevent  | // 堆栈等信息记录
+         ------------------
+                 |
+                 |      
+                 |       /*  
+                 |       *   //go:linkname mutexevent sync.event
+                 |       *   func mutexevent(cycles int64, skip int) {
+                 |       *     if cycles < 0 {
+                 |       *       cycles = 0
+                 |       *     }
+                 | 采样   *     rate := int64(atomic.Load64(&mutexprofilerate))
+                 | 记录   *     // TODO(pjw): measure impact of always calling fastrand vs using something
+                 |       *     // like malloc.go:nextSample()
+                 |       *     if rate > 0 && int64(fastrand())%rate == 0 {
+                 |       *       saveblockevent(cycles, skip+1, mutexProfile)
+                 |       *     }
+                 |       * 
+                 |       */
+                 |
+           ------------     不采样
+          | mutexevent | ----------....
+           ------------
+                 |
+                 |
+           ------------   
+          | semrelease1 |
+           ------------
+                 |
+                 |
+       ------------------------  
+      |   runtime_Semrelease   |
+       ------------------------
+                 |
+                 |
+           ------------   
+          | unlockSlow |
+           ------------
+                 |
+                 |
+           ------------  
+          |   Unlock   |
+           ------------
+```
+
+## pprof/block
+同上, 主要来分析下 `bbuckets` 
+```shell
+                                                  ---------------
+                                                 |  user access  |
+                                                  ---------------
+                                                         |
+ ------------------                                      |
+|   bbuckets list  |              copy                   |
+|     (global)     | -------------------------------------  
+ ------------------
+       |
+       |
+       | create_or_get && insert_or_update bucket into bbuckets
+       |
+       |
+ --------------------------------------
+|  func stkbucket & typ == blockProfile  |
+ --------------------------------------
+                 |
+         ------------------
+        |  saveblockevent  | // 堆栈等信息记录
+         ------------------
+                 |
+                 |      
+                 |       /*  
+                 |       *   func blocksampled(cycles int64) bool {
+                 |       *     rate := int64(atomic.Load64(&blockprofilerate))
+                 |       *     if rate <= 0 || (rate > cycles && int64(fastrand())%rate > cycles) {
+                 |       *       return false
+                 | 采样   *     }
+                 | 记录   *     return true
+                 |       *   }
+                 |       */
+                 |
+           ------------     不采样
+          | blockevent | ----------....
+           ------------
+                 |----------------------------------------------------------------------------
+                 |                                     |                                      |
+           ------------          -----------------------------------------------        ------------
+          | semrelease1 |       |  chansend / chanrecv &&  mysg.releasetime > 0 |      |  selectgo  |
+           ------------          -----------------------------------------------        ------------
+```
+相比较 `mutex` 的采样, `block` 的埋点会额外存在于 `chan` 中, 每次 `block` 记录的是前后两个 `cpu 周期` 的差值 (cycles)
+需要注意的是 `cputicks` 可能在不同系统上存在一些[问题](https://github.com/golang/go/issues/8976). 暂不放在这边讨论
+
+## pprof/profile
+上面分析的都属于 `runtime` 在运行的过程中自动采用保存数据后用户进行观察的, `profile` 则是用户选择指定周期内的 `CPU Profiling`
+
+#总结
+- `pprof` 的确会给 `runtime` 带来额外的压力, 压力的多少取决于用户使用的各个 `*_rate` 配置, 在获取 `pprof` 信息的时候需要按照实际情况酌情使用各个接口, 每个接口产生的额外压力是不一样的.
+- 不同版本在是否默认开启上有不同策略, 需要自行根据各自的环境进行确认
+- `pprof` 获取到的数据仅能作为参考, 和设置的采样频率有关, 在计算例如 `heap` 情况时会进行相关的近似预估, 非实质上对 `heap` 进行扫描
+
+```shell
+ -------------------------
+|  pprof.StartCPUProfile  |
+ -------------------------
+            |
+            |
+            |
+ -------------------------
+|  sleep(time.Duration)   |
+ -------------------------
+            |
+            |
+            |
+ -------------------------
+|  pprof.StopCPUProfile  |
+ -------------------------
+```
+`pprof.StartCPUProfile` 与 `pprof.StopCPUProfile` 核心为 `runtime.SetCPUProfileRate(hz int)` 控制 `cpu profile` 频率, 但是这边的频率设置和前面几个有差异, 不仅仅是设计 rate 的设置, 还涉及全局对象 `cpuprof` log buffer 的分配
+```go
+var cpuprof cpuProfile
+type cpuProfile struct {
+  lock mutex
+  on   bool     // profiling is on
+  log  *profBuf // profile events written here
+
+  // extra holds extra stacks accumulated in addNonGo
+  // corresponding to profiling signals arriving on
+  // non-Go-created threads. Those stacks are written
+  // to log the next time a normal Go thread gets the
+  // signal handler.
+  // Assuming the stacks are 2 words each (we don't get
+  // a full traceback from those threads), plus one word
+  // size for framing, 100 Hz profiling would generate
+  // 300 words per second.
+  // Hopefully a normal Go thread will get the profiling
+  // signal at least once every few seconds.
+  extra      [1000]uintptr
+  numExtra   int
+  lostExtra  uint64 // count of frames lost because extra is full
+  lostAtomic uint64 // count of frames lost because of being in atomic64 on mips/arm; updated racily
+}
+```
+`log buffer` 的大小每次分配是固定的, 无法进行调节
+
+### cpuprof.add
+将 `stack trace` 信息写入 `cpuprof` 的 `log buffer`
+```go
+// add adds the stack trace to the profile.
+// It is called from signal handlers and other limited environments
+// and cannot allocate memory or acquire locks that might be
+// held at the time of the signal, nor can it use substantial amounts
+// of stack.
+//go:nowritebarrierrec
+func (p *cpuProfile) add(gp *g, stk []uintptr) {
+  // Simple cas-lock to coordinate with setcpuprofilerate.
+  for !atomic.Cas(&prof.signalLock, 0, 1) {
+    osyield()
+  }
+
+  if prof.hz != 0 { // implies cpuprof.log != nil
+    if p.numExtra > 0 || p.lostExtra > 0 || p.lostAtomic > 0 {
+      p.addExtra()
+    }
+    hdr := [1]uint64{1}
+    // Note: write "knows" that the argument is &gp.labels,
+    // because otherwise its write barrier behavior may not
+    // be correct. See the long comment there before
+    // changing the argument here.
+    cpuprof.log.write(&gp.labels, nanotime(), hdr[:], stk)
+  }
+
+  atomic.Store(&prof.signalLock, 0)
+}
+```
+
+来看下调用 `cpuprof.add` 的流程
+```shell
+ ------------------------
+|   cpu profile start    |
+ ------------------------
+            |
+            |
+            | start timer (setitimer syscall / ITIMER_PROF)
+            | 每个一段时间(rate)在向当前 P 所在线程发送一个 SIGPROF 信号量   --
+            |                                                           |
+            |                                                           |
+ ------------------------                   loop                        |
+|       sighandler       |----------------------------------------------
+ ------------------------                                            |
+            |                                                        |
+            | /*                                                     |
+            |  *  if sig == _SIGPROF {                               |
+            |  *    sigprof(c.sigpc(), c.sigsp(), c.siglr(), gp, _g_.m)
+            |  *    return                                           |
+            |  */ }                                                  |
+            |                                                        |
+  ----------------------------                                       | stop
+ |   sigprof(stack strace)    |                                      |
+  ----------------------------                                       |
+            |                                                        |
+            |                                                        |
+            |                                                        |
+  ----------------------                                             |
+ |     cpuprof.add      |                                            |
+  ----------------------                                   ----------------------
+           |                                              |   cpu profile stop   |
+           |                                               ----------------------                  
+           |            
+  ----------------------
+ |  cpuprof.log buffer  |                                         
+  ----------------------
+           |                                        ---------------------                  ---------------
+           ----------------------------------------|   cpuprof.read      |----------------|  user access  |
+                                                    ---------------------                  ---------------
+```
+由于 `GMP` 的模型设计, 在绝大多数情况下通过这种 `timer` + `sig` + `current thread` 以及当前支持的抢占式调度, 这种记录方式是能够很好进行整个 `runtime cpu profile` 采样分析的, 但也不能排除一些极端情况是无法被覆盖的, 毕竟也只是基于当前 M 而已.
+
+# 总结
+#### 可用性: 
+runtime 自带的 pprof 已经在数据采集的准确性, 覆盖率, 压力等各方面替我们做好了一个比较均衡及全面的考虑
+
+在绝大多数场景下使用起来需要考虑的性能点无非就是几个 rate 的设置
+
+不同版本的默认开启是有差别的, 几个参数默认值可自行确认, 有时候你觉得没有开启 pprof 但是实际上已经开启了
+
+当选择的参数合适的时候, pprof 远远没有想象中那般“重”
+#### 局限性: 
+得到的数据只是采样(根据 rate 决定) 或预估值
+
+无法 cover 所有场景, 对于一些特殊的或者极端的情况, 需要各自进行优化来选择合适的手段完善
+#### 安全性: 
+生产环境可用 pprof, 注意接口不能直接暴露, 毕竟存在诸如 STW 等操作, 存在潜在风险点
+
+#开源项目 pprof 参考
+[nsq](https://github.com/nsqio/nsq/blob/v1.2.0/nsqd/http.go#L78-L88)
+[etcd](https://github.com/etcd-io/etcd/blob/release-3.4/pkg/debugutil/pprof.go#L23) 采用的是[配置式](https://github.com/etcd-io/etcd/blob/release-3.4/etcd.conf.yml.sample#L76)选择是否开启
 # 参考资料
 https://go-review.googlesource.com/c/go/+/299671
