@@ -394,6 +394,8 @@ const (
 )
 // io.Copy 该场景下内部调用 splice syscall, 感兴趣的自行查看源码
 func gosplice(src, dst net.Conn) {
+	defer src.Close()
+	defer dst.Close()
 	go func() {
 		io.Copy(src, dst)
 	}()
@@ -401,6 +403,8 @@ func gosplice(src, dst net.Conn) {
 }
 
 func normal(src, dst net.Conn) {
+	defer src.Close()
+	defer dst.Close()
 	var bts []byte = p.Get().([]byte)
 	var bts2 []byte = p.Get().([]byte)
 	defer p.Put(bts)
@@ -475,7 +479,6 @@ func TestMain(m *testing.M) {
 			if err != nil {
 				continue
 			}
-			defer n.Close()
 			remote, err := net.DialTCP("tcp4", &net.TCPAddr{
 				IP: net.ParseIP("0.0.0.0"), Port: 0,
 			}, &net.TCPAddr{
@@ -500,7 +503,6 @@ func TestMain(m *testing.M) {
 			if err != nil {
 				continue
 			}
-			defer n.Close()
 			remote, err := net.DialTCP("tcp4", &net.TCPAddr{
 				IP: net.ParseIP("0.0.0.0"), Port: 0,
 			}, &net.TCPAddr{
@@ -531,6 +533,7 @@ func BenchmarkNormalReadWrite(b *testing.B) {
 		if err == nil && res.StatusCode == 200 {
 			atomic.AddUint32(&success, 1)
 		}
+		c.CloseIdleConnections()
 	}
 	b.Logf("test:%s,total: %d,rate: %.2f%%\n", b.Name(), total, float64(success*100/total))
 }
@@ -552,6 +555,7 @@ func BenchmarkGoSplice(b *testing.B) {
 		if err == nil && res.StatusCode == 200 {
 			atomic.AddUint32(&success, 1)
 		}
+		c.CloseIdleConnections()
 	}
 	b.Logf("test:%s, total: %d, success rate: %.2f%%\n", b.Name(), total, float64(success*100/total))
 }
