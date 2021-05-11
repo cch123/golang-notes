@@ -1,4 +1,4 @@
-> 注: 在抢占式调度的 go 版本下如果需要对 runtime 进行调试，诸如使用 gdb, lldb, [delve](https://github.com/go-delve/delve) 等工具时，需要注意 GODEBUG=asyncpreemptoff=1 环境变量，该变量会导致 runtime 是否进行抢占式调度，由于 https://github.com/golang/go/issues/36494 ，导致部分系统下该变量会被一些（如 delve）工具配置开启，从而导致超出预期的调试情况，需要读者自行关注
+> 注: 在抢占式调度的 go 版本下如果需要对 runtime 进行调试，诸如使用 gdb, lldb, [delve](https://github.com/go-delve/delve) 等工具时，需要注意 GODEBUG=asyncpreemptoff=1 环境变量，该变量会决定 runtime 是否开启抢占式调度，由于 https://github.com/golang/go/issues/36494 ，导致部分系统下该变量会被一些（如 delve）工具配置开启，从而导致超出预期的调试情况，需要读者自行关注
 # 调度
 
 ## 基本数据结构
