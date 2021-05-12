@@ -752,6 +752,8 @@ runtime.gcenable --> main.init
 main.init --> main.main
 ```
 
+**主线程也是需要和 p 绑定来运行的**，绑定过程在 procresize 中。
+
 ### sysmon 线程
 
 sysmon 是在 `runtime.main` 中启动的，不过需要注意的是 sysmon 并不是在 m0 上执行的。因为:
