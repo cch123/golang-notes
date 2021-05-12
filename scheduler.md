@@ -752,7 +752,7 @@ runtime.gcenable --> main.init
 main.init --> main.main
 ```
 
-**主线程也是需要和 p 绑定来运行的**，绑定过程在 procresize 中。
+**主线程也是需要和 p 绑定来运行的**，绑定过程在 procresize -> acquirep 中。
 
 ### sysmon 线程
 
