@@ -608,7 +608,7 @@ func newproc1(fn *funcval, argp *uint8, narg int32, callerpc uintptr) {
 ```go
 newg.sched.pc = funcPC(goexit) + sys.PCQuantum // +PCQuantum so that previous instruction is in same function
 ```
-首先将 `goexit` 压栈, 以确保每个 `g` 最后能进行退出操作, 也正是通过这种栈的定义操作, 再加上`gobuf`对上下文(主要是寄存器的值)才使得 `schedule` 流程即使是以函数调用模式进行循环也不需要担心爆栈问题(`setjmp`、`longjmp`)
+首先将 `goexit` 压栈, 以确保每个 `g` 最后能进行退出操作, 也正是通过这种栈的定义操作, 再加上`gobuf`对上下文(主要是寄存器的值)的维护, 才使得 `schedule` 流程即使是以函数调用模式进行循环也不需要担心爆栈问题(`setjmp`、`longjmp`)
 ### gostartcallfn
 
 ```go
