@@ -380,7 +380,78 @@ asyncPreempt 是汇编实现的，分为三个部分:
 └─────────────────────────────────────────────────────────────────────┘     └──────────────────────────────────────────────────────────────────┘
 ```
 
+#### 你所想的上下文切换, 不一定等于你想要的上下文切换
+
+这边需要注意的是, 抢占式调度中, 是`asyncPremmpt`这个操作保存了所有寄存器的值, 而`go`内部的诸如`systemstack`、`mcall`以及包括`runtime.Gosched()`的使用等, 是不会进行所有寄存器值的保留的, 所以在一些面对一些不常见的使用场景的时候需要注意, 避免寄存器发生非预期的篡改
+
+例:
+```go
+// test.go
+package main
+
+import (
+	"fmt"
+	"os"
+	"os/signal"
+	"runtime"
+	"syscall"
+	"time"
+)
+
+//go:noescape
+func setget(v int64) int64
+
+//go:noescape
+func set(v int64)
+
+func gosched() {
+	runtime.Gosched()
+}
+func main() {
+	_ = gosched // avoid warning
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, syscall.SIGURG)
+	go func() {
+		// for debug
+		for {
+			<-c
+			fmt.Println("SIGURG")
+		}
+	}()
+	go func() {
+		for {
+			if v := setget(1); v != 1 {
+				fmt.Println("not equal:", v)
+				os.Exit(1)
+			} else {
+				fmt.Println("equal")
+			}
+		}
+	}()
+	go func() {
+		for {
+			set(2)
+		}
+	}()
+	time.Sleep(time.Hour)
+}
+```
+```assembly
+//test.s
+#include "textflag.h"
+
+TEXT ·setget(SB),NOSPLIT,$0-16
+	MOVL v+0(FP), R13
+	//CALL ·gosched(SB) // runtime.Gosched() 没有进行所有寄存器现场的保留
+	MOVQ R13, ret+8(FP)
+	RET
+TEXT ·set(SB),NOSPLIT,$0-8
+	MOVL v+0(FP), R13
+	RET
+```
+以上这个简短的程序实现的是内部正常调度(非抢占式)下, 调度前后寄存器异常的问题。如果想要在应用内很好控制自身协程调度的, 那么就要小心这类问题。
 ## asyncPreempt2
+接下去进行的就是常规内部上下文切换`mcall`
 
 ```go
 func asyncPreempt2() {
