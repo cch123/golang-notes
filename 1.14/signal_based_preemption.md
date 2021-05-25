@@ -448,6 +448,7 @@ TEXT ·setget(SB),NOSPLIT,$0-16
 TEXT ·set(SB),NOSPLIT,$0-8
 	MOVL v+0(FP), R13
 	RET
+
 ```
 以上这个简短的程序实现的是内部正常调度(非抢占式)下, 调度前后寄存器异常的问题。如果想要在应用内很好控制自身协程调度的, 那么就要小心这类问题。
 ## asyncPreempt2
