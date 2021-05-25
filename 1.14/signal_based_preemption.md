@@ -441,12 +441,12 @@ func main() {
 #include "textflag.h"
 
 TEXT ·setget(SB),NOSPLIT,$0-16
-	MOVL v+0(FP), R13
+	MOVQ v+0(FP), R13
 	//CALL ·gosched(SB) // runtime.Gosched() 没有进行所有寄存器现场的保留
 	MOVQ R13, ret+8(FP)
 	RET
 TEXT ·set(SB),NOSPLIT,$0-8
-	MOVL v+0(FP), R13
+	MOVQ v+0(FP), R13
 	RET
 
 ```
