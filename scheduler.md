@@ -2348,3 +2348,4 @@ gcMarkDone --> forEachP
 
 当然，这里 entersyscall 和 entersyscallblock 比较特殊，虽然这俩函数的实现中有设置抢占标记，但实际上这两段逻辑是不会被走到的。因为 syscall 执行时是在 m 的 g0 栈上，如果在执行时被抢占，那么会直接 throw，而无法恢复。
 
+<img width="330px"  src="https://xargin.com/content/images/2021/05/wechat.png">

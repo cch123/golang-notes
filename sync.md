@@ -1027,3 +1027,5 @@ Q: 既然被选中了唤醒的那个G，说明这个G就是一定要退出lock�
 
 A:
 
+
+<img width="330px"  src="https://xargin.com/content/images/2021/05/wechat.png">

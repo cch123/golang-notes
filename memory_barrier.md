@@ -569,3 +569,5 @@ https://stackoverflow.com/questions/29880015/lock-prefix-vs-mesi-protocol
 https://github.com/torvalds/linux/blob/master/Documentation/memory-barriers.txt
 
 http://www.overbyte.com.au/misc/Lesson3/CacheFun.html
+
+<img width="330px"  src="https://xargin.com/content/images/2021/05/wechat.png">

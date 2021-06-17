@@ -742,3 +742,5 @@ gc时间，stw时间和响应延迟之间是什么关系
 
 宏观来看gc划分为多少个阶段
 
+
+<img width="330px"  src="https://xargin.com/content/images/2021/05/wechat.png">

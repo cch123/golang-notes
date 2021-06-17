@@ -999,11 +999,5 @@ go compile -S:
 参考资料[4]需要特别注意，在该 slide 中给出的 callee stack frame 中把 caller 的 return address 也包含进去了，个人认为不是很合适。
 
 
+<img width="330px"  src="https://xargin.com/content/images/2021/05/wechat.png">
 
-
-<!--stackedit_data:
-eyJoaXN0b3J5IjpbMTIzMjkyMzE1MSwtMjY3MTA3MzkxLDEyMz
-I5MjMxNTEsLTg4Mjc1MTcwNiwtMTc0OTAxODUyMiwtMzQ4MTA0
-NjIzLDIwODQwNjM3MjAsLTE1NTYyODU0NDAsMTI2MTcwMTYyMy
-w3NTI0MDk2NTUsMTg4NDQ5NTE5MF19
--->

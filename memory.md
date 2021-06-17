@@ -1396,3 +1396,6 @@ func (p *notInHeap) add(bytes uintptr) *notInHeap {
 ### 堆外内存用法
 
 嗯，堆外内存只是 runtime 自己玩的东西，用户态是使用不了的，属于 runtime 专用的 directive。
+
+
+<img width="330px"  src="https://xargin.com/content/images/2021/05/wechat.png">
