@@ -236,7 +236,7 @@ func semacquire1(addr *uint32, lifo bool, profile semaProfileFlags) {
 
     // 高成本的情况:
     //    增加 waiter count 的值
-    //    再尝试调用一次 cansemacquire，成本了就直接返回
+    //    再尝试调用一次 cansemacquire，成功了就直接返回
     //    没成功就把自己作为一个 waiter 入队
     //    sleep
     //    (之后 waiter 的 descriptor 被 signaler 用 dequeue 踢出)
