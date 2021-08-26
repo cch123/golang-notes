@@ -265,7 +265,7 @@ func main() {
 
 func doSomeHappyThings(arr []int) {
     arr = append(arr, 1)
-    fmt.println(arr, "after append")
+    fmt.Println(arr, "after append")
 }
 ```
 
