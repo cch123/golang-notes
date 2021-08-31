@@ -566,3 +566,5 @@ func main() {
 # 总结
 
 ctx 的结构显然是根据代码的执行模型来设计的，虽然设计得比较巧妙，但因为将取消和上下文携带功能混合在一起，在一些情况下还是会给我们埋些比较隐蔽的坑。使用时需要多多注意。
+
+<img width="330px"  src="https://xargin.com/content/images/2021/05/wechat.png">

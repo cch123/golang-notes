@@ -265,7 +265,7 @@ func main() {
 
 func doSomeHappyThings(arr []int) {
     arr = append(arr, 1)
-    fmt.println(arr, "after append")
+    fmt.Println(arr, "after append")
 }
 ```
 
@@ -338,3 +338,5 @@ func main() {
     sh.Data = (uintptr)(unsafe.Pointer(&b[1]))
     sh.Len = bh.Len - 1
 ```
+
+<img width="330px"  src="https://xargin.com/content/images/2021/05/wechat.png">

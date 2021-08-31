@@ -543,3 +543,5 @@ go.itab.*os.File,io.Writer SRODATA dupok size=32
 
 // 下面就是正常流程了
 ```
+
+<img width="330px"  src="https://xargin.com/content/images/2021/05/wechat.png">

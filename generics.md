@@ -40,3 +40,5 @@ cat source.go | genny gen "Something=string"
 
 没有官方的泛型支持，社区怎么搞都是邪道。2021 年 1 月，官方的方案已经基本上成型，并释出了 [draft design](https://go.googlesource.com/proposal/+/refs/heads/master/design/go2draft-type-parameters.md)。
 
+
+<img width="330px"  src="https://xargin.com/content/images/2021/05/wechat.png">
