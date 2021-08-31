@@ -722,3 +722,5 @@ func Splice(dst, src *FD, remain int64) (written int64, handled bool, sc string,
 
 - https://go-review.googlesource.com/c/go/+/271537/
 - https://zhuanlan.zhihu.com/p/308054212
+
+<img width="330px"  src="https://xargin.com/content/images/2021/05/wechat.png">

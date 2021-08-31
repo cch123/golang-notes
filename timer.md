@@ -779,3 +779,5 @@ func (t *Timer) Reset(d Duration) bool {
 ## 最后
 
 本篇内容主要是讲 Go 的定时器实现，工业界的定时器实现并不只有一种。如果你还想知道其它系统，比如 nginx 里是怎么实现定时器的，可以参考[这一篇](https://www.jianshu.com/p/427dfe8ad3c0)。
+
+<img width="330px"  src="https://xargin.com/content/images/2021/05/wechat.png">

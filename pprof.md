@@ -771,5 +771,8 @@ runtime 自带的 pprof 已经在数据采集的准确性, 覆盖率, 压力等�
 #开源项目 pprof 参考
 [nsq](https://github.com/nsqio/nsq/blob/v1.2.0/nsqd/http.go#L78-L88)
 [etcd](https://github.com/etcd-io/etcd/blob/release-3.4/pkg/debugutil/pprof.go#L23) 采用的是[配置式](https://github.com/etcd-io/etcd/blob/release-3.4/etcd.conf.yml.sample#L76)选择是否开启
+
 # 参考资料
 https://go-review.googlesource.com/c/go/+/299671
+
+<img width="330px"  src="https://xargin.com/content/images/2021/05/wechat.png">
