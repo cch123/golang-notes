@@ -332,7 +332,7 @@ QUERY = [SELECT TOKEN] KEY [FROM TOKEN] TABLE;
 KEY = [* TOKEN] | TOKEN | TOKEN ,
 TABLE = TOKEN
 ```
-> 这个案例中 `KEY` 定义为三种形式, 对应的 `SQL` 分别为 `SELECT * FROM TABLE;` `SELECT ID FROM TABLE;` `SELECT ID, COLUMN1, COLUMN2 FROPM TABLE;` 用竖线（|）来表示推到的多种可能
+> 这个案例中 `KEY` 定义为三种形式, 对应的 `SQL` 分别为 `SELECT * FROM TABLE;` `SELECT ID FROM TABLE;` `SELECT ID, COLUMN1, COLUMN2 FROPM TABLE;` 用竖线 | 来表示推到的多种可能
 
 可以清晰地看到, 最开始看似杂乱无序的一条语句最终就可以通过分治的思想化解为一个个小问题, 以此类推最终对应到我们制定的 `TOKEN` 规则, 如果`TOKEN STREAM`最终匹配不上我们所制定的所有规则, 那么则解析失败
 
