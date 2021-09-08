@@ -1011,10 +1011,9 @@ PASS
 ok      json1/sql       0.006s
 ```
 
-对`goyacc`感兴趣的同学可以自行查找, 下面再推荐一个项目, 对入门学习会有比较好的指导
 ## 类型检查
 ## 中间代码生成
 ## 机器码生成
 ## 参考资料
-https://pandolia.net/tinyc/index.html
-https://github.com/sougou/parser_tutorial
+[flex & bison](https://pandolia.net/tinyc/index.html)
+[goyacc 入门案例](https://github.com/sougou/parser_tutorial)
