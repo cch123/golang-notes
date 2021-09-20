@@ -609,7 +609,7 @@ func main() {
 	ast.Print(fset, f)
 }
 ```
-output:
+#### AST_output:
 ```shell
      0  *ast.File {
      1  .  Package: 2:2
@@ -1012,6 +1012,232 @@ ok      json1/sql       0.006s
 ```
 
 ## 类型检查
+在进行类型检查这一步的时候, 整个文件可以粗略分为`变量声明及作用域`以及`表达式`两块内容, 在检查 AST 的过程中遇到一些定义的变量会在当前作用域中查找是否有对应的声明, 如果没找到则顺着作用域向上去父级作用域寻找
+
+### 声明及作用域
+作用域可大致分为几类
+1. 全局
+2. 对应函数体内
+3. 块级表达式内    {...}      单独一堆花括号包裹范围内
+```go
+// 作用域结构体定义
+type Scope struct {
+	parent   *Scope           
+	children []*Scope
+	elems    map[string]Object // lazily allocated
+	pos, end token.Pos         // scope extent; may be invalid
+	comment  string            // for debugging only
+	isFunc   bool              // set if this is a function scope (internal use only)
+}
+func (s *Scope) LookupParent(name string, pos token.Pos) (*Scope, Object) {
+	for ; s != nil; s = s.parent {
+		if obj := s.elems[name]; obj != nil && (!pos.IsValid() || obj.scopePos() <= pos) {
+			return s, obj
+		}
+	}
+	return nil, nil
+}
+```
+回顾下 `AST file` 的数据结构
+```go
+type File struct {
+	Doc        *CommentGroup   // associated documentation; or nil
+	Package    token.Pos       // position of "package" keyword
+	Name       *Ident          // package name
+	Decls      []Decl          // top-level declarations; or nil
+	Scope      *Scope          // package scope (this file only)
+	Imports    []*ImportSpec   // imports in this file
+	Unresolved []*Ident        // unresolved identifiers in this file
+	Comments   []*CommentGroup // list of all comments in the source file
+}
+```
+再结合之前输出的 [`AST`](#ast_output), 我们可以看到在生成的过程中, 大部分的 `identifiers token` 是能够确认对应类型的, 例如函数声明之类的, 那么对应函数名的 `token` 就可以被成功解析为对应类型的语法树中的一个节点
+
+但是依旧存在一些在`AST`初步生成阶段无法被成功解析的, 那么会被存放在`Unresolved`字段中, 就比如上面输出的`int`, 那么这时候就通过向上从父级中依次查找, 如果最终能够找到对应定义, 那么检查成功, 否则则抛出未定义异常
+例:
+```go
+package main
+
+import (
+	"go/ast"
+	"go/parser"
+	"go/token"
+	"go/types"
+	"log"
+)
+
+func main() {
+	src := `
+	
+	package main
+
+	func main() {
+		var num1, num2 int
+		num1 += num2
+		_ = num1
+		testval++
+		return
+	}
+	`
+
+	// Initialize the parser.
+	fset := token.NewFileSet() // positions are relative to fset
+	f, err := parser.ParseFile(fset, "", src, parser.AllErrors|parser.ParseComments)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	pkg, err := new(types.Config).Check("test.go", fset, []*ast.File{f}, nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	_ = pkg
+}
+
+```
+output:
+```shell
+2021/09/20 15:19:01 9:3: undeclared name: testval
+```
+### 表达式检查
+截取之前生成的`AST`中的一小段
+`num1 += num2`
+```shell
+65  .  .  .  .  .  1: *ast.AssignStmt {
+66  .  .  .  .  .  .  Lhs: []ast.Expr (len = 1) {
+67  .  .  .  .  .  .  .  0: *ast.Ident {
+68  .  .  .  .  .  .  .  .  NamePos: 6:3
+69  .  .  .  .  .  .  .  .  Name: "num1"
+70  .  .  .  .  .  .  .  .  Obj: *(obj @ 38)
+71  .  .  .  .  .  .  .  }
+72  .  .  .  .  .  .  }
+73  .  .  .  .  .  .  TokPos: 6:8
+74  .  .  .  .  .  .  Tok: +=
+75  .  .  .  .  .  .  Rhs: []ast.Expr (len = 1) {
+76  .  .  .  .  .  .  .  0: *ast.Ident {
+77  .  .  .  .  .  .  .  .  NamePos: 6:11
+78  .  .  .  .  .  .  .  .  Name: "num2"
+79  .  .  .  .  .  .  .  .  Obj: *(obj @ 48)
+80  .  .  .  .  .  .  .  }
+81  .  .  .  .  .  .  }
+82  .  .  .  .  .  }
+```
+先看下这个简单的赋值表达式生成的树形结构
+```mermaid
+graph TB
+
+A((op: +=))
+B((exprL: num1))
+C((exprR: num2))
+A-->B
+A-->C
+```
+对于当前这部分表达式检查, 需要进行的步骤为
+1. 确认当前操作符(+=)
+2. 左子树表达式递归, 并确认表达式最终类型
+3. 右子树表达式递归, 并确认表达式最终类型
+4. 左右 expr 类型校验, 如符合当前操作符规则, 成功, 反之失败
+
+```go
+// The binary expression e may be nil. It's passed in for better error messages only.
+func (check *Checker) binary(x *operand, e *ast.BinaryExpr, lhs, rhs ast.Expr, op token.Token) {
+	var y operand
+
+	check.expr(x, lhs)  // 左子树表达式递归
+	check.expr(&y, rhs) // 右子树表达式递归
+    /* 先判断下特殊的操作类型 */
+	if x.mode == invalid {
+		return
+	}
+	if y.mode == invalid {
+		x.mode = invalid
+		x.expr = y.expr
+		return
+	}
+
+	if isShift(op) {
+		check.shift(x, &y, e, op)
+		return
+	}
+
+	check.convertUntyped(x, y.typ)
+	if x.mode == invalid {
+		return
+	}
+	check.convertUntyped(&y, x.typ)
+	if y.mode == invalid {
+		x.mode = invalid
+		return
+	}
+
+	if isComparison(op) {
+		check.comparison(x, &y, op)
+		return
+	}
+     /* 默认要求 x y 类型一致 */
+	if !check.identical(x.typ, y.typ) { // 类型校验
+		// only report an error if we have valid types
+		// (otherwise we had an error reported elsewhere already)
+		if x.typ != Typ[Invalid] && y.typ != Typ[Invalid] {
+			check.invalidOp(x.pos(), "mismatched types %s and %s", x.typ, y.typ)
+		}
+		x.mode = invalid
+		return
+	}
+
+	if !check.op(binaryOpPredicates, x, op) {
+		x.mode = invalid
+		return
+	}
+
+	if op == token.QUO || op == token.REM {
+		// check for zero divisor
+		if (x.mode == constant_ || isInteger(x.typ)) && y.mode == constant_ && constant.Sign(y.val) == 0 {
+			check.invalidOp(y.pos(), "division by zero")
+			x.mode = invalid
+			return
+		}
+
+		// check for divisor underflow in complex division (see issue 20227)
+		if x.mode == constant_ && y.mode == constant_ && isComplex(x.typ) {
+			re, im := constant.Real(y.val), constant.Imag(y.val)
+			re2, im2 := constant.BinaryOp(re, token.MUL, re), constant.BinaryOp(im, token.MUL, im)
+			if constant.Sign(re2) == 0 && constant.Sign(im2) == 0 {
+				check.invalidOp(y.pos(), "division by zero")
+				x.mode = invalid
+				return
+			}
+		}
+	}
+
+	if x.mode == constant_ && y.mode == constant_ {
+		xval := x.val
+		yval := y.val
+		typ := x.typ.Underlying().(*Basic)
+		// force integer division of integer operands
+		if op == token.QUO && isInteger(typ) {
+			op = token.QUO_ASSIGN
+		}
+		x.val = constant.BinaryOp(xval, op, yval)
+		// Typed constants must be representable in
+		// their type after each constant operation.
+		if isTyped(typ) {
+			if e != nil {
+				x.expr = e // for better error message
+			}
+			check.representable(x, typ)
+		}
+		return
+	}
+
+	x.mode = value
+	// x.typ is unchanged
+}
+```
+> 这边以 types 标准库的类型检查作为案例, 编译器整体流程大同小异
+
+以上, 通过`TOKEN`声明以及对应作用域的维护及查找, 再结合各操作符下表达式的递归分析过程, 对于一棵语法树的类型检查就可以进行了
+
 ## 中间代码生成
 ## 机器码生成
 ## 参考资料
