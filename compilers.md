@@ -1235,7 +1235,7 @@ func (check *Checker) binary(x *operand, e *ast.BinaryExpr, lhs, rhs ast.Expr, o
 	// x.typ is unchanged
 }
 ```
-> 这边以 types 标准库的类型检查作为案例, 编译器整体流程大同小异
+> 这边以 `go/types` 标准库的类型检查作为案例, 编译器整体流程大同小异
 
 以上, 通过`TOKEN`声明以及对应作用域的维护及查找, 再结合各操作符下表达式的递归分析过程, 对于一棵语法树的类型检查就可以进行了
 
