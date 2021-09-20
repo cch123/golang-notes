@@ -135,7 +135,7 @@ Go 的汇编还引入了 4 个伪寄存器，援引官方文档的描述:
 >- `FP`: Frame pointer: arguments and locals.
 >- `PC`: Program counter: jumps and branches.
 >- `SB`: Static base pointer: global symbols.
->- `SP`: Stack pointer: top of stack.
+>- `SP`: Stack pointer: the highest address within the local stack frame.
 
 官方的描述稍微有一些问题，我们对这些说明进行一点扩充:
 
@@ -152,7 +152,7 @@ Go 的汇编还引入了 4 个伪寄存器，援引官方文档的描述:
 4. 在 go tool objdump/go tool compile -S 输出的代码中，是没有伪 SP 和 FP 寄存器的，我们上面说的区分伪 SP 和硬件 SP 寄存器的方法，对于上述两个命令的输出结果是没法使用的。在编译和反汇编的结果中，只有真实的 SP 寄存器。
 5. FP 和 Go 的官方源代码里的 framepointer 不是一回事，源代码里的 framepointer 指的是 caller BP 寄存器的值，在这里和 caller 的伪 SP 是值是相等的。
 
-以上说明看不懂也没关系，在熟悉了函数的栈结构之后再反复回来查看应该就可以明白了。个人意见，这些是 Go 官方挖的坑。。
+以上说明看不懂也没关系，在熟悉了函数的栈结构之后再反复回来查看应该就可以明白了。
 
 ## 变量声明
 
