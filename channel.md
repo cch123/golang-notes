@@ -305,7 +305,7 @@ func chansend(c *hchan, ep unsafe.Pointer, block bool, callerpc uintptr) bool {
     }
 
     // qcount 是 buffer 中已塞进的元素数量
-    // dataqsize 是 buffer 的总大小
+    // dataqsiz 是 buffer 的总大小
     // 说明还有余量
     if c.qcount < c.dataqsiz {
         // Space is available in the channel buffer. Enqueue the element to send.
