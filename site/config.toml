@@ -1,0 +1,6 @@
+baseURL = "http://go.xargin.com/"
+languageCode = "en-us"
+title = "Go 语言笔记"
+theme = "book"
+googleAnalytics = "G-KLR638LKEQ"
+
