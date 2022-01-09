@@ -76,7 +76,7 @@ func newdefer(siz int32) *_defer {
 ```go
 type _defer struct {
     siz     int32 // 函数的参数总大小
-    started bool  // TODO defer 是否已开始执行?
+    started bool  // defer 是否已开始执行
     sp      uintptr // 存储调用 defer 函数的函数的 sp 寄存器值
     pc      uintptr  // 存储 call deferproc 的下一条汇编指令的指令地址
     fn      *funcval // 描述函数的变长结构体，包括函数地址及参数
