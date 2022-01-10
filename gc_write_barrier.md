@@ -16,3 +16,22 @@
 
 ![](./images/garbage_collection/barrier_code.png)
 
+Go 语言当前使用了混合 barrier 来实现 gc 标记期间的被修改对象动态跟踪，早期只使用了 Dijistra 插入 barrier，但 Dijistra barrier 需要在标记完成之后进行栈重扫，因此在 1.8 时修改为混合 barrier。
+
+Dijistra 插入屏障伪代码如下：
+
+![](http://xargin.com/content/images/2021/12/image-42.png)
+
+堆上指针修改时，新指向的对象要标灰。
+
+但是因为 Go 的栈上对象不加 barrier，所以会存在对象丢失的问题：
+
+![](http://xargin.com/content/images/2021/12/djb.gif)
+
+还有一种非常有名的 barrier，Yuasa 删除屏障，与 Dijistra 屏障相反，它是在堆指针指向的对象发生变化时，将之前指向的对象标灰：
+
+![](http://xargin.com/content/images/2021/12/image-43.png)
+
+和 Dijistra 类似，也存在对象漏标问题：
+
+![](http://xargin.com/content/images/2021/12/yb.gif)
