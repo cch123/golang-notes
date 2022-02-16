@@ -151,37 +151,37 @@ import "testing"
 var x = make([][]int, 100)
 
 func init() {
-for i := 0; i < 100; i++ {
-x[i] = make([]int, 100)
-}
+    for i := 0; i < 100; i++ {
+        x[i] = make([]int, 100)
+    }
 }
 
 func traverseVertical() {
-for i := 0; i < 100; i++ {
-for j := 0; j < 100; j++ {
-x[j][i] = 1
-}
-}
+    for i := 0; i < 100; i++ {
+        for j := 0; j < 100; j++ {
+            x[j][i] = 1
+        }
+    }
 }
 
 func traverseHorizontal() {
-for i := 0; i < 100; i++ {
-for j := 0; j < 100; j++ {
-x[i][j] = 1
-}
-}
+    for i := 0; i < 100; i++ {
+        for j := 0; j < 100; j++ {
+        x[i][j] = 1
+        }
+    }
 }
 
 func BenchmarkHorizontal(b *testing.B) {
-for i := 0; i < b.N; i++ {
-traverseHorizontal()
-}
+    for i := 0; i < b.N; i++ {
+        traverseHorizontal()
+    }
 }
 
 func BenchmarkVertical(b *testing.B) {
-for i := 0; i < b.N; i++ {
-traverseVertical()
-}
+    for i := 0; i < b.N; i++ {
+        traverseVertical()
+    }
 }
 
 ```
@@ -276,6 +276,14 @@ Go 的 pprof 还提供了 --base 的 flag，能够很直观地帮我们发现不
 sync.Pool 用出花儿的就是 fasthttp 了，可以看看我之前写的这一篇：[fasthttp 为什么快](http://xargin.com/why-fasthttp-is-fast-and-the-cost-of-it/)。
 
 最简单的复用就是复用各种 struct，slice，在复用时 put 时，需要 size 是否已经扩容过头，小心因为 sync.Pool 中存了大量的巨型对象导致进程占用了大量内存。
+
+#### 修改 GOGC
+
+当前有 memory ballast 和动态 GOGC 两种方案：
+1. [memory ballast](https://blog.twitch.tv/en/2019/04/10/go-memory-ballast-how-i-learnt-to-stop-worrying-and-love-the-heap/)
+2. [GOGCTuner](https://github.com/cch123/gogctuner)
+
+后者可以根据 gc cycle 动态调整 GOGC，使应用占用的内存水位始终保持在 70%，既不 OOM，又能合理利用内存空间来降低 GC 触发频率。
 
 ### 调度占用过多 CPU
 
