@@ -258,7 +258,7 @@ TEXT ·get(SB), NOSPLIT, $0-8
 //   => 只有函数头，没有实现
 TEXT pkgname·add(SB), NOSPLIT, $0-8
     MOVQ a+0(FP), AX
-    MOVQ a+8(FP), BX
+    MOVQ b+8(FP), BX
     ADDQ AX, BX
     MOVQ BX, ret+16(FP)
     RET
